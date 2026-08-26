@@ -9,10 +9,12 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from legacy_linker import (
+    LINK_CACHE_SCHEMA_VERSION,
     LinkerError,
     build_lineage_summary,
     factor_sort_key,
     grouped_factors,
+    link_cache_freshness,
     link_veterans,
     normalize_json_root,
     resolve_parent_snapshot,
@@ -263,6 +265,7 @@ class LineageSummaryContractTests(unittest.TestCase):
 class LinkVeteransIntegrationTests(unittest.TestCase):
     class FakeResolver:
         last_instance: "LinkVeteransIntegrationTests.FakeResolver | None" = None
+        created_count = 0
 
         cards = {
             100: {
@@ -295,6 +298,7 @@ class LinkVeteransIntegrationTests(unittest.TestCase):
             self.master_path = master_path
             self.closed = False
             type(self).last_instance = self
+            type(self).created_count += 1
 
         def close(self) -> None:
             self.closed = True
@@ -357,10 +361,10 @@ class LinkVeteransIntegrationTests(unittest.TestCase):
         logger: object | None = None,
     ) -> SimpleNamespace:
         paths = {
-            "skills_path": destination / "skills_catalog.json",
-            "condition_types_path": destination / "skill_condition_types.json",
-            "weights_template_path": destination / "manual_skill_weights_template.json",
-            "race_factor_skills_path": destination / "race_factor_skills.json",
+            "skills_path": destination / "skill_condition_catalog.json",
+            "condition_types_path": destination / "condition_type_catalog.json",
+            "weights_template_path": destination / "white_skill_weights_template.json",
+            "race_factor_skills_path": destination / "race_factor_skill_catalog.json",
         }
         for path in paths.values():
             path.write_text("{}\n", encoding="utf-8")
@@ -369,6 +373,7 @@ class LinkVeteransIntegrationTests(unittest.TestCase):
         return SimpleNamespace(**paths)
 
     def test_linking_generates_complete_artifacts_and_diagnostics(self) -> None:
+        self.FakeResolver.created_count = 0
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             master = root / "master.mdb"
@@ -451,6 +456,8 @@ class LinkVeteransIntegrationTests(unittest.TestCase):
             self.assertEqual(result.unresolved_factor_ids, (999,))
             self.assertEqual(result.unresolved_card_ids, (404,))
             self.assertEqual(result.g1_validation_mismatch_count, 1)
+            self.assertFalse(result.reused)
+            self.assertEqual(self.FakeResolver.created_count, 1)
             self.assertTrue(self.FakeResolver.last_instance.closed)
             for path in (
                 result.json_path,
@@ -460,6 +467,7 @@ class LinkVeteransIntegrationTests(unittest.TestCase):
                 result.condition_types_path,
                 result.weights_template_path,
                 result.race_factor_skills_path,
+                result.manifest_path,
             ):
                 self.assertTrue(path.is_file(), path)
 
@@ -505,6 +513,85 @@ class LinkVeteransIntegrationTests(unittest.TestCase):
             self.assertIn("Costume IDs non résolus :\n404", report)
             self.assertTrue(
                 any("vétéran(s) emprunté(s) écarté(s)" in line for line in logs)
+            )
+
+            manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["schema_version"], LINK_CACHE_SCHEMA_VERSION)
+            self.assertEqual(manifest["inputs"]["master"]["sha256"], sha256_file(master))
+            self.assertEqual(manifest["inputs"]["veterans"]["sha256"], sha256_file(source))
+            self.assertEqual(link_cache_freshness(master, source, output).state, "ready")
+
+            with (
+                patch("legacy_linker.MasterResolver", self.FakeResolver),
+                patch("legacy_linker.generate_skill_catalogs", self.fake_catalogs),
+            ):
+                cached = link_veterans(master, source, output, logger=logs.append)
+            self.assertTrue(cached.reused)
+            self.assertEqual(self.FakeResolver.created_count, 1)
+            self.assertTrue(any("réutilisation" in line for line in logs))
+
+            source.write_text(source.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+            self.assertEqual(
+                link_cache_freshness(master, source, output).state,
+                "inputs_changed",
+            )
+            with (
+                patch("legacy_linker.MasterResolver", self.FakeResolver),
+                patch("legacy_linker.generate_skill_catalogs", self.fake_catalogs),
+            ):
+                refreshed = link_veterans(master, source, output)
+            self.assertFalse(refreshed.reused)
+            self.assertEqual(self.FakeResolver.created_count, 2)
+            self.assertEqual(link_cache_freshness(master, source, output).state, "ready")
+
+            refreshed.csv_path.unlink()
+            self.assertEqual(
+                link_cache_freshness(master, source, output).state,
+                "not_generated",
+            )
+
+            with (
+                patch("legacy_linker.MasterResolver", self.FakeResolver),
+                patch("legacy_linker.generate_skill_catalogs", self.fake_catalogs),
+            ):
+                valid_again = link_veterans(master, source, output)
+            self.assertTrue(valid_again.manifest_path.is_file())
+            with patch(
+                "legacy_linker.MasterResolver",
+                side_effect=LinkerError("échec contrôlé"),
+            ):
+                with self.assertRaisesRegex(LinkerError, "échec contrôlé"):
+                    link_veterans(master, source, output, force_relink=True)
+            self.assertFalse(valid_again.manifest_path.exists())
+            self.assertEqual(
+                link_cache_freshness(master, source, output).state,
+                "not_generated",
+            )
+            with (
+                patch("legacy_linker.MasterResolver", self.FakeResolver),
+                patch("legacy_linker.generate_skill_catalogs", self.fake_catalogs),
+            ):
+                repaired = link_veterans(master, source, output)
+                forced = link_veterans(
+                    master,
+                    source,
+                    output,
+                    force_relink=True,
+                )
+            self.assertFalse(repaired.reused)
+            self.assertFalse(forced.reused)
+            self.assertEqual(self.FakeResolver.created_count, 5)
+
+            invalid_manifest = json.loads(
+                forced.manifest_path.read_text(encoding="utf-8")
+            )
+            invalid_manifest["schema_version"] = 0
+            forced.manifest_path.write_text(
+                json.dumps(invalid_manifest), encoding="utf-8"
+            )
+            self.assertEqual(
+                link_cache_freshness(master, source, output).state,
+                "not_generated",
             )
 
     def test_missing_input_files_fail_before_resolver_creation(self) -> None:

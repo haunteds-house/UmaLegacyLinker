@@ -9,7 +9,14 @@ from pathlib import Path
 from typing import Any, Callable
 
 from course_presets import resolve_course_overrides_path
-from legacy_linker import LinkResult, LinkerError, link_veterans, normalize_json_root
+from legacy_linker import (
+    LinkFreshness,
+    LinkResult,
+    LinkerError,
+    link_cache_freshness,
+    link_veterans,
+    normalize_json_root,
+)
 from manual_weights import generate_manual_skill_weights
 from parent_optimizer import OptimizerError, OptimizerResult, load_ace_options, optimize_parents
 from scoring_config import (
@@ -211,6 +218,14 @@ def linked_veterans_path(output_dir: str | Path) -> Path:
     return Path(output_dir).expanduser() / "veterans_legacy_linked.json"
 
 
+def linked_data_freshness(
+    master_path: str | Path,
+    veterans_json_path: str | Path,
+    output_dir: str | Path,
+) -> LinkFreshness:
+    return link_cache_freshness(master_path, veterans_json_path, output_dir)
+
+
 def load_rankings_payload(path: str | Path) -> dict[str, Any]:
     resolved = Path(path).expanduser().resolve()
     try:
@@ -229,6 +244,7 @@ class LinkRequest:
     master_path: Path
     veterans_json_path: Path
     output_dir: Path
+    force_relink: bool = False
 
 
 @dataclass(frozen=True)
@@ -415,6 +431,7 @@ def run_link(
         request.veterans_json_path,
         request.output_dir,
         logger,
+        force_relink=request.force_relink,
     )
     progress(100, "Liaison terminée.")
     return result

@@ -24,6 +24,7 @@ from ui_qt.core import (
     LinkRequest,
     collection_size,
     latest_rankings_path,
+    linked_data_freshness,
     linked_veterans_path,
     open_path,
     run_catalog,
@@ -176,7 +177,19 @@ class HomePage(QWidget):
             if path.is_file()
         ]
         linked = linked_veterans_path(self.context.output_dir)
-        if result_candidates:
+        freshness = linked_data_freshness(
+            self.context.master_path,
+            self.context.veterans_json_path,
+            self.context.output_dir,
+        )
+        if linked.is_file() and freshness.state != "ready":
+            self.results_card.set_content(
+                t("Dernier calcul"),
+                t("Sources modifiées"),
+                t("Relie à nouveau la collection avant une optimisation"),
+                "warning",
+            )
+        elif result_candidates:
             latest = max(result_candidates, key=lambda path: path.stat().st_mtime)
             self.results_card.set_content(
                 t("Dernier calcul"), t("Disponible"), latest.name, "ok"
@@ -259,10 +272,12 @@ class DataPage(QWidget):
         actions = QHBoxLayout()
         self.link_button = QPushButton("")
         self.link_button.setObjectName("primary")
+        self.force_link_button = QPushButton("")
         self.extract_button = QPushButton("")
         self.catalog_button = QPushButton("")
         self.open_button = QPushButton("")
         actions.addWidget(self.link_button)
+        actions.addWidget(self.force_link_button)
         actions.addWidget(self.extract_button)
         actions.addWidget(self.catalog_button)
         actions.addWidget(self.open_button)
@@ -295,7 +310,8 @@ class DataPage(QWidget):
         self.extractor_picker.path_changed.connect(
             lambda value: self.context.update_paths(extractor_path=value)
         )
-        self.link_button.clicked.connect(self.start_link)
+        self.link_button.clicked.connect(lambda: self.start_link())
+        self.force_link_button.clicked.connect(lambda: self.start_link(force=True))
         self.extract_button.clicked.connect(self.start_extract)
         self.catalog_button.clicked.connect(self.start_catalog)
         self.open_button.clicked.connect(self.open_output)
@@ -343,6 +359,7 @@ class DataPage(QWidget):
         for picker in (self.master_picker, self.data_picker, self.extractor_picker, self.output_picker):
             picker.set_button_text(t("Parcourir…"))
         self.link_button.setText(t("Lier la collection"))
+        self.force_link_button.setText(t("Relier quand même"))
         self.extract_button.setText(t("Extraire puis lier"))
         self.catalog_button.setText(t("Générer les catalogues"))
         self.open_button.setText(t("Ouvrir la sortie"))
@@ -357,9 +374,25 @@ class DataPage(QWidget):
         t = self.context.t
         output = Path(self.context.output_dir).expanduser()
         linked = linked_veterans_path(output)
-        if linked.is_file():
+        freshness = linked_data_freshness(
+            self.context.master_path,
+            self.context.veterans_json_path,
+            output,
+        )
+        self.force_link_button.setVisible(linked.is_file())
+        if freshness.state == "ready":
             self.result_card.set_content(
-                t("État de la liaison"), t("Prête"), str(linked), "ok"
+                t("État de la liaison"),
+                t("Prête"),
+                t("Les artefacts liés correspondent aux sources sélectionnées."),
+                "ok",
+            )
+        elif freshness.state == "inputs_changed":
+            self.result_card.set_content(
+                t("État de la liaison"),
+                t("Sources modifiées"),
+                t("Le master.mdb ou l’export de collection a changé depuis la dernière liaison."),
+                "warning",
             )
         else:
             self.result_card.set_content(
@@ -372,10 +405,11 @@ class DataPage(QWidget):
     def set_busy(self, busy: bool) -> None:
         self._busy = busy
         self.link_button.setEnabled(not busy)
+        self.force_link_button.setEnabled(not busy)
         self.extract_button.setEnabled(not busy)
         self.catalog_button.setEnabled(not busy)
 
-    def start_link(self) -> None:
+    def start_link(self, *, force: bool = False) -> None:
         self.context.update_paths(
             master_path=self.master_picker.text(),
             veterans_json_path=self.data_picker.text(),
@@ -385,6 +419,7 @@ class DataPage(QWidget):
             Path(self.context.master_path).expanduser(),
             Path(self.context.veterans_json_path).expanduser(),
             Path(self.context.output_dir).expanduser(),
+            force_relink=force,
         )
         operation = partial(run_link, request)
         self.task_requested.emit(operation, self.context.t("Liaison de la collection…"), self._link_done)
@@ -394,7 +429,7 @@ class DataPage(QWidget):
         veteran_count = getattr(result, "veteran_count", 0)
         self.result_card.set_content(
             self.context.t("État de la liaison"),
-            self.context.t("Terminée"),
+            self.context.t("Prête"),
             self.context.t("{count} vétérans enrichis").replace("{count}", str(veteran_count)),
             "ok",
         )

@@ -43,6 +43,18 @@ FACTOR_TYPE_DESCRIPTIONS = {
 
 POSITION_TO_PARENT = {10: "grandparent_1", 20: "grandparent_2"}
 
+LINK_CACHE_SCHEMA_VERSION = 1
+LINK_MANIFEST_FILENAME = "veterans_legacy_manifest.json"
+LINK_ARTIFACT_FILENAMES = {
+    "json": "veterans_legacy_linked.json",
+    "csv": "veterans_legacy_summary.csv",
+    "report": "veterans_legacy_report.txt",
+    "skills_catalog": "skill_condition_catalog.json",
+    "condition_types": "condition_type_catalog.json",
+    "weights_template": "white_skill_weights_template.json",
+    "race_factor_skills": "race_factor_skill_catalog.json",
+}
+
 
 class LinkerError(RuntimeError):
     pass
@@ -57,10 +69,154 @@ class LinkResult:
     condition_types_path: Path
     weights_template_path: Path
     race_factor_skills_path: Path
+    manifest_path: Path
     veteran_count: int
     unresolved_factor_ids: tuple[int, ...]
     unresolved_card_ids: tuple[int, ...]
     g1_validation_mismatch_count: int
+    reused: bool = False
+
+
+@dataclass(frozen=True)
+class LinkFreshness:
+    state: str
+    reason: str
+
+
+def _link_artifact_paths(destination: Path) -> dict[str, Path]:
+    return {
+        name: destination / filename
+        for name, filename in LINK_ARTIFACT_FILENAMES.items()
+    }
+
+
+def _file_fingerprint(path: Path) -> dict[str, Any]:
+    stat = path.stat()
+    return {
+        "path": str(path),
+        "size_bytes": stat.st_size,
+        "modified_at_ns": stat.st_mtime_ns,
+    }
+
+
+def _read_link_manifest(destination: Path) -> dict[str, Any] | None:
+    try:
+        payload = json.loads(
+            (destination / LINK_MANIFEST_FILENAME).read_text(encoding="utf-8")
+        )
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _validated_link_manifest(
+    destination: Path,
+) -> tuple[dict[str, Any], dict[str, Path]] | None:
+    payload = _read_link_manifest(destination)
+    if payload is None or payload.get("schema_version") != LINK_CACHE_SCHEMA_VERSION:
+        return None
+    if payload.get("artifacts") != LINK_ARTIFACT_FILENAMES:
+        return None
+    inputs = payload.get("inputs")
+    result = payload.get("result")
+    if not isinstance(inputs, dict) or not isinstance(result, dict):
+        return None
+    if not all(isinstance(inputs.get(name), dict) for name in ("master", "veterans")):
+        return None
+    paths = _link_artifact_paths(destination)
+    if not all(path.is_file() for path in paths.values()):
+        return None
+    if not isinstance(result.get("veteran_count"), int):
+        return None
+    if not isinstance(result.get("g1_validation_mismatch_count"), int):
+        return None
+    for key in ("unresolved_factor_ids", "unresolved_card_ids"):
+        values = result.get(key)
+        if not isinstance(values, list) or not all(isinstance(value, int) for value in values):
+            return None
+    return payload, paths
+
+
+def _write_link_manifest(destination: Path, payload: dict[str, Any]) -> Path:
+    manifest_path = destination / LINK_MANIFEST_FILENAME
+    temporary_path = destination / f".{LINK_MANIFEST_FILENAME}.tmp"
+    temporary_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    temporary_path.replace(manifest_path)
+    return manifest_path
+
+
+def link_cache_freshness(
+    master_path: str | Path,
+    veterans_json_path: str | Path,
+    output_dir: str | Path,
+) -> LinkFreshness:
+    """Return a cheap UI freshness state without hashing large inputs."""
+    master = Path(master_path).expanduser().resolve()
+    veterans = Path(veterans_json_path).expanduser().resolve()
+    destination = Path(output_dir).expanduser().resolve()
+    validated = _validated_link_manifest(destination)
+    if validated is None:
+        return LinkFreshness("not_generated", "cache_unavailable")
+
+    payload, _paths = validated
+    try:
+        current_inputs = {
+            "master": _file_fingerprint(master),
+            "veterans": _file_fingerprint(veterans),
+        }
+    except OSError:
+        return LinkFreshness("inputs_changed", "input_missing")
+
+    recorded_inputs = payload["inputs"]
+    for name, current in current_inputs.items():
+        recorded = recorded_inputs[name]
+        if any(recorded.get(key) != current[key] for key in current):
+            return LinkFreshness("inputs_changed", f"{name}_changed")
+    return LinkFreshness("ready", "cache_complete")
+
+
+def _cached_link_result(
+    destination: Path,
+    master: Path,
+    veterans: Path,
+    master_hash: str,
+    veterans_hash: str,
+) -> tuple[LinkResult, dict[str, Any]] | None:
+    validated = _validated_link_manifest(destination)
+    if validated is None:
+        return None
+    payload, paths = validated
+    inputs = payload["inputs"]
+    if inputs["master"].get("sha256") != master_hash:
+        return None
+    if inputs["veterans"].get("sha256") != veterans_hash:
+        return None
+
+    result = payload["result"]
+    cached = LinkResult(
+        json_path=paths["json"],
+        csv_path=paths["csv"],
+        report_path=paths["report"],
+        skills_catalog_path=paths["skills_catalog"],
+        condition_types_path=paths["condition_types"],
+        weights_template_path=paths["weights_template"],
+        race_factor_skills_path=paths["race_factor_skills"],
+        manifest_path=destination / LINK_MANIFEST_FILENAME,
+        veteran_count=result["veteran_count"],
+        unresolved_factor_ids=tuple(result["unresolved_factor_ids"]),
+        unresolved_card_ids=tuple(result["unresolved_card_ids"]),
+        g1_validation_mismatch_count=result["g1_validation_mismatch_count"],
+        reused=True,
+    )
+    refreshed_payload = dict(payload)
+    refreshed_payload["inputs"] = {
+        "master": {**_file_fingerprint(master), "sha256": master_hash},
+        "veterans": {**_file_fingerprint(veterans), "sha256": veterans_hash},
+    }
+    return cached, refreshed_payload
 
 
 def sha256_file(path: Path) -> str:
@@ -616,6 +772,8 @@ def link_veterans(
     veterans_json_path: str | Path,
     output_dir: str | Path,
     logger: Any | None = None,
+    *,
+    force_relink: bool = False,
 ) -> LinkResult:
     log = logger or (lambda _message: None)
     master = Path(master_path).expanduser().resolve()
@@ -627,6 +785,35 @@ def link_veterans(
     if not json_input.is_file():
         raise LinkerError(f"JSON vétérans introuvable : {json_input}")
     destination.mkdir(parents=True, exist_ok=True)
+
+    master_hash = sha256_file(master)
+    veterans_hash = sha256_file(json_input)
+    if not force_relink:
+        cached = _cached_link_result(
+            destination,
+            master,
+            json_input,
+            master_hash,
+            veterans_hash,
+        )
+        if cached is not None:
+            result, refreshed_manifest = cached
+            try:
+                _write_link_manifest(destination, refreshed_manifest)
+            except OSError:
+                pass
+            log("Liaison déjà à jour : réutilisation des artefacts existants.")
+            return result
+    else:
+        log("Reliaison complète demandée : le cache est ignoré.")
+
+    manifest_path = destination / LINK_MANIFEST_FILENAME
+    try:
+        manifest_path.unlink(missing_ok=True)
+    except OSError as exc:
+        raise LinkerError(
+            f"Impossible d’invalider le cache de liaison : {manifest_path}"
+        ) from exc
 
     log("Lecture du JSON vétérans…")
     with json_input.open("r", encoding="utf-8-sig") as stream:
@@ -762,7 +949,7 @@ def link_veterans(
             "modified_at_utc": datetime.fromtimestamp(
                 master.stat().st_mtime, timezone.utc
             ).isoformat(),
-            "sha256": sha256_file(master),
+            "sha256": master_hash,
         },
         "source_veterans_json": {
             "filename": json_input.name,
@@ -770,7 +957,7 @@ def link_veterans(
             "modified_at_utc": datetime.fromtimestamp(
                 json_input.stat().st_mtime, timezone.utc
             ).isoformat(),
-            "sha256": sha256_file(json_input),
+            "sha256": veterans_hash,
         },
         "veteran_count": len(linked_veterans),
         "factor_type_labels": FACTOR_TYPE_DESCRIPTIONS,
@@ -798,9 +985,10 @@ def link_veterans(
     }
 
     output_payload = {"metadata": metadata, "veterans": linked_veterans}
-    json_path = destination / "veterans_legacy_linked.json"
-    csv_path = destination / "veterans_legacy_summary.csv"
-    report_path = destination / "veterans_legacy_report.txt"
+    artifact_paths = _link_artifact_paths(destination)
+    json_path = artifact_paths["json"]
+    csv_path = artifact_paths["csv"]
+    report_path = artifact_paths["report"]
 
     log("Écriture du JSON enrichi…")
     with json_path.open("w", encoding="utf-8", newline="\n") as stream:
@@ -908,6 +1096,23 @@ def link_veterans(
             report_lines.append(json.dumps(mismatch, ensure_ascii=False))
     report_path.write_text("\n".join(report_lines) + "\n", encoding="utf-8")
 
+    manifest_payload = {
+        "schema_version": LINK_CACHE_SCHEMA_VERSION,
+        "generated_at_utc": generated_at,
+        "inputs": {
+            "master": {**_file_fingerprint(master), "sha256": master_hash},
+            "veterans": {**_file_fingerprint(json_input), "sha256": veterans_hash},
+        },
+        "artifacts": dict(LINK_ARTIFACT_FILENAMES),
+        "result": {
+            "veteran_count": len(linked_veterans),
+            "unresolved_factor_ids": sorted(unresolved_factors),
+            "unresolved_card_ids": sorted(unresolved_cards),
+            "g1_validation_mismatch_count": len(validation_mismatches),
+        },
+    }
+    manifest_path = _write_link_manifest(destination, manifest_payload)
+
     log(f"Terminé : {json_path}")
     return LinkResult(
         json_path=json_path,
@@ -917,6 +1122,7 @@ def link_veterans(
         condition_types_path=catalogs.condition_types_path,
         weights_template_path=catalogs.weights_template_path,
         race_factor_skills_path=catalogs.race_factor_skills_path,
+        manifest_path=manifest_path,
         veteran_count=len(linked_veterans),
         unresolved_factor_ids=tuple(sorted(unresolved_factors)),
         unresolved_card_ids=tuple(sorted(unresolved_cards)),

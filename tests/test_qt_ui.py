@@ -13,6 +13,7 @@ from i18n import scoring_label, translate_text
 from parent_optimizer import OptimizerError
 from scoring_config import iter_leaf_paths, read_json_object
 from ui_qt.core import (
+    LinkRequest,
     OnlineSearchRequest,
     OptimizationRequest,
     SettingsStore,
@@ -22,6 +23,7 @@ from ui_qt.core import (
     load_rankings_payload,
     materialize_skill_priorities,
     run_online_search,
+    run_link,
     run_optimization,
     run_transfer_analysis,
 )
@@ -59,6 +61,40 @@ PROJECT_DIR = Path(__file__).resolve().parents[1]
 
 
 class QtUiCoreTests(unittest.TestCase):
+    def test_link_request_forwards_explicit_force_relink(self) -> None:
+        request = LinkRequest(
+            Path("master.mdb"),
+            Path("veterans.json"),
+            Path("output"),
+            force_relink=True,
+        )
+        logger = Mock()
+        progress = Mock()
+        sentinel = object()
+        with (
+            patch("ui_qt.core.validate_link_request"),
+            patch("ui_qt.core.link_veterans", return_value=sentinel) as linker,
+        ):
+            result = run_link(request, logger=logger, progress=progress)
+
+        self.assertIs(result, sentinel)
+        linker.assert_called_once_with(
+            request.master_path,
+            request.veterans_json_path,
+            request.output_dir,
+            logger,
+            force_relink=True,
+        )
+
+    def test_data_page_exposes_force_relink_and_freshness_states(self) -> None:
+        source = (PROJECT_DIR / "ui_qt" / "pages_home_data.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("force_link_button", source)
+        self.assertIn('self.start_link(force=True)', source)
+        self.assertIn('freshness.state == "ready"', source)
+        self.assertIn('freshness.state == "inputs_changed"', source)
+
     def test_transfer_page_exposes_analysis_scope_controls(self) -> None:
         source = (PROJECT_DIR / "ui_qt" / "pages_transfer.py").read_text(
             encoding="utf-8"
