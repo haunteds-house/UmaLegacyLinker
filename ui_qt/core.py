@@ -48,6 +48,7 @@ APP_VERSION = "1.8.0"
 
 LogCallback = Callable[[str], None]
 ProgressCallback = Callable[[int, str], None]
+CheckpointCallback = Callable[[], None]
 
 
 def app_base_dir() -> Path:
@@ -424,6 +425,7 @@ def run_optimization(
     *,
     logger: LogCallback,
     progress: ProgressCallback,
+    checkpoint: CheckpointCallback | None = None,
 ) -> OptimizerResult:
     validate_link_request(
         LinkRequest(request.master_path, request.veterans_json_path, request.output_dir)
@@ -490,6 +492,7 @@ def run_optimization(
         top_n=request.top_n,
         search_kind=request.search_kind,
         logger=logger,
+        checkpoint=checkpoint,
     )
     progress(100, "Optimisation terminée.")
     return result
@@ -677,6 +680,7 @@ def run_online_search(
     *,
     logger: LogCallback,
     progress: ProgressCallback,
+    checkpoint: CheckpointCallback | None = None,
 ) -> OnlineSearchResult | OnlineParentSearchResult:
     """Run the same online/local ranking pipeline used by the legacy UI."""
     chara_by_card = _validated_online_request(request)
@@ -949,6 +953,7 @@ def run_online_search(
             required_parent_card_id=request.required_parent_card_id,
             allowed_parent_card_ids=list(request.allowed_parent_card_ids),
             excluded_parent_card_ids=list(request.excluded_parent_card_ids),
+            checkpoint=checkpoint,
             **common,
         )
     else:

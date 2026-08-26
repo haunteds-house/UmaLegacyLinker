@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import copy
-from typing import Any
+from typing import Any, Callable
 
 
 RACE_PERMISSION_YEARS: dict[int, tuple[int, ...]] = {
@@ -463,6 +463,7 @@ def optimize_race_schedule(
     races: list[dict[str, Any]],
     *,
     max_affinity_races: int | None = None,
+    checkpoint: Callable[[], None] | None = None,
 ) -> dict[str, Any]:
     """Build an optimal, executable three-year G1 schedule.
 
@@ -471,6 +472,8 @@ def optimize_race_schedule(
     minimise the number of races when the affinity and spacing are identical.
     """
 
+    check = checkpoint or (lambda: None)
+    check()
     slot_keys = {
         index: _valid_slot_keys(race)
         for index, race in enumerate(races)
@@ -500,12 +503,15 @@ def optimize_race_schedule(
         tuple[int, int, int, int, int, tuple[tuple[tuple[int, int], ...], ...]],
     ] = {(0, 0, 0, 0): (0, 0, 0, 0, 0, ())}
     for phase in range(24):
+        check()
         options = _phase_options(phases[phase], races, slot_keys)
         next_states: dict[
             tuple[int, int, int, int],
             tuple[int, int, int, int, int, tuple[tuple[tuple[int, int], ...], ...]],
         ] = {}
-        for state, current in states.items():
+        for state_index, (state, current) in enumerate(states.items(), 1):
+            if state_index % 128 == 0:
+                check()
             runs = state[:3]
             affinity_race_count = state[3]
             for option in options:
@@ -713,6 +719,7 @@ def _schedule_variant(
     *,
     include_objectives: bool,
     max_affinity_races: int | None = None,
+    checkpoint: Callable[[], None] | None = None,
 ) -> dict[str, Any]:
     races = copy.deepcopy(affinity_races)
     objectives = copy.deepcopy(objective_races) if include_objectives else []
@@ -772,6 +779,7 @@ def _schedule_variant(
     schedule = optimize_race_schedule(
         races,
         max_affinity_races=max_affinity_races,
+        checkpoint=checkpoint,
     )
     return {
         "mode": "standard" if include_objectives else "trackblazer",
@@ -797,6 +805,8 @@ def build_pair_g1_diagnostic(
     training_aptitudes: dict[str, Any] | None = None,
     win_probability_cutoff: float | None = None,
     max_affinity_races: int | None = None,
+    include_schedule: bool = True,
+    checkpoint: Callable[[], None] | None = None,
 ) -> dict[str, Any]:
     """Describe the optimal G1 plan for a trainee built from two legacies.
 
@@ -876,19 +886,25 @@ def build_pair_g1_diagnostic(
         for race in (objective_races or [])
         if isinstance(race, dict)
     ]
-    standard_schedule = _schedule_variant(
-        races,
-        resolved_objectives,
-        include_objectives=True,
-        max_affinity_races=max_affinity_races,
-    )
-    trackblazer_schedule = _schedule_variant(
-        races,
-        resolved_objectives,
-        include_objectives=False,
-        max_affinity_races=max_affinity_races,
-    )
-    scheduled_count = int(standard_schedule["optimal_affinity_race_count"])
+    standard_schedule: dict[str, Any] = {}
+    trackblazer_schedule: dict[str, Any] = {}
+    scheduled_count: int | None = None
+    if include_schedule:
+        standard_schedule = _schedule_variant(
+            races,
+            resolved_objectives,
+            include_objectives=True,
+            max_affinity_races=max_affinity_races,
+            checkpoint=checkpoint,
+        )
+        trackblazer_schedule = _schedule_variant(
+            races,
+            resolved_objectives,
+            include_objectives=False,
+            max_affinity_races=max_affinity_races,
+            checkpoint=checkpoint,
+        )
+        scheduled_count = int(standard_schedule["optimal_affinity_race_count"])
     target_identity = {
         key: target.get(key)
         for key in ("card_id", "chara_id", "uma_name", "card_name")
@@ -920,13 +936,20 @@ def build_pair_g1_diagnostic(
         "affinity_races": copy.deepcopy(races),
         "objective_races": resolved_objectives,
         "objective_race_count": len(resolved_objectives),
-        "schedule_variants": {
-            "standard": standard_schedule,
-            "trackblazer": trackblazer_schedule,
-        },
+        "schedule_computed": include_schedule,
+        "schedule_variants": (
+            {
+                "standard": standard_schedule,
+                "trackblazer": trackblazer_schedule,
+            }
+            if include_schedule
+            else {}
+        ),
         "race_count": len(races),
         "scheduled_race_count": scheduled_count,
-        "unscheduled_race_count": len(races) - scheduled_count,
+        "unscheduled_race_count": (
+            len(races) - scheduled_count if scheduled_count is not None else None
+        ),
         "exact_bonus_if_all_won": exact_bonus,
         **standard_schedule,
         "formula": (
@@ -942,6 +965,20 @@ def schedule_export_summary(plan: dict[str, Any] | None) -> dict[str, Any]:
     """Return stable scalar metrics for CSV and compact diagnostic exports."""
 
     resolved = plan if isinstance(plan, dict) else {}
+    if resolved.get("schedule_computed") is False:
+        summary: dict[str, Any] = {
+            "standard_optimal_bonus": None,
+            "trackblazer_optimal_bonus": None,
+            "objective_race_count": int(resolved.get("objective_race_count") or 0),
+            "objective_conflict_count": None,
+            "known_win_probability_race_count": None,
+            "below_win_cutoff_race_count": None,
+        }
+        if resolved.get("g1_win_probability_cutoff") is not None:
+            summary["g1_win_probability_cutoff"] = resolved.get(
+                "g1_win_probability_cutoff"
+            )
+        return summary
     variants = resolved.get("schedule_variants") or {}
     standard = (
         variants.get("standard")

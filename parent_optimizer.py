@@ -2552,6 +2552,9 @@ def evaluate_parent_pair(
     parent_2_origin: str = "local",
     g1_bonus_value: int | None = None,
     affinity_thresholds: Iterable[Iterable[float]] | None = None,
+    g1_objective_races: list[dict[str, Any]] | None = None,
+    include_g1_schedule: bool = True,
+    checkpoint: Callable[[], None] | None = None,
 ) -> dict[str, Any]:
     """Evaluate a final Ace parent pair through the canonical six-member engine.
 
@@ -2597,11 +2600,15 @@ def evaluate_parent_pair(
         right_origin=parent_2_origin,
         target=ace,
         objective_races=(
-            resolver.objective_races(int(ace.get("chara_id") or 0))
+            g1_objective_races
+            if g1_objective_races is not None
+            else resolver.objective_races(int(ace.get("chara_id") or 0))
             if hasattr(resolver, "objective_races")
             else []
         ),
         bonus_per_link=resolved_g1_bonus,
+        include_schedule=include_g1_schedule,
+        checkpoint=checkpoint,
     )
     parent_common = list(race_affinity_plan["common_g1_names"])
     parent_pair_g1 = resolved_g1_bonus * len(parent_common)
@@ -2797,8 +2804,10 @@ def optimize_parents(
     top_n: int = 30,
     search_kind: str = "all",
     logger: Callable[[str], None] | None = None,
+    checkpoint: Callable[[], None] | None = None,
 ) -> OptimizerResult:
     log = logger or _logger_default
+    check = checkpoint or (lambda: None)
     if surface not in SURFACES or distance not in DISTANCES or style not in STYLES:
         raise OptimizerError(f"Profil invalide : {surface}/{distance}/{style}")
     if search_kind not in {"all", "pairs", "branches", "future"}:
@@ -2912,6 +2921,11 @@ def optimize_parents(
         pair_affinity_thresholds = affinity_config.get("parent_pair_thresholds") or [[0, 0], [151, 100]]
         future_affinity_thresholds = affinity_config.get("future_branch_base_thresholds") or [[0, 0], [48, 100]]
         future_g1_thresholds = affinity_config.get("future_g1_thresholds") or [[0, 0], [20, 100]]
+        pair_objective_races = (
+            resolver.objective_races(ace_chara)
+            if evaluate_pairs and hasattr(resolver, "objective_races")
+            else []
+        )
         branch_rows: list[dict[str, Any]] = []
         if evaluate_branches:
             log(f"Évaluation de {len(valid_veterans)} lignées candidates…")
@@ -2947,6 +2961,8 @@ def optimize_parents(
                 v1 = left["veteran"]
                 for right in branch_rows[left_index + 1 :]:
                     processed_pairs += 1
+                    if processed_pairs % 32 == 0:
+                        check()
                     v2 = right["veteran"]
                     if int(v1.get("chara_id") or 0) == int(v2.get("chara_id") or 0):
                         continue
@@ -2966,6 +2982,8 @@ def optimize_parents(
                             parent_2_branch=right,
                             g1_bonus_value=g1_bonus_value,
                             affinity_thresholds=pair_affinity_thresholds,
+                            g1_objective_races=pair_objective_races,
+                            include_g1_schedule=False,
                         )
                     )
                 # The Qt worker's logger is also a cooperative cancellation
@@ -2982,6 +3000,42 @@ def optimize_parents(
 
         pair_p95 = _quantile((row["affinity"]["total"] for row in pair_rows), 0.95)
         pair_rows.sort(key=parent_pair_sort_key, reverse=True)
+        if pair_rows:
+            branch_by_trained_id = {
+                str(row["veteran"].get("trained_chara_id")): row
+                for row in branch_rows
+            }
+            for row in pair_rows[:top_n]:
+                check()
+                left = branch_by_trained_id[
+                    str(row["parent_1"].get("trained_chara_id"))
+                ]
+                right = branch_by_trained_id[
+                    str(row["parent_2"].get("trained_chara_id"))
+                ]
+                hydrated = evaluate_parent_pair(
+                    resolver,
+                    ace,
+                    left["veteran"],
+                    right["veteran"],
+                    surface=surface,
+                    distance=distance,
+                    style=style,
+                    weight_lookup=weight_lookup,
+                    race_skills=race_skills,
+                    config=config,
+                    parent_1_branch=left,
+                    parent_2_branch=right,
+                    g1_bonus_value=g1_bonus_value,
+                    affinity_thresholds=pair_affinity_thresholds,
+                    g1_objective_races=pair_objective_races,
+                    checkpoint=check,
+                )
+                # The three public aliases deliberately share the same plan
+                # object. Hydrate it in place so that contract remains true.
+                plan = row["race_affinity_plan"]
+                plan.clear()
+                plan.update(hydrated["race_affinity_plan"])
 
         future_rows: list[dict[str, Any]] = []
         future_parent_chara = int(future_parent["chara_id"]) if future_parent else None
@@ -3126,6 +3180,11 @@ def optimize_parents(
                 ),
                 "pair_count": len(pair_rows),
                 "top_n": top_n,
+                "g1_schedule_hydration": {
+                    "strategy": "top_n_after_ranking",
+                    "hydrated_pair_count": min(top_n, len(pair_rows)),
+                    "full_ranking_csv_unhydrated_schedule_metrics": "blank",
+                },
                 "notes": [
                     "Final-parent affinity is exact for each complete pair, including both parent branches, parent-parent base compatibility and common G1 bonuses.",
                     (

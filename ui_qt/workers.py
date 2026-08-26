@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import threading
 import time
 import traceback
@@ -22,9 +23,9 @@ class WorkerSignals(QObject):
 class FunctionWorker(QRunnable):
     """Run a backend operation without blocking Qt's event loop.
 
-    The logger and progress callbacks double as cooperative cancellation
-    checkpoints. Backends call them often, so a requested cancellation stops
-    at the next step without any engine change.
+    Logger and progress callbacks remain cancellation points. CPU-bound
+    backends can additionally accept an independent ``checkpoint`` callback,
+    allowing responsive cancellation without emitting UI noise.
     """
 
     def __init__(self, function: Callable[..., Any]):
@@ -58,7 +59,14 @@ class FunctionWorker(QRunnable):
             yield_to_ui()
 
         try:
-            result = self.function(logger=log, progress=progress)
+            kwargs: dict[str, Any] = {"logger": log, "progress": progress}
+            parameters = inspect.signature(self.function).parameters
+            if "checkpoint" in parameters or any(
+                parameter.kind is inspect.Parameter.VAR_KEYWORD
+                for parameter in parameters.values()
+            ):
+                kwargs["checkpoint"] = yield_to_ui
+            result = self.function(**kwargs)
         except OperationCancelled:
             self.signals.cancelled.emit()
         except Exception as exc:  # backend exceptions are presented by the UI

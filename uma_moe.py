@@ -4455,6 +4455,7 @@ def rank_online_parent_pairs(
     lineage_blue_filter: tuple[str, int] | None = None,
     lineage_pink_filter: tuple[str, int] | None = None,
     logger: Callable[[str], None] | None = None,
+    checkpoint: Callable[[], None] | None = None,
 ) -> OnlineParentSearchResult:
     """Rank uma.moe parents paired with a local parent for the selected Ace.
 
@@ -4464,6 +4465,7 @@ def rank_online_parent_pairs(
     also the engine used by the all-local optimizer.
     """
     log = logger or (lambda _message: None)
+    check = checkpoint or (lambda: None)
     master_path = Path(master_path).resolve()
     linked_veterans_path = Path(linked_veterans_path).resolve()
     manual_weights_path = Path(manual_weights_path).resolve()
@@ -4588,6 +4590,11 @@ def rank_online_parent_pairs(
         branch_thresholds = affinity_cfg.get("parent_branch_thresholds") or [[0, 0], [95, 100]]
         pair_thresholds = affinity_cfg.get("parent_pair_thresholds") or [[0, 0], [151, 100]]
         pair_weights = _mode_weights(config, "parent_pair")
+        pair_objective_races = (
+            resolver.objective_races(ace_chara)
+            if hasattr(resolver, "objective_races")
+            else []
+        )
 
         def eligible(member: dict[str, Any]) -> bool:
             chara = int(member.get("chara_id") or 0)
@@ -4775,6 +4782,9 @@ def rank_online_parent_pairs(
                 parent_2_origin="remote",
                 g1_bonus_value=g1_bonus_value,
                 affinity_thresholds=pair_thresholds,
+                g1_objective_races=pair_objective_races,
+                include_g1_schedule=detailed,
+                checkpoint=(check if detailed else None),
             )
             row: dict[str, Any] = {
                 "score": float(pair["score"]),
@@ -4835,6 +4845,8 @@ def rank_online_parent_pairs(
             local_chara = int(local_parent.get("chara_id") or 0)
             for remote_parent in selected_remotes:
                 processed += 1
+                if processed % 32 == 0:
+                    check()
                 remote_chara = int(remote_parent.get("chara_id") or 0)
                 if local_chara <= 0 or remote_chara <= 0 or local_chara == remote_chara:
                     continue
@@ -4851,10 +4863,19 @@ def rank_online_parent_pairs(
             raise UmaMoeError("Aucune paire parent local × parent distant valide.")
         summaries.sort(key=parent_pair_sort_key, reverse=True)
         detail_count = max(1, min(int(top_n), 500))
-        top = [
-            evaluate_pair(row["_local_parent"], row["_remote_parent"], detailed=True)
-            for row in summaries[:detail_count]
-        ]
+        top: list[dict[str, Any]] = []
+        for row in summaries[:detail_count]:
+            check()
+            detailed = evaluate_pair(
+                row["_local_parent"], row["_remote_parent"], detailed=True
+            )
+            # Keep the full-ranking CSV rows and the compact aliases honest:
+            # only Top N plans are hydrated, and all references still point to
+            # the same object after the in-place replacement.
+            plan = row["race_affinity_plan"]
+            plan.clear()
+            plan.update(detailed["race_affinity_plan"])
+            top.append(detailed)
     finally:
         resolver.close()
 
@@ -4877,6 +4898,11 @@ def rank_online_parent_pairs(
             "local_pool_count": len(selected_locals),
             "remote_pool_count": len(selected_remotes),
             "evaluated_pair_count": len(summaries),
+            "g1_schedule_hydration": {
+                "strategy": "top_n_after_ranking",
+                "hydrated_pair_count": len(top),
+                "full_ranking_csv_unhydrated_schedule_metrics": "blank",
+            },
             "profile": {
                 "surface": surface,
                 "distance": distance,

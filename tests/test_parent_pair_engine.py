@@ -186,6 +186,43 @@ def test_parent_pair_engine_scores_all_six_members_and_five_g1_links():
     assert pair["component_details"]["unique"]["slot_count"] == 6
 
 
+def test_lightweight_parent_pair_keeps_ranking_and_plan_aliases() -> None:
+    local = member(2, "Local", ["A", "Shared"])
+    remote = member(3, "Remote", ["B", "Shared"])
+    resolver = FakeResolver()
+    kwargs = {
+        "surface": "turf",
+        "distance": "medium",
+        "style": "pace_chaser",
+        "weight_lookup": lambda _key: 0.0,
+        "race_skills": {},
+        "config": base_config(),
+    }
+
+    lightweight = evaluate_parent_pair(
+        resolver, ace(), local, remote, include_g1_schedule=False, **kwargs
+    )
+    complete = evaluate_parent_pair(resolver, ace(), local, remote, **kwargs)
+
+    assert lightweight["score"] == complete["score"]
+    assert parent_pair_sort_key(lightweight) == parent_pair_sort_key(complete)
+    assert lightweight["affinity"]["total"] == complete["affinity"]["total"]
+    assert (
+        lightweight["affinity"]["parent_parent_common_g1"]
+        == complete["affinity"]["parent_parent_common_g1"]
+    )
+    assert lightweight["race_affinity_plan"]["schedule_computed"] is False
+    assert complete["race_affinity_plan"]["schedule_computed"] is True
+    assert (
+        lightweight["affinity"]["race_affinity_plan"]
+        is lightweight["race_affinity_plan"]
+    )
+    assert (
+        lightweight["component_details"]["affinity"]["g1_race_plan"]
+        is lightweight["race_affinity_plan"]
+    )
+
+
 def test_parent_pair_reuses_precomputed_branch_results():
     gp1 = member(4, "GP1", [])
     gp2 = member(5, "GP2", [])
@@ -858,6 +895,17 @@ def test_online_parent_search_exports_canonical_pair_results(tmp_path, monkeypat
 
     monkeypatch.setattr(uma_moe, "OnlineRecordNormalizer", FakeNormalizer)
     monkeypatch.setattr(uma_moe, "AffinityResolver", SearchResolver)
+    schedule_modes = []
+    real_evaluate_parent_pair = uma_moe.evaluate_parent_pair
+
+    def tracked_evaluate_parent_pair(*args, **kwargs):
+        schedule_modes.append(kwargs.get("include_g1_schedule", True))
+        return real_evaluate_parent_pair(*args, **kwargs)
+
+    monkeypatch.setattr(
+        uma_moe, "evaluate_parent_pair", tracked_evaluate_parent_pair
+    )
+    checkpoints = []
 
     result = uma_moe.rank_online_parent_pairs(
         master_path,
@@ -874,6 +922,7 @@ def test_online_parent_search_exports_canonical_pair_results(tmp_path, monkeypat
         raw_payload={"items": []},
         scoring_config_path=config_path,
         top_n=10,
+        checkpoint=lambda: checkpoints.append(True),
     )
 
     assert result.result_count == 1
@@ -884,11 +933,19 @@ def test_online_parent_search_exports_canonical_pair_results(tmp_path, monkeypat
     payload = json.loads(result.rankings_json_path.read_text(encoding="utf-8"))
     assert payload["metadata"]["scoring_engine"] == "parent_optimizer.evaluate_parent_pair"
     assert payload["metadata"]["complete_branch_validation"]["remote_incomplete_excluded"] == 1
+    assert payload["metadata"]["g1_schedule_hydration"] == {
+        "strategy": "top_n_after_ranking",
+        "hydrated_pair_count": 1,
+        "full_ranking_csv_unhydrated_schedule_metrics": "blank",
+    }
     assert payload["results"][0]["component_details"]["blue"]["slot_count"] == 6
     assert payload["results"][0]["surface_viability"]["key"] == "surface_preferred_met"
     assert "surface_aptitude" in payload["results"][0]["components"]
     assert result.rankings_csv_path.is_file()
     assert result.diagnostics_path.is_file()
+    assert schedule_modes == [False, True]
+    assert checkpoints
+    assert result.top_results[0]["race_affinity_plan"]["schedule_computed"] is True
 
 
 def test_white_skill_score_uses_individual_affinity_and_combines_duplicate_carriers():

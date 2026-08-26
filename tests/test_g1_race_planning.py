@@ -2,6 +2,7 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from g1_race_planning import (
     build_pair_g1_diagnostic,
@@ -48,6 +49,52 @@ def test_independent_training_win_table_matches_documented_values() -> None:
     assert independent_training_win_probability(6, 6) == 0.90
     assert independent_training_win_probability(7, 1) == 0.50
     assert independent_training_win_probability(1, 1) == 0.0
+
+
+def test_lightweight_pair_diagnostic_skips_calendar_optimization() -> None:
+    shared = {
+        "name": "Shared G1",
+        "schedule_slots": [{"year": 2, "month": 5, "half": 1}],
+    }
+    with patch("g1_race_planning.optimize_race_schedule") as optimizer:
+        result = build_pair_g1_diagnostic(
+            member(shared),
+            member(shared),
+            left_label="Parent 1",
+            right_label="Parent 2",
+            include_schedule=False,
+        )
+
+    optimizer.assert_not_called()
+    assert result["schedule_computed"] is False
+    assert result["schedule_variants"] == {}
+    assert result["common_g1_names"] == ["Shared G1"]
+    assert result["exact_bonus_if_all_won"] == 6
+    assert schedule_export_summary(result)["standard_optimal_bonus"] is None
+
+
+def test_calendar_optimizer_propagates_checkpoint_cancellation() -> None:
+    class Cancelled(RuntimeError):
+        pass
+
+    calls = 0
+
+    def checkpoint() -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 3:
+            raise Cancelled("stop")
+
+    races = [
+        {
+            "name": "Cancelable G1",
+            "affinity_bonus": 3,
+            "schedule_slots": [{"year": 2, "month": 5, "half": 1}],
+        }
+    ]
+    with unittest.TestCase().assertRaisesRegex(Cancelled, "stop"):
+        optimize_race_schedule(races, checkpoint=checkpoint)
+    assert calls == 3
 
 
 def test_g1_value_uses_binary_win_cutoff_instead_of_linear_weighting() -> None:
