@@ -1667,7 +1667,7 @@ class WeightsPage(QWidget):
         )
         self.active_check.setText(t("Utiliser mes pondérations personnalisées"))
         self.import_button.setText(t("Importer…"))
-        self.export_button.setText(t("Exporter l’effectif…"))
+        self.export_button.setText(t("Exporter le profil…"))
         self.save_button.setText(t("Enregistrer et activer"))
         self.search.setPlaceholderText(t("Rechercher un réglage…"))
         self.category_filter_label.setText(t("Domaine de calcul"))
@@ -1676,7 +1676,7 @@ class WeightsPage(QWidget):
         )
         self.changed_only.setText(t("Modifiés uniquement"))
         self.show_advanced.setText(t("Afficher les réglages avancés"))
-        self.reset_all_button.setText(t("Tout remettre par défaut"))
+        self.reset_all_button.setText(t("Rétablir tout"))
         self.settings_title.setText(t("Réglages par bloc"))
         self.hover_hint.setText(
             t("Déplie un bloc de calcul, puis survole un réglage pour son résumé.")
@@ -1708,8 +1708,8 @@ class WeightsPage(QWidget):
             )
         )
         self.create_priority_button.setText(t("Créer une copie modifiable"))
-        self.open_priority_button.setText(t("Ouvrir"))
-        self.reset_priority_button.setText(t("Revenir au défaut"))
+        self.open_priority_button.setText(t("Ouvrir le fichier"))
+        self.reset_priority_button.setText(t("Rétablir le défaut"))
         self._rebuild_rows()
         self._refresh_status()
 

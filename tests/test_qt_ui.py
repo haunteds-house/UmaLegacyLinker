@@ -704,7 +704,7 @@ class QtUiCoreTests(unittest.TestCase):
             "Résultats intégrés",
             "Calcul du score global",
             "Sélectionne une ligne pour afficher le diagnostic.",
-            "Interface Qt complète",
+            "Recherche locale et uma.moe",
             "Grand-parent distant",
         )
         for source in sources:

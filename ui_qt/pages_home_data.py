@@ -123,9 +123,9 @@ class HomePage(QWidget):
         )
         self.data_button.setText(t("Configurer les données"))
         self.search_button.setText(t("Rechercher une lignée"))
-        self.transfer_button.setText(t("Transfer Helper"))
+        self.transfer_button.setText(t("Analyser mes vétérans"))
         self.refresh_button.setText(t("Actualiser"))
-        self.preview_title.setText(t("Interface Qt complète"))
+        self.preview_title.setText(t("Recherche locale et uma.moe"))
         self.preview_text.setText(
             t("Les recherches locales et uma.moe partagent désormais le même contexte, le même espace de résultats et le même rendu de lignée.")
         )

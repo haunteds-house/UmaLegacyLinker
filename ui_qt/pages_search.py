@@ -1172,7 +1172,12 @@ class SearchPage(QWidget):
         self.top_label.setText(t("Résultats"))
         self.export_button.setText(t("Exporter…"))
         self.load_button.setText(t("Dernier résultat"))
-        self.import_button.setText(t("Importer…"))
+        self.import_button.setText(t("Reclasser un JSON…"))
+        self.import_button.setToolTip(
+            t(
+                "Reclasse une réponse JSON uma.moe déjà téléchargée avec les réglages actuels, sans appel à l’API."
+            )
+        )
         self.options_button.setText(t("Options…"))
         self.local_gp_pairs_button.setText(t("GP locaux"))
         self.open_button.setText(t("Sortie"))

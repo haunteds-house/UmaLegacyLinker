@@ -63,6 +63,23 @@ class I18nTests(unittest.TestCase):
         self.assertEqual(translate_text("Prêt", "en"), "Ready")
         self.assertEqual(translate_text("Prêt", "fr"), "Prêt")
 
+    def test_audited_command_labels_are_translated(self) -> None:
+        samples = {
+            "Reclasser un JSON…": "Re-rank a JSON file…",
+            "Reclasse une réponse JSON uma.moe déjà téléchargée avec les réglages actuels, sans appel à l’API.": "Re-ranks an already downloaded uma.moe JSON response using the current settings, without calling the API.",
+            "Exporter le profil…": "Export profile…",
+            "Rétablir tout": "Restore all",
+            "Rétablir la valeur": "Restore value",
+            "Rétablir le bloc": "Restore block",
+            "Rétablir le défaut": "Restore default",
+            "Ouvrir le fichier": "Open file",
+            "Analyser mes vétérans": "Analyse my veterans",
+            "Recherche locale et uma.moe": "Local and uma.moe search",
+        }
+        for source, expected in samples.items():
+            with self.subTest(source=source):
+                self.assertEqual(translate_text(source, "en"), expected)
+
     def test_formatted_status_translation(self) -> None:
         source = "Terminé — 42 vétérans liés."
         self.assertEqual(translate_text(source, "en"), "Complete — 42 veterans linked.")

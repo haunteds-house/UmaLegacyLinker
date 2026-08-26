@@ -596,6 +596,8 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.application.processEvents()
             self.assertTrue(search.import_button.isVisible())
             self.assertTrue(search.local_gp_pairs_button.isVisible())
+            self.assertEqual(search.import_button.text(), "Reclasser un JSON…")
+            self.assertIn("sans appel à l’API", search.import_button.toolTip())
 
             local_profile = {
                 "surface": "turf",
@@ -838,6 +840,13 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             context = AppContext(SettingsStore(root / "config.json"))
             lineage = LineageRaceEditor(context)
             weights = WeightsPage(context)
+
+            self.assertEqual(weights.export_button.text(), "Exporter le profil…")
+            self.assertEqual(weights.reset_all_button.text(), "Rétablir tout")
+            self.assertEqual(weights.reset_button.text(), "Rétablir la valeur")
+            self.assertEqual(weights.reset_group_button.text(), "Rétablir le bloc")
+            self.assertEqual(weights.open_priority_button.text(), "Ouvrir le fichier")
+            self.assertEqual(weights.reset_priority_button.text(), "Rétablir le défaut")
 
             weights.priority_picker.set_text(str(first_profile))
             weights.priority_picker.path_changed.emit(str(first_profile))
