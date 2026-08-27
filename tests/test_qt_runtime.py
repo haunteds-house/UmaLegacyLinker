@@ -51,6 +51,44 @@ class QtRuntimeSmokeTests(unittest.TestCase):
                     self.assertIs(window.stack.currentWidget(), window._pages[page])
             window.close()
 
+    def test_data_hierarchy_and_transfer_help_are_exposed_at_runtime(self) -> None:
+        from ui_qt.context import AppContext
+        from ui_qt.core import SettingsStore
+        from ui_qt.pages_home_data import DataPage
+        from ui_qt.pages_transfer import TransferPage
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            context = AppContext(SettingsStore(Path(temp_dir) / "config.json"))
+            data = DataPage(context)
+            transfer = TransferPage(context)
+
+            self.assertEqual(data.extract_button.objectName(), "primary")
+            self.assertNotEqual(data.link_button.objectName(), "primary")
+            self.assertEqual(data.extract_button.text(), "Extraire ma collection")
+            self.assertEqual(data.link_button.text(), "Relier un export existant")
+            self.assertTrue(data.extract_detail.text())
+            self.assertTrue(data.link_detail.text())
+            self.assertTrue(data.catalog_button.toolTip())
+            self.assertTrue(data.force_link_button.toolTip())
+
+            for widget in (
+                transfer.mode_combo,
+                transfer.safe_card,
+                transfer.recommended_card,
+                transfer.review_card,
+                transfer.keep_card,
+                transfer.protected_card,
+                transfer.table,
+                transfer.detail,
+            ):
+                self.assertTrue(widget.toolTip(), type(widget).__name__)
+
+            context.set_language("en")
+            self.assertEqual(data.extract_button.text(), "Extract my collection")
+            self.assertEqual(data.link_button.text(), "Link an existing export")
+            data.deleteLater()
+            transfer.deleteLater()
+
     def test_result_panes_do_not_refresh_before_the_detail_browser_exists(self) -> None:
         from ui_qt.context import AppContext
         from ui_qt.core import SettingsStore

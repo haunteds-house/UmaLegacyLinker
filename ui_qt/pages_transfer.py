@@ -239,6 +239,54 @@ class TransferPage(QWidget):
         self.open_button.setText(t("Ouvrir la sortie"))
         self.filter_label.setText(t("Afficher"))
         self.search.setPlaceholderText(t("Rechercher un nom, un ID ou un remplaçant…"))
+        self.mode_combo.setToolTip(
+            t("Le mode rapide repère les redondances ; seul l’audit exhaustif peut conclure à un transfert strictement sûr.")
+        )
+        self.upcoming_cm_check.setToolTip(
+            t("Évalue chaque vétéran dans le contexte des prochaines Champion Meetings configurées.")
+        )
+        self.upcoming_cm_limit.setToolTip(
+            t("Nombre maximal de prochaines Champion Meetings incluses dans l’analyse.")
+        )
+        self.team_trials_check.setToolTip(
+            t("Ajoute les rôles des cinq catégories Team Trials aux usages à préserver.")
+        )
+        self.generic_profiles_check.setToolTip(
+            t("Ajoute des profils génériques pour protéger les usages qui ne dépendent pas d’une course planifiée.")
+        )
+        self.run_button.setToolTip(
+            t("Analyse la collection sans modifier ni supprimer aucun vétéran.")
+        )
+        self.load_button.setToolTip(
+            t("Recharge le dernier rapport Transfer Helper présent dans le dossier de sortie.")
+        )
+        self.open_button.setToolTip(
+            t("Ouvre le dossier contenant le rapport JSON, le CSV et le résumé.")
+        )
+        self.status_combo.setToolTip(
+            t("Filtre le tableau selon le niveau de confiance du diagnostic.")
+        )
+        self.table.setToolTip(
+            t("La couverture désigne le remplaçant ou l’ensemble de vétérans qui préserve les rôles compétitifs de la copie.")
+        )
+        self.detail.setToolTip(
+            t("Le détail explique le verdict, les niches comparées, la dominance et les protections de Sparks appliquées.")
+        )
+        self.safe_card.setToolTip(
+            t("Un remplaçant du même costume et de la même unique couvre toutes les niches viables sans perte de patrimoine Spark protégé.")
+        )
+        self.recommended_card.setToolTip(
+            t("La copie paraît redondante, mais le mode rapide ne fournit pas une preuve suffisante pour la déclarer strictement sûre.")
+        )
+        self.review_card.setToolTip(
+            t("Une niche, une couverture incomplète ou une protection de Spark impose une vérification manuelle.")
+        )
+        self.keep_card.setToolTip(
+            t("La copie conserve au moins un rôle compétitif ou un élément stratégique qui n’est pas suffisamment remplacé.")
+        )
+        self.protected_card.setToolTip(
+            t("Un verrou ou un mémo en jeu interdit toute recommandation de transfert, quel que soit le score.")
+        )
         selected = self.status_combo.currentData()
         self.status_combo.blockSignals(True)
         self.status_combo.clear()

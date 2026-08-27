@@ -33,6 +33,19 @@ from ui_qt.core import (
 )
 
 
+def _command_card(button: QPushButton) -> tuple[QFrame, QLabel]:
+    card = QFrame()
+    card.setObjectName("subtlePanel")
+    layout = QVBoxLayout(card)
+    layout.setContentsMargins(12, 10, 12, 10)
+    layout.setSpacing(7)
+    detail = muted_label("")
+    layout.addWidget(button)
+    layout.addWidget(detail)
+    layout.addStretch(1)
+    return card, detail
+
+
 class HomePage(QWidget):
     navigate_requested = Signal(str)
 
@@ -269,19 +282,20 @@ class DataPage(QWidget):
             sources.setColumnStretch(column, 1)
         panel_layout.addLayout(sources)
 
+        self.prepare_title = section_label("")
+        panel_layout.addWidget(self.prepare_title)
         actions = QHBoxLayout()
+        actions.setSpacing(10)
         self.link_button = QPushButton("")
-        self.link_button.setObjectName("primary")
         self.force_link_button = QPushButton("")
         self.extract_button = QPushButton("")
+        self.extract_button.setObjectName("primary")
         self.catalog_button = QPushButton("")
         self.open_button = QPushButton("")
-        actions.addWidget(self.link_button)
-        actions.addWidget(self.force_link_button)
-        actions.addWidget(self.extract_button)
-        actions.addWidget(self.catalog_button)
-        actions.addWidget(self.open_button)
-        actions.addStretch(1)
+        self.extract_card, self.extract_detail = _command_card(self.extract_button)
+        self.link_card, self.link_detail = _command_card(self.link_button)
+        actions.addWidget(self.extract_card, 1)
+        actions.addWidget(self.link_card, 1)
         panel_layout.addLayout(actions)
         resources = QHBoxLayout()
         self.extractor_download = QPushButton("")
@@ -294,6 +308,24 @@ class DataPage(QWidget):
 
         self.result_card = StatusCard("", "", "")
         root.addWidget(self.result_card)
+
+        maintenance = QFrame()
+        maintenance.setObjectName("subtlePanel")
+        maintenance_layout = QVBoxLayout(maintenance)
+        maintenance_layout.setContentsMargins(14, 11, 14, 11)
+        maintenance_layout.setSpacing(7)
+        self.maintenance_title = section_label("")
+        self.maintenance_detail = muted_label("")
+        maintenance_actions = QHBoxLayout()
+        maintenance_actions.addWidget(self.catalog_button)
+        maintenance_actions.addWidget(self.force_link_button)
+        maintenance_actions.addStretch(1)
+        maintenance_actions.addWidget(self.open_button)
+        maintenance_layout.addWidget(self.maintenance_title)
+        maintenance_layout.addWidget(self.maintenance_detail)
+        maintenance_layout.addLayout(maintenance_actions)
+        root.addWidget(maintenance)
+
         self.help_text = muted_label("")
         root.addWidget(self.help_text)
         root.addStretch(1)
@@ -340,9 +372,10 @@ class DataPage(QWidget):
         t = self.context.t
         self.header.set_text(
             t("Données locales"),
-            t("Relie ton export de vétérans au master.mdb courant avant les analyses."),
+            t("Extrais ou sélectionne ta collection, puis prépare-la pour les analyses."),
         )
         self.files_title.setText(t("Sources et sortie"))
+        self.prepare_title.setText(t("Préparer la collection"))
         self.master_label.setText(t("Base actuelle du jeu — master.mdb"))
         self.data_label.setText(
             t("Collection exportée — data.json ou trained_chara_data.json")
@@ -358,15 +391,52 @@ class DataPage(QWidget):
         self.output_picker.dialog_title = t("Sélectionner le dossier de sortie")
         for picker in (self.master_picker, self.data_picker, self.extractor_picker, self.output_picker):
             picker.set_button_text(t("Parcourir…"))
-        self.link_button.setText(t("Lier la collection"))
+        self.extract_button.setText(t("Extraire ma collection"))
+        self.extract_detail.setText(
+            t("Lance l’extracteur configuré, puis relie automatiquement le JSON obtenu.")
+        )
+        self.link_button.setText(t("Relier un export existant"))
+        self.link_detail.setText(
+            t("Utilise le JSON déjà sélectionné, sans lancer d’extracteur.")
+        )
         self.force_link_button.setText(t("Relier quand même"))
-        self.extract_button.setText(t("Extraire puis lier"))
         self.catalog_button.setText(t("Générer les catalogues"))
         self.open_button.setText(t("Ouvrir la sortie"))
+        self.maintenance_title.setText(t("Maintenance et fichiers"))
+        self.maintenance_detail.setText(
+            t("La liaison génère déjà les catalogues ; ces commandes servent surtout au diagnostic et à la reprise.")
+        )
         self.extractor_download.setText(t("Télécharger UmaExtractor"))
         self.umadump_link.setText(t("Télécharger umadump"))
         self.help_text.setText(
-            t("Cette opération reconstruit les Sparks, skills, G1 et lignées sans modifier ton export original.")
+            t("Aucun export original n’est modifié : toutes les données enrichies sont écrites dans le dossier de sortie.")
+        )
+        self.master_picker.setToolTip(
+            t("Base de données du jeu utilisée pour résoudre les costumes, Sparks, skills et courses G1.")
+        )
+        self.data_picker.setToolTip(
+            t("Export JSON de tes vétérans. Il peut être créé par UmaExtractor ou umadump.")
+        )
+        self.extractor_picker.setToolTip(
+            t("Programme externe utilisé uniquement par « Extraire ma collection ».")
+        )
+        self.output_picker.setToolTip(
+            t("Dossier qui reçoit les JSON, CSV, catalogues et rapports générés.")
+        )
+        self.extract_button.setToolTip(
+            t("Exécute l’extracteur configuré, sélectionne le JSON produit et lance sa liaison.")
+        )
+        self.link_button.setToolTip(
+            t("Ne lance aucun extracteur : relie directement le fichier JSON sélectionné.")
+        )
+        self.force_link_button.setToolTip(
+            t("Ignore le cache et reconstruit toutes les sorties. Normalement inutile si l’état est « Prête ».")
+        )
+        self.catalog_button.setToolTip(
+            t("Régénère uniquement les catalogues. La liaison les génère déjà automatiquement.")
+        )
+        self.open_button.setToolTip(
+            t("Ouvre le dossier contenant les fichiers générés.")
         )
         self.refresh_status()
 
