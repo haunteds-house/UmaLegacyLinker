@@ -74,7 +74,8 @@ def _quantile(values: Iterable[float], q: float) -> float:
         return 0.0
     if len(ordered) == 1:
         return ordered[0]
-    position = (len(ordered) - 1) * q
+    quantile = max(0.0, min(1.0, float(q)))
+    position = (len(ordered) - 1) * quantile
     lower = math.floor(position)
     upper = math.ceil(position)
     if lower == upper:

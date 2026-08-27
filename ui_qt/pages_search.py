@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
@@ -298,11 +297,6 @@ class SearchPage(QWidget):
         )
         result_layout.addWidget(self.families, 1)
         main_layout.addWidget(result_frame, 1)
-
-        self.run_shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
-        self.run_shortcut.activated.connect(self.run_current_family)
-        self.run_shortcut_enter = QShortcut(QKeySequence("Ctrl+Enter"), self)
-        self.run_shortcut_enter.activated.connect(self.run_current_family)
 
         self.refresh_button.clicked.connect(
             lambda: self.refresh_options(show_errors=True)
@@ -729,6 +723,12 @@ class SearchPage(QWidget):
         values.update(self._mode_section(mode).values())
         return values
 
+    def _online_options_snapshot(self, mode: str) -> dict[str, Any]:
+        """Read widgets quickly; normalization and copying happen in the worker."""
+        values = dict(self.section_retrieval.snapshot_values())
+        values.update(self._mode_section(mode).snapshot_values())
+        return values
+
     def open_online_options(self, mode: str | None = None) -> None:
         """Reveal a mode's options instead of opening a modal editor."""
         mode = mode or self.context.store.get("uma_moe_search_mode", PARENT_MODE)
@@ -757,22 +757,7 @@ class SearchPage(QWidget):
                 raise UmaMoeError("Sélectionne l’Ace cible.")
             if mode == "grandparent" and target_id <= 0:
                 raise UmaMoeError("Sélectionne le parent à produire.")
-            options = self._online_options_values(mode)
-            required = options["required_parent_card_id"]
-            if required in set(options["excluded_parent_card_ids"]):
-                raise UmaMoeError("Le costume requis est également exclu.")
-            if (
-                options["allowed_parent_card_ids"]
-                and required is not None
-                and required not in set(options["allowed_parent_card_ids"])
-            ):
-                raise UmaMoeError(
-                    "Le costume requis doit être présent dans les costumes autorisés."
-                )
-            response_text = options["response_path"]
-            response = Path(response_text).expanduser() if response_text else None
-            if use_import and (response is None or not response.is_file()):
-                raise UmaMoeError("Sélectionne une réponse JSON uma.moe à importer.")
+            options = self._online_options_snapshot(mode)
             profile = self.race_editor.current_profile()
             request = OnlineSearchRequest(
                 search_mode=mode,
@@ -781,10 +766,10 @@ class SearchPage(QWidget):
                 output_dir=Path(self.context.output_dir).expanduser(),
                 ace_card_id=ace_id,
                 target_parent_card_id=(target_id if mode == "grandparent" else None),
-                fixed_local_id=options["fixed_local_id"],
-                automatic_pairs=options["automatic_pairs"],
-                local_pool_size=options["local_pool_size"],
-                remote_pool_size=options["remote_pool_size"],
+                fixed_local_id=None,
+                automatic_pairs=True,
+                local_pool_size=1,
+                remote_pool_size=1,
                 surface=profile["surface"],
                 distance=profile["distance"],
                 style=profile["style"],
@@ -793,27 +778,18 @@ class SearchPage(QWidget):
                 course_conditions=self.race_editor.selected_conditions(),
                 top_n=self.top_spin.value(),
                 use_import=use_import,
-                response_path=response,
+                response_path=None,
                 api_base=self.context.uma_moe_api_base,
                 uql="",
                 auto_uql=True,
-                uql_options=options["uql_options"],
-                limit=options["limit"],
-                planned_g1_budget=options["planned_g1_budget"],
-                g1_win_probability_cutoff=options["g1_win_probability_cutoff"],
-                required_parent_card_id=required,
-                allowed_parent_card_ids=options["allowed_parent_card_ids"],
-                excluded_parent_card_ids=options["excluded_parent_card_ids"],
+                uql_options=None,
+                limit=1,
+                required_parent_card_id=None,
                 token=self.context.uma_moe_api_key,
                 use_custom_scoring=self.race_editor.custom_scoring.isChecked(),
                 skill_priorities_path=self.race_editor.skill_priorities_path(),
-                opposing_parent_trained_id=options[
-                    "opposing_parent_trained_id"
-                ],
-                opposing_parent_payload=options["opposing_parent_payload"],
                 local_pair_mode=local_pairs,
-                lineage_blue_filter=options["lineage_blue_filter"],
-                lineage_pink_filter=options["lineage_pink_filter"],
+                deferred_options=options,
             )
         except (UmaMoeError, OptimizerError, ValueError) as exc:
             QMessageBox.warning(

@@ -28,6 +28,7 @@ from g1_race_planning import (
     schedule_export_summary,
 )
 from legacy_linker import MasterResolver, grouped_factors
+from output_history import write_json_with_history
 from parent_optimizer import (
     APTITUDE_LABELS,
     AffinityResolver,
@@ -667,6 +668,7 @@ class UmaMoeApiClient:
         max_retries: int = 3,
         retry_backoff: float = 0.5,
         max_retry_delay: float = 4.0,
+        checkpoint: Callable[[], None] | None = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
@@ -676,6 +678,7 @@ class UmaMoeApiClient:
         self.max_retries = max(0, int(max_retries))
         self.retry_backoff = max(0.0, float(retry_backoff))
         self.max_retry_delay = max(0.0, float(max_retry_delay))
+        self.checkpoint = checkpoint
         parsed = urllib.parse.urlparse(self.base_url)
         self.origin = f"{parsed.scheme}://{parsed.netloc}"
         self._spec: dict[str, Any] | None = None
@@ -761,7 +764,7 @@ class UmaMoeApiClient:
                         f"uma.moe : HTTP {exc.code}, nouvel essai "
                         f"{attempt + 2}/{self.max_retries + 1} dans {delay:.1f} s…"
                     )
-                    time.sleep(delay)
+                    self._wait_before_retry(delay)
                     continue
                 detail = ""
                 try:
@@ -776,7 +779,7 @@ class UmaMoeApiClient:
                         "uma.moe : connexion interrompue, nouvel essai "
                         f"{attempt + 2}/{self.max_retries + 1} dans {delay:.1f} s…"
                     )
-                    time.sleep(delay)
+                    self._wait_before_retry(delay)
                     continue
                 detail = exc.reason if isinstance(exc, urllib.error.URLError) else exc
                 raise UmaMoeError(f"Connexion impossible à {url}: {detail}") from exc
@@ -806,6 +809,21 @@ class UmaMoeApiClient:
                 except (TypeError, ValueError, OverflowError):
                     pass
         return min(delay, self.max_retry_delay)
+
+    def _wait_before_retry(self, delay: float) -> None:
+        """Wait between retries while keeping worker cancellation responsive."""
+        bounded = max(0.0, float(delay))
+        if self.checkpoint is None:
+            time.sleep(bounded)
+            return
+        deadline = time.monotonic() + bounded
+        self.checkpoint()
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            time.sleep(min(0.1, remaining))
+            self.checkpoint()
 
     def _request_json(
         self,
@@ -4009,16 +4027,14 @@ def rank_online_grandparent_pairs(
 
     generated = datetime.now(timezone.utc).isoformat()
     raw_response_path = output_dir / "uma_moe_raw_response.json"
-    raw_response_path.write_text(
-        json.dumps(
-            raw_payload
-            if raw_payload is not None
-            else {"local_pair_mode": True, "note": "No uma.moe request: both pools come from local veterans."},
-            ensure_ascii=False,
-            indent=2,
-        )
-        + "\n",
-        encoding="utf-8",
+    write_json_with_history(
+        raw_response_path,
+        raw_payload
+        if raw_payload is not None
+        else {
+            "local_pair_mode": True,
+            "note": "No uma.moe request: both pools come from local veterans.",
+        },
     )
     rankings_json_path = output_dir / "uma_moe_grandparent_pairs.json"
     payload = {
@@ -4083,7 +4099,7 @@ def rank_online_grandparent_pairs(
         },
         "results": top,
     }
-    rankings_json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    write_json_with_history(rankings_json_path, payload)
 
     csv_rows: list[dict[str, Any]] = []
     for rank, row in enumerate(summaries, 1):
@@ -4150,8 +4166,9 @@ def rank_online_grandparent_pairs(
     _write_csv(rankings_csv_path, csv_rows)
 
     diagnostics_path = output_dir / "uma_moe_diagnostics.json"
-    diagnostics_path.write_text(
-        json.dumps({
+    write_json_with_history(
+        diagnostics_path,
+        {
             "generated_at_utc": generated,
             "api_operation": api_operation,
             "normalization": normalization_diag,
@@ -4203,8 +4220,7 @@ def rank_online_grandparent_pairs(
                 "generic_preselection_weights": preselection_weights,
                 "production_run_affinity_included_in_weighted_score": False,
             },
-        }, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
+        },
     )
 
     return OnlineSearchResult(
@@ -4881,10 +4897,7 @@ def rank_online_parent_pairs(
 
     generated = datetime.now(timezone.utc).isoformat()
     raw_response_path = output_dir / "uma_moe_parent_raw_response.json"
-    raw_response_path.write_text(
-        json.dumps(raw_payload, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    write_json_with_history(raw_response_path, raw_payload)
     rankings_json_path = output_dir / "uma_moe_parent_pairs.json"
     payload = {
         "metadata": {
@@ -4963,10 +4976,7 @@ def rank_online_parent_pairs(
         },
         "results": top,
     }
-    rankings_json_path.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    write_json_with_history(rankings_json_path, payload)
 
     csv_rows: list[dict[str, Any]] = []
     for rank, row in enumerate(summaries, 1):
@@ -5047,8 +5057,9 @@ def rank_online_parent_pairs(
     _write_parent_pair_csv(rankings_csv_path, csv_rows)
 
     diagnostics_path = output_dir / "uma_moe_parent_diagnostics.json"
-    diagnostics_path.write_text(
-        json.dumps({
+    write_json_with_history(
+        diagnostics_path,
+        {
             "generated_at_utc": generated,
             "search_mode": "parent_for_ace",
             "api_operation": api_operation,
@@ -5092,8 +5103,7 @@ def rank_online_parent_pairs(
                 }
                 for row in top
             ],
-        }, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
+        },
     )
 
     return OnlineParentSearchResult(

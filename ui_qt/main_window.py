@@ -5,12 +5,15 @@ from collections.abc import Callable
 from typing import Any
 
 from PySide6.QtCore import QThreadPool, Slot
-from PySide6.QtGui import QCloseEvent
+from PySide6.QtGui import QCloseEvent, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
+    QAbstractButton,
+    QAbstractSpinBox,
     QButtonGroup,
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QMessageBox,
     QPlainTextEdit,
@@ -46,6 +49,15 @@ class MainWindow(QMainWindow):
         self._nav_buttons: dict[str, QPushButton] = {}
         self._nav_sections: dict[str, QLabel] = {}
         self._pages: dict[str, QWidget] = {}
+        self._page_factories: dict[str, Callable[[AppContext], QWidget]] = {
+            "home": HomePage,
+            "data": DataPage,
+            "search": SearchPage,
+            "transfer": TransferPage,
+            "weights": WeightsPage,
+            "tools": ToolsPage,
+        }
+        self._shortcuts: list[QShortcut] = []
 
         self.setWindowTitle(f"{APP_NAME} {APP_VERSION}")
         self.resize(1460, 940)
@@ -165,34 +177,90 @@ class MainWindow(QMainWindow):
         right_layout.addWidget(status)
         outer.addWidget(right, 1)
 
-        home = HomePage(self.context)
-        data = DataPage(self.context)
-        search = SearchPage(self.context)
-        transfer = TransferPage(self.context)
-        weights = WeightsPage(self.context)
-        tools_page = ToolsPage(self.context)
-        self._pages = {
-            "home": home,
-            "data": data,
-            "search": search,
-            "transfer": transfer,
-            "weights": weights,
-            "tools": tools_page,
-        }
-        for key in self._nav_order:
-            self.stack.addWidget(self._pages[key])
-
-        home.navigate_requested.connect(self.show_page)
-        data.task_requested.connect(self.start_task)
-        search.task_requested.connect(self.start_task)
-        transfer.task_requested.connect(self.start_task)
-        tools_page.task_requested.connect(self.start_task)
+        self._ensure_page("home")
+        self._install_shortcuts()
         self.context.language_changed.connect(self._language_changed)
         self.retranslate()
         self.show_page("home")
 
     def _language_changed(self, _language: str) -> None:
         self.retranslate()
+
+    def _ensure_page(self, key: str) -> QWidget:
+        existing = self._pages.get(key)
+        if existing is not None:
+            return existing
+        page = self._page_factories[key](self.context)
+        self._pages[key] = page
+        self.stack.addWidget(page)
+        if key == "home":
+            assert isinstance(page, HomePage)
+            page.navigate_requested.connect(self.show_page)
+        task_signal = getattr(page, "task_requested", None)
+        if task_signal is not None:
+            task_signal.connect(self.start_task)
+        setter = getattr(page, "set_busy", None)
+        if callable(setter):
+            setter(self._busy)
+        self._assign_accessible_names(page)
+        return page
+
+    def _install_shortcuts(self) -> None:
+        for index, key in enumerate(self._nav_order, start=1):
+            shortcut = QShortcut(QKeySequence(f"Ctrl+{index}"), self)
+            shortcut.activated.connect(lambda target=key: self.show_page(target))
+            self._shortcuts.append(shortcut)
+        for sequence in ("Ctrl+Return", "Ctrl+Enter"):
+            shortcut = QShortcut(QKeySequence(sequence), self)
+            shortcut.activated.connect(self._trigger_primary_action)
+            self._shortcuts.append(shortcut)
+
+    def _current_page_key(self) -> str | None:
+        current = self.stack.currentWidget()
+        return next(
+            (key for key, page in self._pages.items() if page is current),
+            None,
+        )
+
+    def _trigger_primary_action(self) -> None:
+        if self._busy:
+            return
+        key = self._current_page_key()
+        page = self._pages.get(key or "")
+        if page is None:
+            return
+        actions = {
+            "home": lambda: self.show_page("data"),
+            "data": getattr(page, "start_extract", None),
+            "search": getattr(page, "run_current_family", None),
+            "transfer": getattr(page, "start_analysis", None),
+            "weights": getattr(page, "save_profile", None),
+            "tools": getattr(page, "save_integration", None),
+        }
+        action = actions.get(key or "")
+        if callable(action):
+            action()
+
+    @staticmethod
+    def _assign_accessible_names(root: QWidget) -> None:
+        for widget in (root, *root.findChildren(QWidget)):
+            if widget.accessibleName():
+                continue
+            name = ""
+            if isinstance(widget, QAbstractButton):
+                name = widget.text().replace("&", "").strip()
+                if "   " in name:
+                    name = name.split("   ", 1)[1].strip()
+            elif isinstance(widget, QLineEdit):
+                name = widget.placeholderText().strip() or widget.toolTip().strip()
+            elif isinstance(widget, QAbstractSpinBox):
+                name = widget.toolTip().strip()
+            else:
+                tooltip = widget.toolTip().strip()
+                if tooltip:
+                    name = tooltip.splitlines()[0]
+            if name:
+                widget.setAccessibleName(name)
 
     def retranslate(self) -> None:
         t = self.context.t
@@ -214,7 +282,9 @@ class MainWindow(QMainWindow):
             "tools": "⌘",
         }
         for key, source in labels.items():
-            self._nav_buttons[key].setText(f"{prefixes[key]}   {t(source)}")
+            translated = t(source)
+            self._nav_buttons[key].setText(f"{prefixes[key]}   {translated}")
+            self._nav_buttons[key].setAccessibleName(translated)
         section_labels = {
             "overview": "VUE D’ENSEMBLE",
             "prepare": "PRÉPARER",
@@ -228,6 +298,12 @@ class MainWindow(QMainWindow):
         self.clear_log_button.setText(t("Effacer"))
         self.log_button.setText(t("Journal"))
         self.status_label.setText(t(self._status_source))
+        self.language_combo.setAccessibleName(t("Langue"))
+        self.clear_log_button.setAccessibleName(t("Effacer le journal"))
+        self.log.setAccessibleName(t("Journal d’exécution"))
+        self.log_button.setAccessibleName(t("Journal"))
+        self.cancel_button.setAccessibleName(t("Annuler la tâche"))
+        self._assign_accessible_names(self)
 
     @Slot(int)
     def _language_selected(self, _index: int) -> None:
@@ -239,9 +315,10 @@ class MainWindow(QMainWindow):
         # Compatibility for home shortcuts and integrations saved by v1.7.x.
         if key in {"optimizer", "online"}:
             key = "search"
-        if key not in self._pages:
+        if key not in self._nav_order:
             return
-        self.stack.setCurrentWidget(self._pages[key])
+        page = self._ensure_page(key)
+        self.stack.setCurrentWidget(page)
         self._nav_buttons[key].setChecked(True)
 
     def append_log(self, message: str) -> None:

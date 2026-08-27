@@ -124,6 +124,23 @@ class UmaMoeUqlOptionTests(unittest.TestCase):
         sleep.assert_called_once_with(1.5)
         self.assertTrue(any("HTTP 503" in message for message in logs))
 
+    def test_retry_wait_checks_for_cancellation_in_small_intervals(self) -> None:
+        checkpoints: list[int] = []
+        client = UmaMoeApiClient(
+            "https://example.invalid/api",
+            checkpoint=lambda: checkpoints.append(len(checkpoints)),
+        )
+        clock = iter((10.0, 10.0, 10.1, 10.2, 10.25))
+        with (
+            patch("uma_moe.time.monotonic", side_effect=lambda: next(clock)),
+            patch("uma_moe.time.sleep") as sleep,
+        ):
+            client._wait_before_retry(0.25)
+
+        self.assertGreaterEqual(len(checkpoints), 3)
+        self.assertGreaterEqual(sleep.call_count, 2)
+        self.assertTrue(all(call.args[0] <= 0.1 for call in sleep.call_args_list))
+
     def test_documented_parent_filters_use_only_fixed_parameter_names(self) -> None:
         client = UmaMoeApiClient("https://example.invalid/api")
         spec = {

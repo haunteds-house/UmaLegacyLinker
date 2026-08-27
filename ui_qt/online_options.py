@@ -287,7 +287,8 @@ class OnlineRetrievalSection(SummarySection):
     def excluded_ids(self) -> tuple[int, ...]:
         return tuple(sorted(self._excluded_ids))
 
-    def values(self) -> dict[str, Any]:
+    def snapshot_values(self) -> dict[str, Any]:
+        """Capture lightweight widget state for later worker materialization."""
         return {
             "uql_options": {
                 "prefer_profile_whites": self.prefer_profile.isChecked(),
@@ -298,8 +299,8 @@ class OnlineRetrievalSection(SummarySection):
                 "pink_min_stars": self.pink_spin.value(),
                 "enable_surface_retrieval": self.surface_cohort.isChecked(),
             },
-            "allowed_parent_card_ids": self.allowed_ids(),
-            "excluded_parent_card_ids": self.excluded_ids(),
+            "allowed_parent_card_ids": tuple(self._allowed_ids),
+            "excluded_parent_card_ids": tuple(self._excluded_ids),
             "lineage_blue_filter": self._lineage_filter(
                 self.lineage_blue_combo, self.lineage_blue_stars
             ),
@@ -307,6 +308,16 @@ class OnlineRetrievalSection(SummarySection):
                 self.lineage_pink_combo, self.lineage_pink_stars
             ),
         }
+
+    def values(self) -> dict[str, Any]:
+        values = self.snapshot_values()
+        values["allowed_parent_card_ids"] = tuple(
+            sorted(values["allowed_parent_card_ids"])
+        )
+        values["excluded_parent_card_ids"] = tuple(
+            sorted(values["excluded_parent_card_ids"])
+        )
+        return values
 
     def store_values(self) -> dict[str, object]:
         values = self.values()
@@ -687,7 +698,8 @@ class OnlineModeSection(SummarySection):
         self.refresh_summary()
         self.changed.emit()
 
-    def values(self) -> dict[str, Any]:
+    def snapshot_values(self) -> dict[str, Any]:
+        """Capture controls without copying a possibly large imported lineage."""
         self.fixed_combo.resolve_current_text()
         fixed = _integer(self.fixed_combo.currentData())
         opposing_id: int | None = None
@@ -702,7 +714,7 @@ class OnlineModeSection(SummarySection):
             elif opposing_selection.startswith("external:"):
                 index = _integer(opposing_selection.split(":", 1)[1], -1)
                 if 0 <= index < len(self._external_opposing):
-                    opposing_payload = copy.deepcopy(self._external_opposing[index])
+                    opposing_payload = self._external_opposing[index]
         else:
             self.required_combo.resolve_current_text()
             required_raw = self.required_combo.currentData()
@@ -726,8 +738,15 @@ class OnlineModeSection(SummarySection):
             "response_path": self.import_picker.text().strip(),
         }
 
+    def values(self) -> dict[str, Any]:
+        values = self.snapshot_values()
+        payload = values.get("opposing_parent_payload")
+        if payload is not None:
+            values["opposing_parent_payload"] = copy.deepcopy(payload)
+        return values
+
     def store_values(self) -> dict[str, object]:
-        values = self.values()
+        values = self.snapshot_values()
         stored: dict[str, object] = {
             mode_key(self.mode, "auto_pairs"): int(values["automatic_pairs"]),
             mode_key(self.mode, "fixed_local_id"): values["fixed_local_id"] or 0,
@@ -759,7 +778,7 @@ class OnlineModeSection(SummarySection):
     ) -> str:
         if self.mode != PARENT_MODE:
             return ""
-        required = self.values()["required_parent_card_id"]
+        required = self.snapshot_values()["required_parent_card_id"]
         if required is None:
             return ""
         allowed = set(allowed_ids)
@@ -792,7 +811,7 @@ class OnlineModeSection(SummarySection):
         )
         parts.append(f"{self.local_pool.value()}×{self.remote_pool.value()}")
         if self.mode == PARENT_MODE:
-            if self.values()["required_parent_card_id"] is not None:
+            if self.snapshot_values()["required_parent_card_id"] is not None:
                 parts.append(
                     t("requis : {name}").replace(
                         "{name}", self.required_combo.currentText().strip()

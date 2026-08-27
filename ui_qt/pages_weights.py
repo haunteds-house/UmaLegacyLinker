@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QEvent, QSize, QTimer, Qt
 from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -152,6 +152,7 @@ class WeightsPage(QWidget):
         self.context = context
         self.default: dict[str, Any] = {}
         self.current: dict[str, Any] = {}
+        self.saved_current: dict[str, Any] = {}
         self._all_rows: list[dict[str, Any]] = []
         self._selected_path: tuple[str, ...] | None = None
         self._editor_kind = "none"
@@ -432,11 +433,8 @@ class WeightsPage(QWidget):
         comparison_layout.addWidget(self.draft_state)
 
         buttons = QHBoxLayout()
-        self.apply_button = QPushButton("")
-        self.apply_button.setObjectName("primary")
         self.reset_button = QPushButton("")
         self.reset_group_button = QPushButton("")
-        buttons.addWidget(self.apply_button)
         buttons.addWidget(self.reset_button)
         buttons.addWidget(self.reset_group_button)
         buttons.addStretch(1)
@@ -492,7 +490,6 @@ class WeightsPage(QWidget):
         self.category_combo.currentIndexChanged.connect(self.apply_filter)
         self.tree.currentItemChanged.connect(self._selection_changed)
         self.tree.itemClicked.connect(self._tree_item_clicked)
-        self.apply_button.clicked.connect(self.apply_value)
         self.reset_button.clicked.connect(self.reset_selected)
         self.reset_group_button.clicked.connect(self.reset_selected_group)
         self.reset_all_button.clicked.connect(self.reset_all)
@@ -513,6 +510,20 @@ class WeightsPage(QWidget):
         self.text_edit.textEdited.connect(self._editor_value_changed)
         self.structured_edit.textChanged.connect(self._editor_value_changed)
         self.curve_edit.valueChanged.connect(self._editor_value_changed)
+        self.bool_edit.clicked.connect(self._queue_editor_commit)
+        self.enum_edit.activated.connect(self._queue_editor_commit)
+        self._focus_commit_widgets = {
+            self.percent_slider,
+            self.percent_spin,
+            self.integer_edit,
+            self.decimal_edit,
+            self.text_edit,
+            self.curve_edit,
+            self.structured_edit,
+            *self.curve_edit.findChildren(QWidget),
+        }
+        for widget in self._focus_commit_widgets:
+            widget.installEventFilter(self)
         self.context.lineage_changed.connect(self._sync_shared_settings)
         self.context.language_changed.connect(self._language_changed)
         self.reload()
@@ -530,8 +541,29 @@ class WeightsPage(QWidget):
             QMessageBox.warning(self, self.context.t("Profil de pondération invalide"), self.context.t(str(exc)))
             self.default = read_json_object(default_scoring_path())
             self.current = copy.deepcopy(self.default)
+        self.saved_current = copy.deepcopy(self.current)
         self._rebuild_rows()
         self._refresh_status()
+
+    def eventFilter(self, watched: object, event: QEvent) -> bool:  # noqa: N802
+        if (
+            event.type() == QEvent.Type.FocusOut
+            and watched in self._focus_commit_widgets
+            and self._editor_pending
+        ):
+            self._queue_editor_commit()
+        return super().eventFilter(watched, event)
+
+    def _queue_editor_commit(self, *_args: object) -> None:
+        if self._editor_loading or not self._editor_pending:
+            return
+        QTimer.singleShot(0, self._commit_pending_editor)
+
+    def _commit_pending_editor(self) -> None:
+        if not self._editor_pending:
+            return
+        if self._commit_editor_value(show_warning=True):
+            self._rebuild_rows()
 
     def _rebuild_rows(self) -> None:
         rows: list[dict[str, Any]] = []
@@ -592,6 +624,7 @@ class WeightsPage(QWidget):
         self._all_rows = sorted(rows, key=lambda row: row["sort_key"])
         self._rebuild_categories()
         self.apply_filter()
+        self._refresh_status()
 
     def _path_changed(
         self, path: tuple[str, ...], value: object, default_value: object
@@ -924,7 +957,6 @@ class WeightsPage(QWidget):
             self.editor_hint.setText(
                 self.context.t("Choisis un réglage dans la liste pour afficher le contrôle adapté.")
             )
-            self.apply_button.setEnabled(False)
             self.reset_button.setEnabled(False)
             self.reset_group_button.setVisible(False)
             self.reset_group_button.setEnabled(False)
@@ -970,7 +1002,6 @@ class WeightsPage(QWidget):
         self.state_badge.style().unpolish(self.state_badge)
         self.state_badge.style().polish(self.state_badge)
         self._set_draft_state(changed=changed, pending=False)
-        self.apply_button.setEnabled(False)
         self.reset_button.setEnabled(changed)
         block_paths = self._selected_block_paths(path)
         self.reset_group_button.setVisible(len(block_paths) > 1)
@@ -978,7 +1009,7 @@ class WeightsPage(QWidget):
 
     def _set_draft_state(self, *, changed: bool, pending: bool) -> None:
         if pending:
-            text = self.context.t("Modification à appliquer")
+            text = self.context.t("Modification en cours")
             object_name = "pillWarning"
         elif changed:
             text = self.context.t("Brouillon modifié")
@@ -1006,7 +1037,6 @@ class WeightsPage(QWidget):
             self._selected_path, current_value, default_value
         )
         self._set_draft_state(changed=current_changed, pending=pending)
-        self.apply_button.setEnabled(pending)
         self.reset_button.setEnabled(pending or current_changed)
         self.reset_group_button.setEnabled(
             pending or self._block_changed(self._selected_block_paths(self._selected_path))
@@ -1430,7 +1460,6 @@ class WeightsPage(QWidget):
         )
         self._update_distribution_preview()
         self._set_draft_state(changed=changed, pending=False)
-        self.apply_button.setEnabled(False)
         self.reset_button.setEnabled(changed)
         self.reset_group_button.setEnabled(
             self._block_changed(self._selected_block_paths(self._selected_path))
@@ -1517,6 +1546,7 @@ class WeightsPage(QWidget):
         except (OSError, ScoringConfigError) as exc:
             QMessageBox.warning(self, self.context.t("Profil de pondération invalide"), self.context.t(str(exc)))
             return
+        self.saved_current = copy.deepcopy(self.current)
         self.active_check.blockSignals(True)
         self.active_check.setChecked(True)
         self.active_check.blockSignals(False)
@@ -1551,7 +1581,11 @@ class WeightsPage(QWidget):
     def _refresh_status(self) -> None:
         overrides = build_overrides(self.default, self.current) if self.default else {}
         count = count_override_leaves(overrides)
-        if self.active_check.isChecked():
+        if self.saved_current and self.current != self.saved_current:
+            text = self.context.t(
+                "Modifications non enregistrées · utilise « Enregistrer le profil »."
+            )
+        elif self.active_check.isChecked():
             text = self.context.t("Profil personnalisé actif · {count} valeur(s) modifiée(s)").replace("{count}", str(count))
         elif count:
             text = self.context.t("Profil par défaut actif · {count} modification(s) enregistrée(s) mais désactivée(s)").replace("{count}", str(count))
@@ -1668,7 +1702,7 @@ class WeightsPage(QWidget):
         self.active_check.setText(t("Utiliser mes pondérations personnalisées"))
         self.import_button.setText(t("Importer…"))
         self.export_button.setText(t("Exporter le profil…"))
-        self.save_button.setText(t("Enregistrer et activer"))
+        self.save_button.setText(t("Enregistrer le profil"))
         self.search.setPlaceholderText(t("Rechercher un réglage…"))
         self.category_filter_label.setText(t("Domaine de calcul"))
         self.category_combo.setToolTip(
@@ -1684,14 +1718,13 @@ class WeightsPage(QWidget):
         self.empty_label.setText(t("Aucun réglage sélectionné."))
         self.current_label.setText(t("Valeur active"))
         self.default_label.setText(t("Valeur par défaut"))
-        self.apply_button.setText(t("Appliquer"))
         self.reset_button.setText(t("Rétablir la valeur"))
         self.reset_group_button.setText(t("Rétablir le bloc"))
         self.reset_group_button.setToolTip(
             t("Rétablit tous les réglages du bloc de calcul sélectionné.")
         )
         self.save_hint.setText(
-            t("Le brouillon reste local jusqu’à « Enregistrer et activer ».")
+            t("Les changements valides rejoignent automatiquement le brouillon. Enregistre le profil pour les conserver sur disque.")
         )
         self.priorities.set_title(t("Priorités individuelles des White Skills · avancé"))
         self.priority_help.setText(

@@ -39,16 +39,20 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             window = MainWindow(AppContext(store))
             window.show()
             self.application.processEvents()
-            self.assertEqual(
-                set(window._pages),
-                {"home", "data", "search", "transfer", "weights", "tools"},
-            )
+            self.assertEqual(set(window._pages), {"home"})
+            self.assertEqual(window.stack.count(), 1)
             for language in ("fr", "en"):
                 window.context.set_language(language)
                 for page in window._nav_order:
                     window.show_page(page)
                     self.application.processEvents()
                     self.assertIs(window.stack.currentWidget(), window._pages[page])
+            self.assertEqual(set(window._pages), set(window._nav_order))
+            self.assertEqual(window.stack.count(), len(window._nav_order))
+            self.assertEqual(len(window._shortcuts), 8)
+            self.assertTrue(
+                all(button.accessibleName() for button in window._nav_buttons.values())
+            )
             window.close()
 
     def test_data_hierarchy_and_transfer_help_are_exposed_at_runtime(self) -> None:
@@ -1415,13 +1419,14 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             page.percent_spin.setValue(37.5)
             self.assertEqual(page.percent_slider.value(), 375)
             self.assertAlmostEqual(float(page._read_editor_value()), 0.375)
-            self.assertTrue(page.apply_button.isEnabled())
-            self.assertEqual(page.draft_state.text(), "Modification à appliquer")
+            self.assertTrue(page._editor_pending)
+            self.assertEqual(page.draft_state.text(), "Modification en cours")
             page.search.setText(str(percentage_row["label"]))
             self.application.processEvents()
             self.assertAlmostEqual(page.percent_spin.value(), 37.5)
-            self.assertTrue(page.apply_button.isEnabled())
-            self.assertTrue(page.apply_value())
+            self.assertTrue(page._editor_pending)
+            page._commit_pending_editor()
+            self.assertFalse(page._editor_pending)
             after = {
                 path: page.current[path[0]][path[1]][path[2]]
                 for path in group_paths

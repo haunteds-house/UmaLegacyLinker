@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+from output_history import write_json_with_history
+
 from g1_race_planning import (
     calendar_slots,
     distance_type_for_meters,
@@ -991,9 +993,7 @@ def link_veterans(
     report_path = artifact_paths["report"]
 
     log("Écriture du JSON enrichi…")
-    with json_path.open("w", encoding="utf-8", newline="\n") as stream:
-        json.dump(output_payload, stream, ensure_ascii=False, indent=2)
-        stream.write("\n")
+    write_json_with_history(json_path, output_payload)
 
     log("Écriture du CSV synthétique…")
     csv_columns = [

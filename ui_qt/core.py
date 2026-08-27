@@ -4,7 +4,8 @@ import json
 import os
 import subprocess
 import sys
-from dataclasses import dataclass
+from copy import deepcopy
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Callable
 
@@ -18,6 +19,7 @@ from legacy_linker import (
     normalize_json_root,
 )
 from manual_weights import generate_manual_skill_weights
+from output_history import write_json_with_history
 from parent_optimizer import OptimizerError, OptimizerResult, load_ace_options, optimize_parents
 from scoring_config import (
     ScoringConfigError,
@@ -320,6 +322,7 @@ class OnlineSearchRequest:
     local_pair_mode: bool = False
     lineage_blue_filter: tuple[str, int] | None = None
     lineage_pink_filter: tuple[str, int] | None = None
+    deferred_options: dict[str, Any] | None = None
 
 
 class OperationCancelled(Exception):
@@ -692,6 +695,54 @@ def _validated_online_request(request: OnlineSearchRequest) -> dict[int, int]:
     return chara_by_card
 
 
+def materialize_online_search_options(
+    request: OnlineSearchRequest,
+) -> OnlineSearchRequest:
+    """Normalize the UI snapshot after execution has entered the worker thread."""
+    snapshot = request.deferred_options
+    if snapshot is None:
+        return request
+    response_text = str(snapshot.get("response_path") or "").strip()
+    return replace(
+        request,
+        fixed_local_id=(
+            int(snapshot["fixed_local_id"])
+            if snapshot.get("fixed_local_id") is not None
+            else None
+        ),
+        automatic_pairs=bool(snapshot.get("automatic_pairs", True)),
+        local_pool_size=int(snapshot.get("local_pool_size", 1)),
+        remote_pool_size=int(snapshot.get("remote_pool_size", 1)),
+        response_path=Path(response_text).expanduser() if response_text else None,
+        uql_options=deepcopy(dict(snapshot.get("uql_options") or {})),
+        limit=int(snapshot.get("limit", 500)),
+        planned_g1_budget=int(snapshot.get("planned_g1_budget", 20)),
+        g1_win_probability_cutoff=float(
+            snapshot.get("g1_win_probability_cutoff", 0.6)
+        ),
+        required_parent_card_id=(
+            int(snapshot["required_parent_card_id"])
+            if snapshot.get("required_parent_card_id") is not None
+            else None
+        ),
+        allowed_parent_card_ids=tuple(
+            sorted({int(value) for value in snapshot.get("allowed_parent_card_ids", ())})
+        ),
+        excluded_parent_card_ids=tuple(
+            sorted({int(value) for value in snapshot.get("excluded_parent_card_ids", ())})
+        ),
+        opposing_parent_trained_id=(
+            int(snapshot["opposing_parent_trained_id"])
+            if snapshot.get("opposing_parent_trained_id") is not None
+            else None
+        ),
+        opposing_parent_payload=deepcopy(snapshot.get("opposing_parent_payload")),
+        lineage_blue_filter=snapshot.get("lineage_blue_filter"),
+        lineage_pink_filter=snapshot.get("lineage_pink_filter"),
+        deferred_options=None,
+    )
+
+
 def run_online_search(
     request: OnlineSearchRequest,
     *,
@@ -700,6 +751,7 @@ def run_online_search(
     checkpoint: CheckpointCallback | None = None,
 ) -> OnlineSearchResult | OnlineParentSearchResult:
     """Run the same online/local ranking pipeline used by the legacy UI."""
+    request = materialize_online_search_options(request)
     chara_by_card = _validated_online_request(request)
     output = request.output_dir
     output.mkdir(parents=True, exist_ok=True)
@@ -822,9 +874,8 @@ def run_online_search(
         (output / "uma_moe_generated_uql.txt").write_text(
             effective_uql + "\n", encoding="utf-8"
         )
-        (output / "uma_moe_generated_uql.json").write_text(
-            json.dumps(generated_meta, ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8",
+        write_json_with_history(
+            output / "uma_moe_generated_uql.json", generated_meta
         )
     if request.use_import:
         assert request.response_path is not None
@@ -845,6 +896,7 @@ def run_online_search(
             request.api_base.strip() or DEFAULT_API_BASE,
             token=(request.token.strip() or None),
             logger=logger,
+            checkpoint=checkpoint,
         )
         api_filters: dict[str, Any] = {
             key: value
@@ -931,10 +983,7 @@ def run_online_search(
         operation["auto_uql"] = bool(request.auto_uql)
         operation["generated_uql_metadata"] = generated_meta
         operation["effective_uql"] = effective_uql
-        (output / "uma_moe_api_response.json").write_text(
-            json.dumps(raw_payload, ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8",
-        )
+        write_json_with_history(output / "uma_moe_api_response.json", raw_payload)
 
     progress(72, "Calcul des meilleures paires — toutes les paires compatibles…")
     common: dict[str, Any] = {

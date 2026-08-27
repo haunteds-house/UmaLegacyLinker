@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
+from output_history import write_json_with_history
+
 from course_presets import ordered_course_presets
 from parent_optimizer import (
     DISTANCES,
@@ -152,9 +154,7 @@ def _read_json(path: Path) -> Any:
 
 
 def _write_json(path: Path, payload: Any) -> None:
-    with path.open("w", encoding="utf-8", newline="\n") as stream:
-        json.dump(payload, stream, ensure_ascii=False, indent=2)
-        stream.write("\n")
+    write_json_with_history(path, payload)
 
 
 def _sha256(path: Path) -> str:
