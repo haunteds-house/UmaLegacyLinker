@@ -5,7 +5,9 @@ import math
 from ui_qt.zoom import (
     DEFAULT_ZOOM,
     MAX_ZOOM,
+    MIN_POINTER_TARGET_PX,
     MIN_ZOOM,
+    minimum_pointer_target_extent,
     normalise_zoom,
     scaled_dimension,
     stepped_zoom,
@@ -35,3 +37,12 @@ def test_zoom_formatting_and_geometry_are_deterministic() -> None:
     assert scaled_dimension(101, 1.25) == 127
     assert zoom_percentage(1.25) == "125 %"
     assert stored_zoom(1.25) == "1.25"
+
+
+def test_pointer_targets_never_shrink_below_twenty_four_pixels() -> None:
+    for zoom in (MIN_ZOOM, 0.8, 0.9, 1.0, 1.25, MAX_ZOOM):
+        logical_extent = minimum_pointer_target_extent(25.0, zoom)
+        assert logical_extent * zoom >= MIN_POINTER_TARGET_PX
+    assert minimum_pointer_target_extent(25.0, MIN_ZOOM) == 32.0
+    assert minimum_pointer_target_extent(25.0, 1.0) == 25.0
+    assert minimum_pointer_target_extent(25.0, MAX_ZOOM) == 25.0

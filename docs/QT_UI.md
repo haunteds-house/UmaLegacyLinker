@@ -50,6 +50,8 @@ The PySide6 interface is the desktop application. It shares the engines, configu
   minimum for dense labels;
 - independent 75–200% lineage and G1-calendar zoom, remembered per view and
   available through visible controls, Ctrl+wheel and Ctrl+0;
+- lineage Spark hover targets that remain at least 24 device-independent pixels
+  high at every supported zoom level, without overlapping invisible hitboxes;
 - explicit bilingual accessible names, descriptions and label relationships
   for configuration controls, composite path pickers, result tables,
   diagnostics and dense custom views;

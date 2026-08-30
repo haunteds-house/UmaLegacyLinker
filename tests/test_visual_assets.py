@@ -94,6 +94,10 @@ class VisualAssetTests(unittest.TestCase):
         )
         self.assertIn("target.width() * self._zoom", source)
         self.assertIn("visible_width_px / self._zoom", source)
+        self.assertIn(
+            "row_height = minimum_pointer_target_extent(25.0, self._zoom)",
+            source,
+        )
         self.assertIn("scroll.setWidgetResizable(False)", source)
 
     def test_qt_launcher_preserves_fractional_high_dpi_scaling(self) -> None:

@@ -7,6 +7,7 @@ DEFAULT_ZOOM = 1.0
 MIN_ZOOM = 0.75
 MAX_ZOOM = 2.0
 ZOOM_STEP = 0.1
+MIN_POINTER_TARGET_PX = 24.0
 
 LINEAGE_ZOOM_KEY = "lineage_view_zoom"
 CALENDAR_ZOOM_KEY = "lineage_calendar_zoom"
@@ -35,6 +36,12 @@ def stepped_zoom(value: object, direction: int) -> float:
 def scaled_dimension(value: float | int, zoom: object) -> int:
     """Scale logical canvas geometry without clipping its final pixel."""
     return max(1, int(math.ceil(float(value) * normalise_zoom(zoom))))
+
+
+def minimum_pointer_target_extent(nominal: float, zoom: object) -> float:
+    """Keep a transformed canvas target at least 24 device-independent px."""
+    resolved_zoom = normalise_zoom(zoom)
+    return max(float(nominal), MIN_POINTER_TARGET_PX / resolved_zoom)
 
 
 def zoom_percentage(value: object) -> str:

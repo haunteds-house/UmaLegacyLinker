@@ -62,6 +62,7 @@ from ui_qt.zoom import (
     LINEAGE_ZOOM_KEY,
     MAX_ZOOM,
     MIN_ZOOM,
+    minimum_pointer_target_extent,
     normalise_zoom,
     scaled_dimension,
     stepped_zoom,
@@ -370,7 +371,10 @@ class LineageTree(ZoomableCanvas):
     ) -> tuple[list[tuple[QRectF, dict[str, Any], int]], float]:
         x = area.left()
         y = area.top()
-        row_height = 25.0
+        # The whole chip owns the tooltip; the skill icon is decorative. Keep
+        # that single target at 24 rendered pixels even when the canvas is
+        # zoomed below 100%, instead of layering overlapping invisible hitboxes.
+        row_height = minimum_pointer_target_extent(25.0, self._zoom)
         gap = 5.0
         result: list[tuple[QRectF, dict[str, Any], int]] = []
         for index, factor in enumerate(node.get("sparks") or []):

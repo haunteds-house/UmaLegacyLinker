@@ -25,6 +25,10 @@ This project uses feature-level semantic versioning. Small internal iterations a
   testing now follows transformed canvas coordinates, fractional Windows DPI
   scaling is preserved explicitly, and race banners remain capped at their
   native bitmap resolution at every zoom level.
+- Kept lineage Spark hover targets at the WCAG 2.2 minimum of 24 rendered
+  pixels throughout the 75–200% zoom range. Sub-100% views now enlarge the
+  chip's logical row just enough to preserve one non-overlapping tooltip target;
+  the skill icon remains decorative inside that target.
 - Standardised local-veteran identity as `Card name · evaluation score` in
   selectors, ranking tables, diagnostics and Transfer Helper exports. Internal
   training IDs remain available as technical keys and table tooltips, but are

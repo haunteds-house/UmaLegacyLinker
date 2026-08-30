@@ -1239,6 +1239,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
         from ui_qt.context import AppContext
         from ui_qt.core import SettingsStore
         from ui_qt.lineage_view import LineageDialog
+        from ui_qt.zoom import MIN_POINTER_TARGET_PX, MIN_ZOOM
 
         def member(card_id: int, name: str) -> dict[str, object]:
             return {
@@ -1327,6 +1328,24 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.assertAlmostEqual(white["proc_probability_over_run"], 0.246576)
             self.assertTrue(white["is_score_priority"])
             self.assertIn("Inspiration Events", dialog.spark_legend.text())
+            dialog.tree.set_zoom(MIN_ZOOM)
+            self.application.processEvents()
+            self.assertTrue(dialog.tree._spark_rects)
+            spark_rects = [rect for rect, _position, _factor in dialog.tree._spark_rects]
+            self.assertTrue(
+                all(
+                    rect.height() * dialog.tree.zoom_level()
+                    >= MIN_POINTER_TARGET_PX
+                    for rect in spark_rects
+                )
+            )
+            self.assertFalse(
+                any(
+                    first.intersects(second)
+                    for index, first in enumerate(spark_rects)
+                    for second in spark_rects[index + 1 :]
+                )
+            )
             dialog.tree.set_zoom(1.2)
             self.application.processEvents()
             self.assertEqual(dialog.tree.width(), 1872)
