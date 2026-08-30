@@ -49,6 +49,7 @@ from ui_qt.presentation import (
     online_detail_html,
     result_detail_html,
 )
+from ui_qt.table_typography import enable_tabular_numbers
 from ui_qt.view_state import bind_splitter_state, bind_table_view_state
 from veteran_identity import canonical_veteran_label, technical_veteran_tooltip
 
@@ -101,6 +102,7 @@ class ResultPane(QWidget):
 
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
         self.table = QTableView()
+        enable_tabular_numbers(self.table)
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -482,6 +484,7 @@ class OnlineResultsPane(QWidget):
 
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
         self.table = QTableView()
+        enable_tabular_numbers(self.table)
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)

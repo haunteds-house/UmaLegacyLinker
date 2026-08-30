@@ -18,6 +18,9 @@ The PySide6 interface is the desktop application. It shares the engines, configu
 - clearly separated local and uma.moe source cards feeding one shared result area;
 - independent background actions for final pairs, parent branches and future grandparents, so a local request computes only the requested result family;
 - sortable final-pair, parent-branch and future-grandparent tables;
+- tabular OpenType figures in every dense numeric result table and in the
+  scoring-curve editor, preserving the application typeface while aligning
+  digits vertically;
 - an embedded diagnostics pane instead of separate result windows;
 - a top-down visual lineage inspector for every local and uma.moe ranking: final pairs, parent branches, future-grandparent candidates and grandparent pairs;
 - game-inspired rank emblems, roomier score/P(S) cards and clearly separated aptitude/readiness/affinity diagnostics;
@@ -115,6 +118,7 @@ The **Windows release** GitHub Actions workflow runs the tests and visual audit,
 | `ui_qt/icon_catalog.py` | vendored SVG icons, tinted for the active theme at paint time |
 | `ui_qt/icons/` | vendored Lucide SVG sources (see [`THIRD_PARTY.md`](THIRD_PARTY.md)) |
 | `ui_qt/typography.py` | shared named point-size scale for QSS, painted views and rich text |
+| `ui_qt/table_typography.py` | OpenType tabular-figure policy for dense numeric Qt tables |
 | `ui_qt/zoom.py` | shared canvas zoom bounds, stepping, formatting and persistence keys |
 | `ui_qt/view_state.py` | versioned Qt splitter/header/disclosure persistence and column chooser |
 | `ui_qt/image_assets.py` | asynchronous loading, allowlist and persistent disk cache |

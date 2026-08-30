@@ -225,7 +225,7 @@ local × online pair calculation.
 
 ### Desktop interface
 
-The PySide6 interface covers the full workflow: dashboard, extraction and linking, one unified local/uma.moe Search workspace (including fixed opposing-parent context and offline local GP-pair ranking), Transfer Helper, scoring-profile editing, Settings and diagnostics, sortable embedded results, a visual lineage inspector and Lineage Planner export. The three local buttons calculate final pairs, parent branches or future grandparents independently. Long-running tasks can be cancelled from the status bar.
+The PySide6 interface covers the full workflow: dashboard, extraction and linking, one unified local/uma.moe Search workspace (including fixed opposing-parent context and offline local GP-pair ranking), Transfer Helper, scoring-profile editing, Settings and diagnostics, sortable embedded results with tabular figures for numeric comparison, a visual lineage inspector and Lineage Planner export. The three local buttons calculate final pairs, parent branches or future grandparents independently. Long-running tasks can be cancelled from the status bar.
 
 Preferences live in `%APPDATA%\UmaLegacyLinker\config.json` and the interface renders in French and English. The Windows workflow also renders every page at three viewport sizes in both languages and rejects detected text overflow. See [`docs/QT_UI.md`](docs/QT_UI.md) for the UI architecture and build instructions.
 

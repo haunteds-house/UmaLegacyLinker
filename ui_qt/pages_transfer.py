@@ -37,6 +37,7 @@ from ui_qt.core import (
 )
 from ui_qt.models import Column, ResultTableModel, nested
 from ui_qt.presentation import transfer_detail_html
+from ui_qt.table_typography import enable_tabular_numbers
 from ui_qt.view_state import bind_splitter_state, bind_table_view_state
 from veteran_identity import (
     canonical_veteran_label,
@@ -171,6 +172,7 @@ class TransferPage(QWidget):
 
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
         self.table = QTableView()
+        enable_tabular_numbers(self.table)
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)

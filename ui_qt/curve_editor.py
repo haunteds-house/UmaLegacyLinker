@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 )
 
 from ui_qt.accessibility import describe_control
+from ui_qt.table_typography import enable_tabular_numbers
 from ui_qt.typography import point_size
 
 
@@ -171,6 +172,7 @@ class CurveEditor(QWidget):
         layout.addWidget(self.hint)
 
         self.table = QTableWidget(0, 2)
+        enable_tabular_numbers(self.table)
         # Placeholder headers only: pages_weights always calls set_labels()
         # with translated labels before the curve page becomes visible.
         self.table.setHorizontalHeaderLabels(["", ""])

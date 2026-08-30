@@ -126,6 +126,22 @@ class QtRuntimeSmokeTests(unittest.TestCase):
                 Qt.SortOrder.DescendingOrder,
             )
 
+    def test_tabular_numbers_use_the_open_type_feature_without_font_swap(self) -> None:
+        from PySide6.QtWidgets import QTableView
+
+        from ui_qt.table_typography import (
+            TABULAR_NUMBERS_FEATURE,
+            enable_tabular_numbers,
+        )
+
+        table = QTableView()
+        original_family = table.font().family()
+
+        enable_tabular_numbers(table)
+
+        self.assertEqual(table.font().featureValue(TABULAR_NUMBERS_FEATURE), 1)
+        self.assertEqual(table.font().family(), original_family)
+
     def test_data_hierarchy_and_transfer_help_are_exposed_at_runtime(self) -> None:
         from ui_qt.context import AppContext
         from ui_qt.core import SettingsStore

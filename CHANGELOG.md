@@ -53,6 +53,10 @@ This project uses feature-level semantic versioning. Small internal iterations a
   order/width and optional columns are restored across sessions; result-table
   headers expose a right-click column chooser. Display preferences use their
   own `ui_*` keys and do not alter scoring configuration.
+- Enabled the OpenType tabular-numeral feature on Transfer Helper, local and
+  uma.moe result tables, and the numeric curve editor. Columns now keep every
+  digit on the same advance for vertical comparison without replacing the
+  application typeface with a monospace font or changing stored values.
 - Raised structural and Spark-chip boundaries to the WCAG 2.2 non-text
   contrast floor of 3:1, while keeping text contrast unchanged. Every Spark
   chip now carries an explicit semantic label instead of relying on hue, and
