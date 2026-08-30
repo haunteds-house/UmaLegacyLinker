@@ -19,11 +19,13 @@ cards had grown.
 
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Any, Callable
 
 from output_history import OutputProvenance
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import QRectF, QSize, Qt, Signal
+from PySide6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -36,6 +38,7 @@ from PySide6.QtWidgets import (
 from ui_qt.accessibility import describe_control
 from ui_qt.components import muted_label
 from ui_qt.context import AppContext
+from ui_qt.theme import COLORS
 
 PAIRS = "pairs"
 BRANCHES = "branches"
@@ -49,22 +52,66 @@ FAMILY_ORDER = (PAIRS, BRANCHES, FUTURE, ONLINE_PARENT, ONLINE_GP)
 LOCAL_FAMILIES = (PAIRS, BRANCHES, FUTURE)
 ONLINE_FAMILIES = (ONLINE_PARENT, ONLINE_GP)
 
-# State glyphs stay short so tab labels keep passing the layout audit's
-# button-text-width check in both languages. Each is doubled by a tooltip:
-# nothing is conveyed by a symbol alone.
+# State is rendered as a real Qt icon rather than a Unicode glyph in the tab
+# text.  Host-font fallback previously turned the compact status symbols into
+# unrelated squares/circles on some Windows installs.  Tooltips keep the full
+# semantic label, so colour/shape is never the sole carrier of information.
 STATE_EMPTY = "empty"
 STATE_RUNNING = "running"
 STATE_READY = "ready"
 STATE_STALE = "stale"
 STATE_LOADED = "loaded"
 
-STATE_GLYPHS = {
-    STATE_EMPTY: "○",
-    STATE_RUNNING: "⟳",
-    STATE_READY: "●",
-    STATE_STALE: "◐",
-    STATE_LOADED: "▣",
-}
+STATE_ICON_SIZE = 12
+
+
+@lru_cache(maxsize=None)
+def _state_icon(state: str) -> QIcon:
+    """Return a tiny DPI-safe status icon for one result-family state."""
+
+    size = STATE_ICON_SIZE
+    pixmap = QPixmap(size, size)
+    pixmap.fill(QColor(0, 0, 0, 0))
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    center = size / 2
+    circle = QRectF(1.5, 1.5, size - 3.0, size - 3.0)
+
+    muted = QColor(COLORS["muted"])
+    accent = QColor(COLORS["accent"])
+    warning = QColor(COLORS["warning"])
+    blue = QColor(COLORS["blue"])
+
+    if state == STATE_READY:
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(accent)
+        painter.drawEllipse(circle)
+    elif state == STATE_RUNNING:
+        pen = QPen(blue, 1.8)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawArc(circle, 35 * 16, 265 * 16)
+    elif state == STATE_STALE:
+        pen = QPen(warning, 1.8)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawEllipse(circle)
+        painter.drawLine(int(center), 3, int(center), 7)
+        painter.drawPoint(int(center), 9)
+    elif state == STATE_LOADED:
+        pen = QPen(blue, 1.6)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRoundedRect(QRectF(2, 2, size - 4, size - 4), 1.5, 1.5)
+    else:
+        pen = QPen(muted, 1.6)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawEllipse(circle)
+
+    painter.end()
+    return QIcon(pixmap)
 
 STATE_LABELS = {
     STATE_EMPTY: "Aucun résultat",
@@ -202,16 +249,17 @@ class ResultFamilyTabs(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(7)
+        layout.setSpacing(4)
 
         head = QHBoxLayout()
         head.setSpacing(8)
         self.bar = QTabBar()
+        self.bar.setObjectName("resultFamilyTabs")
         self.bar.setDrawBase(False)
-        self.bar.setExpanding(False)
-        self.bar.setUsesScrollButtons(True)
-        head.addWidget(self.bar)
-        head.addStretch(1)
+        self.bar.setExpanding(True)
+        self.bar.setUsesScrollButtons(False)
+        self.bar.setIconSize(QSize(STATE_ICON_SIZE, STATE_ICON_SIZE))
+        head.addWidget(self.bar, 1)
         layout.addLayout(head)
 
         self.stack = QStackedWidget()
@@ -260,8 +308,8 @@ class ResultFamilyTabs(QWidget):
         t = self.context.t
         for index, family in enumerate(FAMILY_ORDER):
             view = self.views[family]
-            glyph = STATE_GLYPHS[view.state]
-            self.bar.setTabText(index, f"{t(FAMILY_TITLES[family])}  {glyph}")
+            self.bar.setTabText(index, t(FAMILY_TITLES[family]))
+            self.bar.setTabIcon(index, _state_icon(view.state))
             self.bar.setTabToolTip(
                 index,
                 f"{t(FAMILY_TITLES[family])} — {t(STATE_LABELS[view.state])}",

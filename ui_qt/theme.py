@@ -387,6 +387,35 @@ def application_stylesheet() -> str:
         border-bottom: 2px solid {COLORS['focus']};
         border-radius: 5px 5px 0 0;
     }}
+    QTabBar#resultFamilyTabs {{
+        background: transparent;
+        border-bottom: 1px solid #33465d;
+    }}
+    QTabBar#resultFamilyTabs::tab {{
+        color: {COLORS['muted']};
+        background: #111a27;
+        border: 1px solid #33465d;
+        border-bottom: 2px solid #33465d;
+        border-radius: 7px 7px 0 0;
+        padding: 8px 12px;
+        margin-right: 4px;
+    }}
+    QTabBar#resultFamilyTabs::tab:hover {{
+        color: {COLORS['text']};
+        background: {COLORS['surface_alt']};
+        border-color: {COLORS['border']};
+    }}
+    QTabBar#resultFamilyTabs::tab:selected {{
+        color: {COLORS['accent']};
+        background: #17322f;
+        border-color: #4d806f;
+        border-bottom-color: {COLORS['accent']};
+        font-weight: 650;
+    }}
+    QTabBar#resultFamilyTabs::tab:selected:focus {{
+        border-color: {COLORS['focus']};
+        border-bottom-color: {COLORS['focus']};
+    }}
     QTableView {{
         background: #101824;
         alternate-background-color: #131e2d;

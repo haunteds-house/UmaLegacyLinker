@@ -505,18 +505,75 @@ class QtRuntimeSmokeTests(unittest.TestCase):
                 _dispose_widget(pane, self.application)
             sys.excepthook = previous_hook
 
+    def test_local_result_names_show_cached_trainee_avatars(self) -> None:
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QColor, QPixmap
+
+        from ui_qt.asset_catalog import trainee_image_url
+        from ui_qt.context import AppContext
+        from ui_qt.core import SettingsStore
+        from ui_qt.image_assets import image_repository
+        from ui_qt.layout_audit import _dispose_widget
+        from ui_qt.result_panes import RESULT_AVATAR_SIZE, ResultPane
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store = SettingsStore(Path(temp_dir) / "config.json")
+            store.update({"online_images": "0"})
+            context = AppContext(store)
+            repository = image_repository(context)
+            for card_id, color in ((100201, "#4fae4a"), (100301, "#4a90d9")):
+                url = trainee_image_url(card_id)
+                assert url is not None
+                pixmap = QPixmap(40, 80)
+                pixmap.fill(QColor(color))
+                repository._pixmaps[url] = pixmap
+
+            pane = ResultPane("pair", context)
+            pane.set_rows(
+                [
+                    {
+                        "score": 90.0,
+                        "parent_1": {"card_id": 100201, "card_name": "Local one"},
+                        "parent_2": {"card_id": 100301, "card_name": "Local two"},
+                    }
+                ]
+            )
+            left = pane.model.data(
+                pane.model.index(0, 2), Qt.ItemDataRole.DecorationRole
+            )
+            right = pane.model.data(
+                pane.model.index(0, 3), Qt.ItemDataRole.DecorationRole
+            )
+            self.assertIsNotNone(left)
+            self.assertIsNotNone(right)
+            self.assertEqual(left.width(), RESULT_AVATAR_SIZE)
+            self.assertEqual(right.width(), RESULT_AVATAR_SIZE)
+            _dispose_widget(pane, self.application)
+
     def test_online_parent_results_expose_lineage_planner_export(self) -> None:
         from unittest.mock import patch
 
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QColor, QPixmap
+
+        from ui_qt.asset_catalog import trainee_image_url
         from ui_qt.context import AppContext
         from ui_qt.core import SettingsStore
+        from ui_qt.image_assets import image_repository
         from ui_qt.layout_audit import _dispose_widget
-        from ui_qt.result_panes import OnlineResultsPane
+        from ui_qt.result_panes import RESULT_AVATAR_SIZE, OnlineResultsPane
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            context = AppContext(
-                SettingsStore(Path(temp_dir) / "config.json")
-            )
+            store = SettingsStore(Path(temp_dir) / "config.json")
+            store.update({"online_images": "0"})
+            context = AppContext(store)
+            repository = image_repository(context)
+            for card_id in (100201, 100301, 100501, 100601):
+                url = trainee_image_url(card_id)
+                assert url is not None
+                pixmap = QPixmap(40, 80)
+                pixmap.fill(QColor("#68d3b1"))
+                repository._pixmaps[url] = pixmap
             pane = OnlineResultsPane(context)
             pane.set_payload(
                 {
@@ -532,6 +589,14 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             )
             self.application.processEvents()
             self.assertTrue(pane.export_button.isEnabled())
+            self.assertEqual(
+                pane.model.data(pane.model.index(0, 2), Qt.ItemDataRole.DecorationRole).width(),
+                RESULT_AVATAR_SIZE,
+            )
+            self.assertEqual(
+                pane.model.data(pane.model.index(0, 3), Qt.ItemDataRole.DecorationRole).width(),
+                RESULT_AVATAR_SIZE,
+            )
             self.assertTrue(pane.copy_export_button.isEnabled())
 
             expected = {
@@ -564,6 +629,14 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             )
             self.application.processEvents()
             self.assertFalse(pane.export_button.isEnabled())
+            self.assertEqual(
+                pane.model.data(pane.model.index(0, 2), Qt.ItemDataRole.DecorationRole).width(),
+                RESULT_AVATAR_SIZE,
+            )
+            self.assertEqual(
+                pane.model.data(pane.model.index(0, 3), Qt.ItemDataRole.DecorationRole).width(),
+                RESULT_AVATAR_SIZE,
+            )
             self.assertFalse(pane.copy_export_button.isEnabled())
             _dispose_widget(pane, self.application)
 
@@ -642,6 +715,11 @@ class QtRuntimeSmokeTests(unittest.TestCase):
                     name="Kyoto",
                     display_name="Kyoto (10008)",
                     track_id=10008,
+                    course_turns=(
+                        (1600, 1, 1),
+                        (2200, 1, 1),
+                        (3000, 1, 1),
+                    ),
                 )
             ]
             first.course_combo.setCurrentIndex(
@@ -653,8 +731,10 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             # A preset selected before the MDB lists load must not lose its
             # explicit track identifier.
             self.assertEqual(state.track_id, 10008)
+            self.assertFalse(hasattr(first, "rotation_combo"))
             first.set_track_options(tracks)
             second.set_track_options(tracks)
+            self.assertEqual(context.lineage_state().rotation, "Droite")
             self.assertEqual(state.season, "Automne")
             self.assertEqual(second.course_combo.currentData(), "full")
             self.assertEqual(second.track_combo.currentData(), 10008)
@@ -679,7 +759,9 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             state = context.lineage_state()
             self.assertEqual(state.course_key, "partial")
             self.assertEqual((state.surface, state.distance), ("dirt", "mile"))
-            self.assertEqual(state.rotation, "Gauche")
+            # Rotation is no longer accepted from a preset/manual control when
+            # there is no resolved MDB track/course to derive it from.
+            self.assertEqual(state.rotation, "Non précisé")
             self.assertEqual(state.season, "Non précisé")
             self.assertEqual(state.weather, "Non précisé")
             self.assertEqual(state.ground_condition, "Non précisé")
@@ -778,11 +860,53 @@ class QtRuntimeSmokeTests(unittest.TestCase):
                 self.assertFalse(section.content.isVisible())
                 self.assertTrue(section.summary.text().strip())
 
+            # Compact summaries are structured facts, not punctuation-heavy
+            # prose. The target section especially must not regress to the old
+            # ``Ace → parent · N results`` sentence.
+            objective_summary = search.section_objective.summary.text()
+            self.assertIn(context.t("Ace visé") + ":", objective_summary)
+            self.assertIn(context.t("Parent à produire") + ":", objective_summary)
+            self.assertIn(context.t("Résultats") + ":", objective_summary)
+            self.assertNotIn(" → ", objective_summary)
+            self.assertGreaterEqual(objective_summary.count("\n"), 2)
+            self.assertTrue(search.section_objective.summary_visual.isVisible())
+
+            # Collapsed summaries repeat the same visual vocabulary as their
+            # expanded controls: two reserved portrait slots for the lineage
+            # roles and a running-style badge for the profile.
+            from PySide6.QtWidgets import QLabel
+
+            objective_icons = search.section_objective.summary_visual.findChildren(
+                QLabel, "settingSummaryIcon"
+            )
+            self.assertGreaterEqual(len(objective_icons), 2)
+            self.assertGreaterEqual(objective_icons[0].pixmap().width(), 36)
+
+            course_summary = search.section_course.summary.text()
+            self.assertIn(context.t("Profil") + ":", course_summary)
+            self.assertIn(context.t("Course") + ":", course_summary)
+            course_icons = search.section_course.summary_visual.findChildren(
+                QLabel, "settingSummaryIcon"
+            )
+            self.assertGreaterEqual(len(course_icons), 1)
+            self.assertGreaterEqual(course_icons[0].pixmap().width(), 26)
+
+            remote_summary = search.section_online_parent.summary.text()
+            self.assertIn(context.t("Appariement") + ":", remote_summary)
+            self.assertIn(context.t("Candidats API") + ":", remote_summary)
+            self.assertIn(context.t("Pool de paires") + ":", remote_summary)
+            self.assertNotIn(" · ", remote_summary)
+
             context.update_lineage(season="Été", weather="Pluie")
             self.application.processEvents()
             summary = search.section_conditions.summary.text()
             self.assertIn(context.t("Été"), summary)
             self.assertIn(context.t("Pluie"), summary)
+            condition_icons = search.section_conditions.summary_visual.findChildren(
+                QLabel, "settingSummaryIcon"
+            )
+            self.assertGreaterEqual(len(condition_icons), 2)
+            self.assertGreaterEqual(condition_icons[0].pixmap().width(), 26)
             self.assertTrue(search.section_conditions.modified.isVisible())
 
             search.race_editor.clear_static_conditions()
@@ -1245,6 +1369,15 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             # The most used family leads and is selected by default.
             self.assertEqual(FAMILY_ORDER[0], PAIRS)
             self.assertEqual(search.families.current_family(), PAIRS)
+            self.assertEqual(search.families.bar.objectName(), "resultFamilyTabs")
+            self.assertTrue(search.families.bar.expanding())
+            self.assertFalse(search.families.bar.usesScrollButtons())
+            for index in range(search.families.bar.count()):
+                self.assertFalse(search.families.bar.tabIcon(index).isNull())
+                self.assertNotRegex(
+                    search.families.bar.tabText(index),
+                    r"[○●◐▣⟳]",
+                )
             self.assertFalse(search.import_button.isVisible())
             self.assertFalse(search.local_gp_pairs_button.isVisible())
 

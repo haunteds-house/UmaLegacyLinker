@@ -21,7 +21,7 @@ def _positive_integer(value: object) -> int | None:
 
 
 def trainee_image_url(card_id: object) -> str | None:
-    """Return GameTora's costume-aware square trainee artwork URL.
+    """Return GameTora's costume-aware trainee standing-art URL.
 
     Uma card IDs encode the base character in every digit except the final two;
     for example card ``100701`` uses ``chara_stand_1007_100701.png``.

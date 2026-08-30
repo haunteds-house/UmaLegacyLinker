@@ -310,6 +310,11 @@ class TrackOption:
     track_id: int
     name: str
     display_name: str
+    # ``race_course_set`` stores one row per concrete course layout.  Keep the
+    # compact (distance metres, ground, turn) triples beside the venue so the
+    # Qt editor can derive Right/Left from the selected track/profile instead
+    # of exposing rotation as an independent user setting.
+    course_turns: tuple[tuple[int, int, int], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -495,14 +500,45 @@ def load_track_options(master_path: str | Path) -> list[TrackOption]:
     connection = sqlite3.connect(master)
     try:
         names = _text_map(connection, 35)
-        rows = connection.execute("SELECT id FROM race_track ORDER BY id").fetchall()
+        track_rows = connection.execute("SELECT id FROM race_track ORDER BY id").fetchall()
+
+        course_turns: dict[int, list[tuple[int, int, int]]] = {}
+        tables = {
+            str(row[0])
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            )
+        }
+        if "race_course_set" in tables:
+            columns = {
+                str(row[1])
+                for row in connection.execute("PRAGMA table_info(race_course_set)")
+            }
+            required = {"race_track_id", "distance", "ground", "turn"}
+            if required.issubset(columns):
+                for track_id, distance, ground, turn in connection.execute(
+                    """
+                    SELECT race_track_id, distance, ground, turn
+                    FROM race_course_set
+                    WHERE race_track_id > 0
+                    ORDER BY race_track_id, distance, ground, turn
+                    """
+                ):
+                    try:
+                        values = (int(distance), int(ground), int(turn))
+                        resolved_track = int(track_id)
+                    except (TypeError, ValueError):
+                        continue
+                    course_turns.setdefault(resolved_track, []).append(values)
+
         return [
             TrackOption(
                 track_id=int(row[0]),
                 name=names.get(int(row[0]), f"Track {int(row[0])}"),
                 display_name=f"{names.get(int(row[0]), f'Track {int(row[0])}')} ({int(row[0])})",
+                course_turns=tuple(course_turns.get(int(row[0]), ())),
             )
-            for row in rows
+            for row in track_rows
         ]
     finally:
         connection.close()

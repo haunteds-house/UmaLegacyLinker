@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <circle cx="12" cy="12" r="9.8" fill="#ff8656"/>
+  <path d="M7.2 4.8v14.4M10 3.2v17.6M16.8 4.6v14.8" stroke="#ffffff" stroke-width="1" opacity="0.22"/>
+  <text x="12" y="12.5" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="7.0" font-weight="700">Fall</text>
+</svg>

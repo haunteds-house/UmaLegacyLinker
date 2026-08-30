@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Sequence
 
 from PySide6.QtCore import QEvent, QObject, Qt, Signal
-from PySide6.QtGui import QColor, QPalette
+from PySide6.QtGui import QColor, QPalette, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QScrollArea,
@@ -367,6 +369,19 @@ class CollapsibleSection(QFrame):
         describe_control(self.toggle, title, self.toggle.accessibleDescription())
 
 
+@dataclass(frozen=True)
+class SummaryVisualRow:
+    """One readable summary line with optional leading visual badges.
+
+    ``SummarySection`` keeps a plain-text mirror for accessibility and tests,
+    while these rows let compact rails surface the same character/domain
+    visuals already used by the underlying controls.
+    """
+
+    text: str
+    icons: tuple[QPixmap, ...] = ()
+
+
 class SummarySection(CollapsibleSection):
     """Collapsible section whose header keeps stating its effective value.
 
@@ -404,11 +419,75 @@ class SummarySection(CollapsibleSection):
         self.summary = QLabel("")
         self.summary.setObjectName("settingSummary")
         self.summary.setWordWrap(True)
+
+        # Some summaries benefit from the same compact visual language as the
+        # controls they summarize (character portraits, Turf/Dirt, season,
+        # weather, running style). Keep this as a separate row container rather
+        # than rich-text <img> tags so async QPixmaps can be updated safely.
+        self.summary_visual = QWidget()
+        self.summary_visual_layout = QVBoxLayout(self.summary_visual)
+        self.summary_visual_layout.setContentsMargins(0, 0, 0, 0)
+        self.summary_visual_layout.setSpacing(4)
+        self.summary_visual.setVisible(False)
+
         layout = self.layout()
         layout.insertWidget(1, self.summary)
+        layout.insertWidget(2, self.summary_visual)
+
+    def _clear_summary_visual(self) -> None:
+        while self.summary_visual_layout.count():
+            item = self.summary_visual_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
 
     def set_summary(self, text: str) -> None:
+        self._clear_summary_visual()
+        self.summary_visual.setVisible(False)
+        self.summary.setVisible(True)
         self.summary.setText(text)
+        describe_control(self.toggle, self.toggle.text(), text)
+
+    def set_visual_summary(
+        self, rows: Sequence[SummaryVisualRow], *, plain_text: str | None = None
+    ) -> None:
+        """Show icon-aware rows while retaining an equivalent text summary.
+
+        The hidden ``summary`` QLabel intentionally keeps the plain text. This
+        preserves accessibility, existing runtime contracts and callers that
+        inspect ``section.summary.text()`` without forcing them to understand
+        the visual row implementation.
+        """
+
+        self._clear_summary_visual()
+        text = plain_text if plain_text is not None else "\n".join(row.text for row in rows)
+        self.summary.setText(text)
+        self.summary.setVisible(False)
+
+        for row in rows:
+            row_widget = QWidget(self.summary_visual)
+            row_widget.setObjectName("settingSummaryRow")
+            row_layout = QHBoxLayout(row_widget)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(5)
+
+            for pixmap in row.icons:
+                if pixmap.isNull():
+                    continue
+                icon_label = QLabel(row_widget)
+                icon_label.setObjectName("settingSummaryIcon")
+                icon_label.setPixmap(pixmap)
+                icon_label.setFixedSize(pixmap.size())
+                icon_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
+                row_layout.addWidget(icon_label, 0, Qt.AlignmentFlag.AlignTop)
+
+            text_label = QLabel(row.text, row_widget)
+            text_label.setObjectName("settingSummary")
+            text_label.setWordWrap(True)
+            row_layout.addWidget(text_label, 1)
+            self.summary_visual_layout.addWidget(row_widget)
+
+        self.summary_visual.setVisible(bool(rows))
         describe_control(self.toggle, self.toggle.text(), text)
 
     def set_modified(

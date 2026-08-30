@@ -101,6 +101,12 @@ class ThemeAccessibilityTests(unittest.TestCase):
                 self.assertIn("class='spark-kind'", rendered)
                 self.assertIn(expected, rendered)
 
+    def test_result_family_tabs_have_dedicated_tab_affordance(self) -> None:
+        stylesheet = application_stylesheet()
+        self.assertIn("QTabBar#resultFamilyTabs::tab {", stylesheet)
+        self.assertIn("QTabBar#resultFamilyTabs::tab:hover", stylesheet)
+        self.assertIn("QTabBar#resultFamilyTabs::tab:selected", stylesheet)
+
     def test_focus_is_explicit_on_every_audited_widget_family(self) -> None:
         stylesheet = application_stylesheet()
         for selector in (

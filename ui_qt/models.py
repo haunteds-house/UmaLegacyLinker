@@ -16,6 +16,7 @@ class Column:
     alignment: Qt.AlignmentFlag = Qt.AlignmentFlag.AlignLeft
     sort_getter: Getter | None = None
     tooltip_getter: Getter | None = None
+    decoration_getter: Getter | None = None
 
 
 def nested(*keys: str, default: Any = "—") -> Getter:
@@ -79,6 +80,8 @@ class ResultTableModel(QAbstractTableModel):
             if column.tooltip_getter is not None:
                 return column.tooltip_getter(row)
             return row.get("_tooltip")
+        if role == Qt.ItemDataRole.DecorationRole and column.decoration_getter is not None:
+            return column.decoration_getter(row)
         if role == self.RawValueRole:
             return value
         if role == self.RowRole:
@@ -128,3 +131,12 @@ class ResultTableModel(QAbstractTableModel):
         self.beginResetModel()
         self._columns = list(columns)
         self.endResetModel()
+
+    def refresh_decorations(self) -> None:
+        if not self._rows or not self._columns:
+            return
+        self.dataChanged.emit(
+            self.index(0, 0),
+            self.index(len(self._rows) - 1, len(self._columns) - 1),
+            [Qt.ItemDataRole.DecorationRole],
+        )

@@ -344,9 +344,9 @@ class OnlineRetrievalSection(SummarySection):
 
     def refresh_summary(self) -> None:
         t = self.context.t
-        parts: list[str] = []
+        lines: list[str] = []
         if self.surface_cohort.isChecked():
-            parts.append(t("cohorte Surface"))
+            lines.append(f"{t('Mode')}: {t('cohorte Surface')}")
         required = [
             t(label)
             for widget, label in (
@@ -357,26 +357,32 @@ class OnlineRetrievalSection(SummarySection):
             if widget.isChecked()
         ]
         if required:
-            parts.append(t("exigé : {list}").replace("{list}", ", ".join(required)))
+            lines.append(f"{t('Exigences')}: {', '.join(required)}")
+        lineage_filters: list[str] = []
         if self.pink_spin.value() > 1:
-            parts.append(f"pink ≥ {self.pink_spin.value()}★")
+            lineage_filters.append(f"pink ≥ {self.pink_spin.value()}★")
         for combo, spin in (
             (self.lineage_blue_combo, self.lineage_blue_stars),
             (self.lineage_pink_combo, self.lineage_pink_stars),
         ):
             selected = self._lineage_filter(combo, spin)
             if selected:
-                parts.append(f"{selected[0]} ≥ {selected[1]}★")
+                lineage_filters.append(f"{selected[0]} ≥ {selected[1]}★")
+        if lineage_filters:
+            lines.append(f"{t('Filtres de lignée')}: {' · '.join(lineage_filters)}")
+        costume_filters: list[str] = []
         if self._allowed_ids:
-            parts.append(
+            costume_filters.append(
                 t("{count} autorisés").replace("{count}", str(len(self._allowed_ids)))
             )
         if self._excluded_ids:
-            parts.append(
+            costume_filters.append(
                 t("{count} exclus").replace("{count}", str(len(self._excluded_ids)))
             )
-        self.set_summary(" · ".join(parts) if parts else t("Récupération par défaut"))
-        self.set_modified(bool(parts), t("Modifié"))
+        if costume_filters:
+            lines.append(f"{t('Costumes')}: {' · '.join(costume_filters)}")
+        self.set_summary("\n".join(lines) if lines else t("Récupération par défaut"))
+        self.set_modified(bool(lines), t("Modifié"))
         self.allowed_button.setText(
             f"{t('Autorisés')} ({len(self._allowed_ids)})"
         )
@@ -835,35 +841,34 @@ class OnlineModeSection(SummarySection):
 
     def refresh_summary(self) -> None:
         t = self.context.t
-        parts: list[str] = []
+        lines: list[str] = []
         if self.auto_pairs.isChecked():
-            parts.append(t("appariement auto"))
+            lines.append(f"{t('Appariement')}: {t('automatique')}")
         else:
             fixed = self.fixed_combo.currentText().strip()
-            parts.append(fixed or t("aucun vétéran fixé"))
-        parts.append(
-            t("{count} candidats API").replace(
-                "{count}", str(self.fetch_spin.value())
+            lines.append(
+                f"{t('Vétéran local')}: {fixed or t('aucun vétéran fixé')}"
             )
+        lines.append(f"{t('Candidats API')}: {self.fetch_spin.value()}")
+        lines.append(
+            f"{t('Pool de paires')}: "
+            f"{self.local_pool.value()} × {self.remote_pool.value()}"
         )
-        parts.append(f"{self.local_pool.value()}×{self.remote_pool.value()}")
         if self.mode == PARENT_MODE:
             if self.snapshot_values()["required_parent_card_id"] is not None:
-                parts.append(
-                    t("requis : {name}").replace(
-                        "{name}", self.required_combo.currentText().strip()
-                    )
+                lines.append(
+                    f"{t('Costume requis')}: "
+                    f"{self.required_combo.currentText().strip()}"
                 )
         else:
             selection = str(self.opposing_combo.currentData() or "none")
             if selection != "none":
-                parts.append(
-                    t("opposé : {name}").replace(
-                        "{name}", self.opposing_combo.currentText().strip()
-                    )
+                lines.append(
+                    f"{t('Parent opposé')}: "
+                    f"{self.opposing_combo.currentText().strip()}"
                 )
-            parts.append(f"G1 {self.g1_budget.value()}")
-        self.set_summary(" · ".join(parts))
+            lines.append(f"{t('Budget G1')}: {self.g1_budget.value()}")
+        self.set_summary("\n".join(lines))
         # A conflict has to stay visible once the section is closed, so it takes
         # the header badge over the ordinary modified marker.
         self.set_modified(

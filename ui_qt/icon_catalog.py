@@ -12,12 +12,12 @@ SVG assets avoid this entirely: the file is self-contained, recoloured for
 the active theme with :class:`QPainter`, and stays crisp at any DPI or
 window scale.
 
-Icons are vendored from `Lucide <https://lucide.dev>`_ (ISC licence — see
-``docs/THIRD_PARTY.md``) as flat 24x24 ``stroke="currentColor"`` SVGs, one
-file per icon under ``ui_qt/icons/``. Add new icons by dropping the file
-there and registering a semantic key in :data:`ICON_FILES`; call sites never
-reference a file name directly, so the icon set can be replaced without
-touching them.
+Chrome icons are vendored from `Lucide <https://lucide.dev>`_ (ISC licence —
+see ``docs/THIRD_PARTY.md``) as flat 24x24 ``stroke="currentColor"`` SVGs and
+registered in :data:`ICON_FILES`. Domain badges whose colour is itself useful
+information (weather, season and running style) live beside them in
+:data:`FIXED_ICON_FILES` and are rendered as authored instead of being tinted.
+Call sites only reference semantic keys, never file names directly.
 """
 
 from __future__ import annotations
@@ -45,6 +45,23 @@ ICON_FILES: dict[str, str] = {
     "affinity": "heart.svg",
 }
 
+# Domain badges keep their authored palette. Colour is functional information
+# for these values, so theme tinting would deliberately erase a distinction.
+FIXED_ICON_FILES: dict[str, str] = {
+    "weather-sunny": "weather-sunny.svg",
+    "weather-cloudy": "weather-cloudy.svg",
+    "weather-rain": "weather-rain.svg",
+    "weather-snow": "weather-snow.svg",
+    "season-spring": "season-spring.svg",
+    "season-summer": "season-summer.svg",
+    "season-autumn": "season-autumn.svg",
+    "season-winter": "season-winter.svg",
+    "style-front-runner": "style-front-runner.svg",
+    "style-pace-chaser": "style-pace-chaser.svg",
+    "style-late-surger": "style-late-surger.svg",
+    "style-end-closer": "style-end-closer.svg",
+}
+
 DEFAULT_SIZE = 20
 
 
@@ -55,8 +72,11 @@ def icons_dir() -> Path:
 def icon_path(key: str) -> Path:
     try:
         filename = ICON_FILES[key]
-    except KeyError as exc:
-        raise KeyError(f"Unknown icon key: {key!r}") from exc
+    except KeyError:
+        try:
+            filename = FIXED_ICON_FILES[key]
+        except KeyError as exc:
+            raise KeyError(f"Unknown icon key: {key!r}") from exc
     return icons_dir() / filename
 
 
@@ -67,7 +87,7 @@ def _raw_svg(key: str) -> bytes:
 
 @lru_cache(maxsize=None)
 def tinted_pixmap(key: str, color: str, size: int = DEFAULT_SIZE) -> QPixmap:
-    """Render the vendored SVG for ``key`` at ``size`` px, recoloured to ``color``.
+    """Render a tintable SVG for ``key`` at ``size`` px in ``color``.
 
     Lucide draws with ``stroke="currentColor"``; Qt's SVG renderer does not
     resolve that against a paint colour, so the stroke is rasterised at its
@@ -75,6 +95,8 @@ def tinted_pixmap(key: str, color: str, size: int = DEFAULT_SIZE) -> QPixmap:
     That keeps the renderer's anti-aliased stroke edges intact instead of
     hard-thresholding them, which a colour-key replace would do.
     """
+    if key not in ICON_FILES:
+        raise KeyError(f"{key!r} is not a tintable icon; use native_icon() instead")
     renderer = QSvgRenderer(QByteArray(_raw_svg(key)))
     pixmap = QPixmap(size, size)
     pixmap.fill(Qt.GlobalColor.transparent)
@@ -90,6 +112,28 @@ def tinted_pixmap(key: str, color: str, size: int = DEFAULT_SIZE) -> QPixmap:
 def icon(key: str, color: str, size: int = DEFAULT_SIZE) -> QIcon:
     """A flat, single-colour :class:`QIcon` for ``key``."""
     return QIcon(tinted_pixmap(key, color, size))
+
+
+@lru_cache(maxsize=None)
+def native_pixmap(key: str, size: int = DEFAULT_SIZE) -> QPixmap:
+    """Render a fixed-palette SVG exactly as authored."""
+
+    if key not in FIXED_ICON_FILES:
+        raise KeyError(f"{key!r} is not a fixed-palette icon; use icon() instead")
+    renderer = QSvgRenderer(QByteArray(_raw_svg(key)))
+    pixmap = QPixmap(size, size)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    renderer.render(painter, QRectF(0, 0, size, size))
+    painter.end()
+    return pixmap
+
+
+def native_icon(key: str, size: int = DEFAULT_SIZE) -> QIcon:
+    """Return a :class:`QIcon` for a fixed-palette domain badge."""
+
+    return QIcon(native_pixmap(key, size))
 
 
 def stateful_icon(

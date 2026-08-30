@@ -9,6 +9,7 @@ from parent_optimizer import (
     _serialize_top_results,
     _valid_grandparent_for_target_parent,
     load_ace_options,
+    load_track_options,
 )
 
 
@@ -42,6 +43,40 @@ class AceOptionTests(unittest.TestCase):
             options = load_ace_options(database)
             self.assertEqual([option.uma_name for option in options], ["Agnes Tachyon", "Vodka"])
             self.assertEqual(options[0].display_name, "Agnes Tachyon — Tach-nology (10)")
+
+
+class TrackOptionTests(unittest.TestCase):
+    def test_track_options_include_mdb_course_turn_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database = Path(temp_dir) / "master.mdb"
+            connection = sqlite3.connect(database)
+            try:
+                connection.executescript(
+                    """
+                    CREATE TABLE text_data (category INTEGER, `index` INTEGER, text TEXT);
+                    CREATE TABLE race_track (id INTEGER);
+                    CREATE TABLE race_course_set (
+                        id INTEGER, race_track_id INTEGER, distance INTEGER,
+                        ground INTEGER, turn INTEGER
+                    );
+                    INSERT INTO text_data VALUES (35, 10008, 'Kyoto');
+                    INSERT INTO race_track VALUES (10008);
+                    INSERT INTO race_course_set VALUES (1, 10008, 2200, 1, 1);
+                    INSERT INTO race_course_set VALUES (2, 10008, 1600, 1, 1);
+                    """
+                )
+                connection.commit()
+            finally:
+                connection.close()
+
+            options = load_track_options(database)
+            self.assertEqual(len(options), 1)
+            self.assertEqual(options[0].track_id, 10008)
+            self.assertEqual(
+                options[0].course_turns,
+                ((1600, 1, 1), (2200, 1, 1)),
+            )
+
 
 
 class GrandparentConstraintTests(unittest.TestCase):

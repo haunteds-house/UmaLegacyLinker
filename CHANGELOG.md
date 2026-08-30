@@ -4,6 +4,23 @@ This project uses feature-level semantic versioning. Small internal iterations a
 
 ## Unreleased
 
+- Kept the five Search result-family tabs fixed in place instead of exposing horizontal tab scrolling. The bar now expands the five families evenly across the available width, preserving the clearer tab styling while avoiding scroll arrows/overflow behaviour that looked like a layout bug.
+- Replaced Search result-family status glyphs with Qt-painted status icons so Windows font fallback can no longer turn them into broken symbols. The result-family bar now has a dedicated tab treatment with visible inactive surfaces, hover feedback and a stronger selected state, making the five persistent result views read as tabs rather than loose labels.
+- Simplified the shared race context by removing manual Right/Left selection. Rotation is now derived from the selected MDB racecourse/course layout (`race_course_set.turn`), with ambiguous or straight-only layouts left unspecified; the derived value still reaches scoring and remains visible in the collapsed condition summary. Search result tables now reuse the existing async GameTora portrait cache and show 32 px trainee avatars beside local/remote parent, grandparent and future-candidate names.
+- Increased the entire Search context visual set after live readability review: trainee portraits now render at 32 px in selectors and 36 px in collapsed summaries, while weather, season and running-style badges render at 24 px in controls and 26 px in summaries.
+- Refined the remaining Search context badges against the in-game selectors: weather now uses the outlined sun/cloud/umbrella/snowman silhouettes, season uses the coloured `Spr`/`Sum`/`Fall`/`Wint` discs, and both badge families are larger in the compact rail. Search trainee portraits were increased again to 28 px in selectors and 32 px in collapsed summaries so character identity remains visible at a glance.
+- Refined the Search shared-context visuals after live review: collapsed summaries now prioritise larger trainee portraits and larger in-game-style running-style badges for readability, while the non-canonical Turf/Dirt badges were removed from both the summaries and the shared profile controls. Weather and season badges remain because they map cleanly to the game’s own visual language.
+- Added fixed-palette Turf/Dirt, weather, season and running-style badges to
+  the shared lineage controls. These domain icons preserve their own colours
+  instead of being theme-tinted; ground condition remains text-only because no
+  matching in-game visual convention is available. The same badges now remain
+  visible in collapsed Shared context summaries instead of disappearing with
+  the controls.
+- Added cached GameTora trainee portraits to the Search rail's Target Ace and
+  Parent-to-produce selectors and to their collapsed Shared context rows. The
+  existing async image repository is reused, tall standing art is top-biased
+  into a compact circular face avatar, and the summary refreshes when an async
+  portrait download completes.
 - Restored the complete Windows release quality gate after the UI audit stack:
   semantic Spark labels are reflected in the rich-text contracts, all current
   expert labels have explicit English coverage, lazy pages are constructed

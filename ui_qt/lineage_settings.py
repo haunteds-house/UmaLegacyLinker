@@ -32,6 +32,7 @@ from ui_qt.components import (
 )
 from ui_qt.context import AppContext, LineageContextState
 from ui_qt.core import active_course_overrides_path
+from ui_qt.icon_catalog import native_icon
 from ui_qt.view_state import bind_collapsible_state
 
 
@@ -47,7 +48,6 @@ PROFILE_CODES = {
 }
 
 CONDITION_ITEMS: dict[str, list[tuple[str, object]]] = {
-    "rotation": [("Non précisé", None), ("Droite", 1), ("Gauche", 2)],
     "season": [
         ("Non précisé", None),
         ("Printemps", [1, 5]),
@@ -70,6 +70,50 @@ CONDITION_ITEMS: dict[str, list[tuple[str, object]]] = {
         ("Heavy", 4),
     ],
 }
+
+
+ROTATION_SOURCE_BY_VALUE = {1: "Droite", 2: "Gauche"}
+
+
+def _distance_bucket(distance_m: int) -> str:
+    """Map a concrete MDB course distance to the app's four profile buckets."""
+
+    if distance_m <= 1400:
+        return "sprint"
+    if distance_m <= 1800:
+        return "mile"
+    if distance_m <= 2400:
+        return "medium"
+    return "long"
+
+CONDITION_ICON_KEYS: dict[str, dict[object, str]] = {
+    "season": {
+        1: "season-spring",
+        5: "season-spring",
+        2: "season-summer",
+        3: "season-autumn",
+        4: "season-winter",
+    },
+    "weather": {
+        1: "weather-sunny",
+        2: "weather-cloudy",
+        3: "weather-rain",
+        4: "weather-snow",
+    },
+    # Ground condition deliberately remains text-only: there is no matching
+    # in-game visual language for Firm / Good / Soft / Heavy here.
+}
+
+PROFILE_ICON_KEYS: dict[str, dict[str, str]] = {
+    "style": {
+        "front_runner": "style-front-runner",
+        "pace_chaser": "style-pace-chaser",
+        "late_surger": "style-late-surger",
+        "end_closer": "style-end-closer",
+    },
+}
+
+CONDITION_ICON_SIZE = 24
 
 
 class LineageRaceEditor(QWidget):
@@ -100,7 +144,9 @@ class LineageRaceEditor(QWidget):
         self._host_sections = host_sections
         self._syncing = False
         self._course_definitions: dict[str, dict[str, Any]] = {}
-        self._track_options: list[tuple[int, str]] = []
+        self._track_options: list[
+            tuple[int, str, tuple[tuple[int, int, int], ...]]
+        ] = []
 
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
@@ -171,8 +217,6 @@ class LineageRaceEditor(QWidget):
         )
         self.track_label = QLabel("")
         self.track_combo = SearchableComboBox()
-        self.rotation_label = QLabel("")
-        self.rotation_combo = ThemedComboBox()
         self.season_label = QLabel("")
         self.season_combo = ThemedComboBox()
         self.weather_label = QLabel("")
@@ -190,7 +234,6 @@ class LineageRaceEditor(QWidget):
         advanced_controls = (
             (self.course_file_label, self.course_picker),
             (self.track_label, self.track_combo),
-            (self.rotation_label, self.rotation_combo),
             (self.season_label, self.season_combo),
             (self.weather_label, self.weather_combo),
             (self.ground_label, self.ground_combo),
@@ -215,11 +258,11 @@ class LineageRaceEditor(QWidget):
                 (
                     (
                         (self.track_label, self.track_combo),
-                        (self.rotation_label, self.rotation_combo),
+                        (self.season_label, self.season_combo),
                     ),
                     (
-                        (self.season_label, self.season_combo),
                         (self.weather_label, self.weather_combo),
+                        (self.ground_label, self.ground_combo),
                     ),
                 )
             ):
@@ -227,11 +270,9 @@ class LineageRaceEditor(QWidget):
                 for column, (label, combo) in enumerate(controls):
                     advanced.addWidget(label, label_row, column)
                     advanced.addWidget(combo, label_row + 1, column)
-            advanced.addWidget(self.ground_label, 6, 0)
-            advanced.addWidget(self.ground_combo, 7, 0)
-            advanced.addWidget(self.custom_scoring, 7, 1)
-            advanced.addWidget(self.priority_label, 8, 0)
-            advanced.addWidget(self.priority_picker, 9, 0, 1, 2)
+            advanced.addWidget(self.custom_scoring, 6, 0, 1, 2)
+            advanced.addWidget(self.priority_label, 7, 0)
+            advanced.addWidget(self.priority_picker, 8, 0, 1, 2)
         for column in range(2):
             advanced.setColumnStretch(column, 1)
         if host_sections:
@@ -260,7 +301,6 @@ class LineageRaceEditor(QWidget):
             )
         self.track_combo.currentIndexChanged.connect(self._track_changed)
         for combo in (
-            self.rotation_combo,
             self.season_combo,
             self.weather_combo,
             self.ground_combo,
@@ -304,10 +344,15 @@ class LineageRaceEditor(QWidget):
     ) -> None:
         combo.blockSignals(True)
         combo.clear()
+        icon_keys = PROFILE_ICON_KEYS.get(kind, {})
         for code, label in zip(
             PROFILE_CODES[kind], profile_values(kind, self.context.language)
         ):
-            combo.addItem(label, code)
+            icon_key = icon_keys.get(code)
+            if icon_key is not None:
+                combo.addItem(native_icon(icon_key, CONDITION_ICON_SIZE), label, code)
+            else:
+                combo.addItem(label, code)
         index = combo.findData(selected)
         combo.setCurrentIndex(index if index >= 0 else 0)
         combo.blockSignals(False)
@@ -318,8 +363,20 @@ class LineageRaceEditor(QWidget):
         combo.blockSignals(True)
         combo.clear()
         restore_index = 0
+        icon_keys = CONDITION_ICON_KEYS.get(kind, {})
         for source, canonical in CONDITION_ITEMS[kind]:
-            combo.addItem(self.context.t(source), canonical)
+            # Spring is represented by two MDB codes ([1, 5]); use the first
+            # canonical code for its visual badge instead of hashing the list.
+            lookup_value = canonical[0] if isinstance(canonical, list) else canonical
+            icon_key = icon_keys.get(lookup_value)
+            if icon_key is not None:
+                combo.addItem(
+                    native_icon(icon_key, CONDITION_ICON_SIZE),
+                    self.context.t(source),
+                    canonical,
+                )
+            else:
+                combo.addItem(self.context.t(source), canonical)
             index = combo.count() - 1
             combo.setItemData(
                 index, source, Qt.ItemDataRole.UserRole + 1
@@ -333,7 +390,7 @@ class LineageRaceEditor(QWidget):
         self.track_combo.blockSignals(True)
         self.track_combo.clear()
         self.track_combo.addItem(self.context.t("Non précisé"), None)
-        for track_id, display_name in self._track_options:
+        for track_id, display_name, _course_turns in self._track_options:
             self.track_combo.addItem(display_name, track_id)
         index = self.track_combo.findData(selected)
         self.track_combo.setCurrentIndex(index if index >= 0 else 0)
@@ -374,7 +431,6 @@ class LineageRaceEditor(QWidget):
         self.advanced.set_title(t("Options avancées et conditions de course"))
         self.course_file_label.setText(t("Fichier de presets / overrides"))
         self.track_label.setText(t("Hippodrome"))
-        self.rotation_label.setText(t("Rotation"))
         self.season_label.setText(t("Saison"))
         self.weather_label.setText(t("Météo"))
         self.ground_label.setText(t("État du terrain"))
@@ -408,7 +464,6 @@ class LineageRaceEditor(QWidget):
             label_control(label, combo, self.shared_hint.text())
         for label, combo in (
             (self.track_label, self.track_combo),
-            (self.rotation_label, self.rotation_combo),
             (self.season_label, self.season_combo),
             (self.weather_label, self.weather_combo),
             (self.ground_label, self.ground_combo),
@@ -450,9 +505,6 @@ class LineageRaceEditor(QWidget):
             )
             self._populate_profile_combo(self.style_combo, "style", state.style)
             self._populate_condition_combo(
-                self.rotation_combo, "rotation", state.rotation
-            )
-            self._populate_condition_combo(
                 self.season_combo, "season", state.season
             )
             self._populate_condition_combo(
@@ -481,26 +533,117 @@ class LineageRaceEditor(QWidget):
 
     def set_track_options(self, tracks: Iterable[object]) -> None:
         self._track_options = [
-            (int(getattr(track, "track_id")), str(getattr(track, "display_name")))
+            (
+                int(getattr(track, "track_id")),
+                str(getattr(track, "display_name")),
+                tuple(getattr(track, "course_turns", ()) or ()),
+            )
             for track in tracks
         ]
         state = self.context.lineage_state()
-        self._populate_track_combo(state.track_id)
-        if state.track_id or not state.course_key:
-            return
+        selected_track_id = state.track_id
+        if not selected_track_id and state.course_key:
+            course = self._course_definitions.get(state.course_key) or {}
+            racecourse = str(((course.get("race") or {}).get("racecourse")) or "")
+            selected_track_id = self._track_id_for_racecourse(racecourse)
+        self._populate_track_combo(selected_track_id)
+
         course = self._course_definitions.get(state.course_key) or {}
-        racecourse = str(((course.get("race") or {}).get("racecourse")) or "")
-        track_id = self._track_id_for_racecourse(racecourse)
-        if track_id:
-            self.context.update_lineage(track_id=track_id)
+        rotation = self._derived_rotation_source(
+            selected_track_id,
+            profile={
+                "surface": state.surface,
+                "distance": state.distance,
+                "style": state.style,
+            },
+            course=course,
+        )
+        if selected_track_id != state.track_id or rotation != state.rotation:
+            self.context.update_lineage(
+                track_id=selected_track_id,
+                rotation=rotation,
+            )
 
     def _track_id_for_racecourse(self, racecourse: str) -> int:
         if not racecourse:
             return 0
-        for track_id, display_name in self._track_options:
+        for track_id, display_name, _course_turns in self._track_options:
             if racecourse_names_match(display_name, racecourse):
                 return track_id
         return 0
+
+    def _track_course_turns(self, track_id: int) -> tuple[tuple[int, int, int], ...]:
+        for candidate_id, _display_name, course_turns in self._track_options:
+            if candidate_id == int(track_id):
+                return course_turns
+        return ()
+
+    def _derived_rotation_value(
+        self,
+        track_id: int,
+        *,
+        profile: dict[str, str] | None = None,
+        course: dict[str, Any] | None = None,
+    ) -> int | None:
+        """Infer clockwise/counter-clockwise from MDB course layouts.
+
+        ``race_course_set.turn`` also has values for layouts where Right/Left
+        is not applicable.  Only publish a rotation when every course layout
+        matching the current track/profile agrees on 1 (Right) or 2 (Left); a
+        mixed or straight-only venue/profile remains unspecified instead of
+        inventing a green-skill condition.
+        """
+
+        rows = list(self._track_course_turns(track_id))
+        if not rows:
+            return None
+
+        effective_profile = profile or self.current_profile()
+        race = (course or {}).get("race") or {}
+        surface = str(race.get("surface") or effective_profile.get("surface") or "")
+        ground = {"turf": 1, "dirt": 2}.get(surface)
+        if ground is not None:
+            rows = [row for row in rows if row[1] == ground]
+
+        try:
+            exact_distance = int(race.get("distance_m") or 0)
+        except (TypeError, ValueError):
+            exact_distance = 0
+        if exact_distance:
+            exact_rows = [row for row in rows if row[0] == exact_distance]
+            if exact_rows:
+                rows = exact_rows
+        else:
+            distance = str(effective_profile.get("distance") or "")
+            if distance:
+                bucket_rows = [
+                    row
+                    for row in rows
+                    if _distance_bucket(row[0]) == distance
+                ]
+                if bucket_rows:
+                    rows = bucket_rows
+
+        turns = {row[2] for row in rows}
+        if turns == {1}:
+            return 1
+        if turns == {2}:
+            return 2
+        return None
+
+    def _derived_rotation_source(
+        self,
+        track_id: int,
+        *,
+        profile: dict[str, str] | None = None,
+        course: dict[str, Any] | None = None,
+    ) -> str:
+        value = self._derived_rotation_value(
+            track_id, profile=profile, course=course
+        )
+        if value is not None:
+            return ROTATION_SOURCE_BY_VALUE[value]
+        return "Non précisé"
 
     def _course_path_changed(self, value: str) -> None:
         if self._syncing:
@@ -535,7 +678,6 @@ class LineageRaceEditor(QWidget):
 
             conditions = course_preset_conditions(course)
             for name, combo in (
-                ("rotation", self.rotation_combo),
                 ("season", self.season_combo),
                 ("weather", self.weather_combo),
                 ("ground_condition", self.ground_combo),
@@ -562,7 +704,15 @@ class LineageRaceEditor(QWidget):
             # Keep an explicit preset track even if the MDB-backed track list
             # has not loaded yet. set_track_options() will display it later.
             track_id=selected_track_id,
-            rotation=self._condition_source(self.rotation_combo),
+            rotation=self._derived_rotation_source(
+                selected_track_id,
+                profile={
+                    "surface": str(self.surface_combo.currentData() or "turf"),
+                    "distance": str(self.distance_combo.currentData() or "medium"),
+                    "style": str(self.style_combo.currentData() or "pace_chaser"),
+                },
+                course=course,
+            ),
             season=self._condition_source(self.season_combo),
             weather=self._condition_source(self.weather_combo),
             ground_condition=self._condition_source(self.ground_combo),
@@ -582,19 +732,34 @@ class LineageRaceEditor(QWidget):
             self.course_combo.blockSignals(True)
             self.course_combo.setCurrentIndex(0)
             self.course_combo.blockSignals(False)
+        profile = {
+            "surface": str(self.surface_combo.currentData() or "turf"),
+            "distance": str(self.distance_combo.currentData() or "medium"),
+            "style": str(self.style_combo.currentData() or "pace_chaser"),
+        }
+        active_course = self._course_definitions.get(course_key) or {}
+        track_id = int(self.track_combo.currentData() or 0)
         self.context.update_lineage(
             course_key=course_key,
-            surface=str(self.surface_combo.currentData() or "turf"),
-            distance=str(self.distance_combo.currentData() or "medium"),
-            style=str(self.style_combo.currentData() or "pace_chaser"),
+            surface=profile["surface"],
+            distance=profile["distance"],
+            style=profile["style"],
+            rotation=self._derived_rotation_source(
+                track_id, profile=profile, course=active_course
+            ),
         )
 
     def _advanced_value_changed(self, *_args: object) -> None:
         if self._syncing:
             return
+        track_id = int(self.track_combo.currentData() or 0)
+        course_key = str(self.course_combo.currentData() or "")
+        course = self._course_definitions.get(course_key) or {}
         self.context.update_lineage(
-            track_id=int(self.track_combo.currentData() or 0),
-            rotation=self._condition_source(self.rotation_combo),
+            track_id=track_id,
+            rotation=self._derived_rotation_source(
+                track_id, profile=self.current_profile(), course=course
+            ),
             season=self._condition_source(self.season_combo),
             weather=self._condition_source(self.weather_combo),
             ground_condition=self._condition_source(self.ground_combo),
@@ -639,8 +804,10 @@ class LineageRaceEditor(QWidget):
         labels: list[str] = []
         if self.track_combo.currentIndex() > 0:
             labels.append(self.track_combo.currentText())
+        rotation = self.context.lineage_state().rotation
+        if rotation != "Non précisé":
+            labels.append(self.context.t(rotation))
         for combo in (
-            self.rotation_combo,
             self.season_combo,
             self.weather_combo,
             self.ground_combo,
@@ -681,7 +848,6 @@ class LineageRaceEditor(QWidget):
         result: dict[str, object] = {}
         for name, combo in (
             ("track_id", self.track_combo),
-            ("rotation", self.rotation_combo),
             ("season", self.season_combo),
             ("weather", self.weather_combo),
             ("ground_condition", self.ground_combo),
@@ -689,6 +855,15 @@ class LineageRaceEditor(QWidget):
             value = combo.currentData()
             if value is not None:
                 result[name] = value
+        track_id = int(self.track_combo.currentData() or 0)
+        course_key = str(self.course_combo.currentData() or "")
+        rotation = self._derived_rotation_value(
+            track_id,
+            profile=self.current_profile(),
+            course=self._course_definitions.get(course_key) or {},
+        )
+        if rotation is not None:
+            result["rotation"] = rotation
         return result
 
     def course_overrides_path(self) -> Path | None:

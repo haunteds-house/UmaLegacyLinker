@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QItemSelection, Qt, QTimer
+from PySide6.QtCore import QItemSelection, QSize, Qt, QTimer
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QToolButton,
@@ -41,8 +41,10 @@ from lineage_planner import (
 )
 from uma_moe import OnlineParentSearchResult
 from ui_qt.accessibility import describe_control
+from ui_qt.avatar import AsyncAvatarProvider
 from ui_qt.components import muted_label
 from ui_qt.context import AppContext
+from ui_qt.image_assets import image_repository
 from ui_qt.lineage_view import LineageDialog
 from ui_qt.models import Column, ResultTableModel, nested
 from ui_qt.presentation import (
@@ -55,6 +57,8 @@ from ui_qt.view_state import bind_splitter_state, bind_table_view_state
 from veteran_identity import canonical_veteran_label, technical_veteran_tooltip
 
 RIGHT = Qt.AlignmentFlag.AlignRight
+RESULT_AVATAR_SIZE = 32
+RESULT_ROW_HEIGHT = 38
 
 
 def _install_detail_toggle(pane, splitter) -> None:
@@ -86,6 +90,10 @@ class ResultPane(QWidget):
         super().__init__(parent)
         self.kind = kind
         self.context = context
+        self._avatars = AsyncAvatarProvider(
+            image_repository(context), RESULT_AVATAR_SIZE, self
+        )
+        self._avatars.changed.connect(self._refresh_avatars)
         self.profile: dict[str, Any] = {}
         self.lineage_root: dict[str, Any] | None = None
         self._header_configured = False
@@ -103,6 +111,8 @@ class ResultPane(QWidget):
 
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
         self.table = QTableView()
+        self.table.setIconSize(QSize(RESULT_AVATAR_SIZE, RESULT_AVATAR_SIZE))
+        self.table.verticalHeader().setDefaultSectionSize(RESULT_ROW_HEIGHT)
         enable_tabular_numbers(self.table)
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -156,6 +166,20 @@ class ResultPane(QWidget):
         self._configure_header()
         self.retranslate()
 
+    def _avatar_for(self, row: dict[str, Any], *keys: str):
+        value: Any = row
+        for key in keys:
+            if not isinstance(value, dict):
+                return None
+            value = value.get(key)
+        payload = value if isinstance(value, dict) else row if not keys else None
+        if not isinstance(payload, dict):
+            return None
+        return self._avatars.avatar(payload.get("card_id"))
+
+    def _refresh_avatars(self) -> None:
+        self.model.refresh_decorations()
+
     def _columns(self) -> list[Column]:
         t = self.context.t
         rank = Column("#", nested("_rank"), RIGHT)
@@ -170,6 +194,7 @@ class ResultPane(QWidget):
                     tooltip_getter=lambda row: technical_veteran_tooltip(
                         row.get("parent_1")
                     ),
+                    decoration_getter=lambda row: self._avatar_for(row, "parent_1"),
                 ),
                 Column(
                     t("Parent 2"),
@@ -177,6 +202,7 @@ class ResultPane(QWidget):
                     tooltip_getter=lambda row: technical_veteran_tooltip(
                         row.get("parent_2")
                     ),
+                    decoration_getter=lambda row: self._avatar_for(row, "parent_2"),
                 ),
                 Column(t("Distance"), lambda row: distance_status(row, self.context.language)),
                 Column("P(S) %", lambda row: 100 * float((row.get("distance_s_summary") or {}).get("probability_reach_s") or 0), RIGHT),
@@ -192,9 +218,22 @@ class ResultPane(QWidget):
                     t("Parent"),
                     canonical_veteran_label,
                     tooltip_getter=technical_veteran_tooltip,
+                    decoration_getter=lambda row: self._avatar_for(row),
                 ),
-                Column(t("Grand-parent 1"), nested("grandparent_1")),
-                Column(t("Grand-parent 2"), nested("grandparent_2")),
+                Column(
+                    t("Grand-parent 1"),
+                    nested("grandparent_1"),
+                    decoration_getter=lambda row: self._avatar_for(
+                        row, "lineage_preview", "p1-1"
+                    ),
+                ),
+                Column(
+                    t("Grand-parent 2"),
+                    nested("grandparent_2"),
+                    decoration_getter=lambda row: self._avatar_for(
+                        row, "lineage_preview", "p1-2"
+                    ),
+                ),
                 Column(t("Distance"), lambda row: distance_status(row, self.context.language)),
                 Column("P(S) %", lambda row: 100 * float((row.get("distance_s_summary") or {}).get("probability_reach_s") or 0), RIGHT),
                 Column(t("Whites"), nested("components", "white_skill"), RIGHT),
@@ -206,6 +245,7 @@ class ResultPane(QWidget):
                 t("Candidat"),
                 canonical_veteran_label,
                 tooltip_getter=technical_veteran_tooltip,
+                decoration_getter=lambda row: self._avatar_for(row),
             ),
             Column(t("Contribution affinité"), nested("affinity_raw"), RIGHT),
             Column(t("G1"), nested("g1_count"), RIGHT),
@@ -456,6 +496,10 @@ class OnlineResultsPane(QWidget):
         super().__init__(parent)
         self.context = context
         self.view_key = view_key
+        self._avatars = AsyncAvatarProvider(
+            image_repository(context), RESULT_AVATAR_SIZE, self
+        )
+        self._avatars.changed.connect(self._refresh_avatars)
         self.mode = "parent"
         self.profile: dict[str, Any] = {}
         self.metadata: dict[str, Any] = {}
@@ -485,6 +529,8 @@ class OnlineResultsPane(QWidget):
 
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
         self.table = QTableView()
+        self.table.setIconSize(QSize(RESULT_AVATAR_SIZE, RESULT_AVATAR_SIZE))
+        self.table.verticalHeader().setDefaultSectionSize(RESULT_ROW_HEIGHT)
         enable_tabular_numbers(self.table)
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -538,6 +584,15 @@ class OnlineResultsPane(QWidget):
     def _language_changed(self, _language: str) -> None:
         self.retranslate()
 
+    def _avatar_for(self, row: dict[str, Any], key: str):
+        payload = row.get(key)
+        if not isinstance(payload, dict):
+            return None
+        return self._avatars.avatar(payload.get("card_id"))
+
+    def _refresh_avatars(self) -> None:
+        self.model.refresh_decorations()
+
     def _columns(self) -> list[Column]:
         t = self.context.t
         common = [
@@ -546,8 +601,20 @@ class OnlineResultsPane(QWidget):
         ]
         if self.mode == "parent":
             return common + [
-                Column(t("Parent local"), nested("fixed_parent", "card_name")),
-                Column(t("Parent distant"), nested("candidate", "card_name")),
+                Column(
+                    t("Parent local"),
+                    nested("fixed_parent", "card_name"),
+                    decoration_getter=lambda row: self._avatar_for(
+                        row, "fixed_parent"
+                    ),
+                ),
+                Column(
+                    t("Parent distant"),
+                    nested("candidate", "card_name"),
+                    decoration_getter=lambda row: self._avatar_for(
+                        row, "candidate"
+                    ),
+                ),
                 Column(t("Trainer"), nested("candidate", "online", "trainer_name")),
                 Column("Friend ID", nested("candidate", "online", "friend_code")),
                 Column(t("Distance S"), lambda row: distance_status(row, self.context.language)),
@@ -557,8 +624,20 @@ class OnlineResultsPane(QWidget):
                 Column(t("Bleues"), nested("components", "blue"), RIGHT),
             ]
         return common + [
-            Column(t("GP local"), nested("fixed_grandparent", "card_name")),
-            Column(t("GP distant"), nested("candidate", "card_name")),
+            Column(
+                t("GP local"),
+                nested("fixed_grandparent", "card_name"),
+                decoration_getter=lambda row: self._avatar_for(
+                    row, "fixed_grandparent"
+                ),
+            ),
+            Column(
+                t("GP distant"),
+                nested("candidate", "card_name"),
+                decoration_getter=lambda row: self._avatar_for(
+                    row, "candidate"
+                ),
+            ),
             Column(t("Trainer"), nested("candidate", "online", "trainer_name")),
             Column("Friend ID", nested("candidate", "online", "friend_code")),
             Column(t("Potentiel final"), lambda row: (row.get("final_parent_affinity") or row.get("final_branch_affinity") or {}).get("potential_total", 0), RIGHT),

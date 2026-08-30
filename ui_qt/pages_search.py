@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
@@ -47,13 +48,17 @@ from result_comparison import (
 )
 from uma_moe import UmaMoeError
 from ui_qt.accessibility import describe_control, label_control
+from ui_qt.asset_catalog import trainee_image_url
+from ui_qt.avatar import circular_avatar
 from ui_qt.components import (
     PageHeader,
     SearchableComboBox,
     SummarySection,
+    SummaryVisualRow,
     muted_label,
     section_label,
 )
+from ui_qt.combo_avatars import ComboAvatarLoader
 from ui_qt.comparison_dialog import ResultComparisonDialog
 from ui_qt.context import AppContext, LineageContextState
 from ui_qt.core import (
@@ -66,8 +71,13 @@ from ui_qt.core import (
     run_online_search,
     run_optimization,
 )
-from ui_qt.icon_catalog import icon
-from ui_qt.lineage_settings import LineageRaceEditor
+from ui_qt.icon_catalog import icon, native_pixmap
+from ui_qt.image_assets import image_repository
+from ui_qt.lineage_settings import (
+    CONDITION_ICON_KEYS,
+    PROFILE_ICON_KEYS,
+    LineageRaceEditor,
+)
 from ui_qt.online_options import (
     GRANDPARENT_MODE,
     PARENT_MODE,
@@ -105,6 +115,8 @@ RAIL_WIDTH = 344
 # Below this workspace width the rail and a result pane cannot both stay
 # readable, so the rail starts collapsed unless the user decided otherwise.
 NARROW_WORKSPACE_WIDTH = 1360
+SUMMARY_AVATAR_SIZE = 36
+SUMMARY_DOMAIN_ICON_SIZE = 26
 
 
 def _integer(value: object, default: int = 0) -> int:
@@ -180,6 +192,14 @@ class SearchPage(QWidget):
         self.ace_combo = SearchableComboBox()
         self.target_label = QLabel("")
         self.target_combo = SearchableComboBox()
+        self.ace_combo.setIconSize(QSize(32, 32))
+        self.target_combo.setIconSize(QSize(32, 32))
+        repository = image_repository(context)
+        self._image_repository = repository
+        self._summary_image_urls: set[str] = set()
+        self._ace_avatars = ComboAvatarLoader(self.ace_combo, repository)
+        self._target_avatars = ComboAvatarLoader(self.target_combo, repository)
+        repository.image_ready.connect(self._on_summary_image_ready)
         self.top_label = QLabel("")
         for label in (self.ace_label, self.target_label, self.top_label):
             label.setWordWrap(True)
@@ -526,6 +546,9 @@ class SearchPage(QWidget):
             self._ensure_distinct_parent()
         finally:
             self._syncing_lineage = False
+        card_ids = [option.card_id for option in self._ace_options]
+        self._ace_avatars.apply(card_ids)
+        self._target_avatars.apply(card_ids)
         self.race_editor.set_track_options(
             sorted(self._track_options, key=lambda item: item.name.casefold())
         )
@@ -616,34 +639,149 @@ class SearchPage(QWidget):
         self.rail_toggle.setAccessibleDescription(text)
         self._refresh_section_summaries(state, profile)
 
+    def _compact_ace_summary(self, card_id: int, fallback: str) -> str:
+        """Return the card identity without repeating the base Uma name.
+
+        The searchable combos intentionally use ``Uma — card`` so similarly
+        named costumes remain easy to find. In the compact context rail the
+        field label already states the role, and repeating the base name makes
+        long summaries considerably harder to scan.
+        """
+        for option in self._ace_options:
+            if option.card_id == card_id:
+                name = option.card_name.strip() or option.uma_name.strip()
+                return f"{name} ({option.card_id})"
+        return fallback.strip()
+
+    def _summary_avatar(self, card_id: int) -> QPixmap:
+        """Return a cached circular avatar, reserving its slot while loading."""
+
+        url = trainee_image_url(card_id)
+        if not url:
+            return QPixmap()
+        self._summary_image_urls.add(url)
+        source = self._image_repository.pixmap(url)
+        if source is not None:
+            return circular_avatar(source, SUMMARY_AVATAR_SIZE)
+
+        # Keep the text aligned while the async repository fetches the image;
+        # the image_ready signal refreshes the summary once the portrait lands.
+        placeholder = QPixmap(SUMMARY_AVATAR_SIZE, SUMMARY_AVATAR_SIZE)
+        placeholder.fill(Qt.GlobalColor.transparent)
+        return placeholder
+
+    def _summary_profile_icons(self, profile: dict[str, str]) -> tuple[QPixmap, ...]:
+        icon_key = PROFILE_ICON_KEYS.get("style", {}).get(profile.get("style", ""))
+        if not icon_key:
+            return ()
+        return (native_pixmap(icon_key, SUMMARY_DOMAIN_ICON_SIZE),)
+
+    def _summary_condition_icons(self) -> tuple[QPixmap, ...]:
+        icons: list[QPixmap] = []
+        for kind, combo in (
+            ("season", self.race_editor.season_combo),
+            ("weather", self.race_editor.weather_combo),
+        ):
+            canonical = combo.currentData()
+            lookup_value = canonical[0] if isinstance(canonical, list) and canonical else canonical
+            icon_key = CONDITION_ICON_KEYS.get(kind, {}).get(lookup_value)
+            if icon_key:
+                icons.append(native_pixmap(icon_key, SUMMARY_DOMAIN_ICON_SIZE))
+        return tuple(icons)
+
+    def _on_summary_image_ready(self, url: str, _pixmap: object) -> None:
+        if url in self._summary_image_urls:
+            self._refresh_context()
+
     def _refresh_section_summaries(
         self, state: LineageContextState, profile: dict[str, str]
     ) -> None:
-        """Keep every collapsed section readable.
+        """Keep every collapsed section readable and visually scannable.
 
-        A closed section must still answer what the next calculation will use,
-        so each header restates its effective values rather than only its name.
+        One labelled fact stays on each line. Where the underlying control has
+        a stable visual language, the collapsed summary now repeats it too:
+        character portraits for the two lineage roles, a running-style badge for
+        the profile, and season/weather for static conditions.
         """
         t = self.context.t
-        ace = self.ace_combo.currentText().strip()
-        target = self.target_combo.currentText().strip()
-        objective = " → ".join(part for part in (ace, target) if part)
-        top = t("{count} résultats").replace("{count}", str(state.top_n))
-        self.section_objective.set_summary(
-            f"{objective} · {top}" if objective else t("Aucun Ace sélectionné")
-        )
+        self._summary_image_urls.clear()
+        ace_id = _integer(self.ace_combo.currentData())
+        target_id = _integer(self.target_combo.currentData())
 
-        self.section_course.set_summary(
-            profile_summary(profile, self.context.language)
-            + f" · {self.race_editor.current_course_label()}"
+        objective_rows: list[SummaryVisualRow] = []
+        objective_lines: list[str] = []
+        if ace_id:
+            text = (
+                f"{t('Ace visé')}: "
+                + self._compact_ace_summary(ace_id, self.ace_combo.currentText())
+            )
+            objective_lines.append(text)
+            objective_rows.append(SummaryVisualRow(text, (self._summary_avatar(ace_id),)))
+        if target_id:
+            text = (
+                f"{t('Parent à produire')}: "
+                + self._compact_ace_summary(
+                    target_id, self.target_combo.currentText()
+                )
+            )
+            objective_lines.append(text)
+            objective_rows.append(SummaryVisualRow(text, (self._summary_avatar(target_id),)))
+        results_text = f"{t('Résultats')}: {state.top_n}"
+        objective_lines.append(results_text)
+        objective_rows.append(SummaryVisualRow(results_text))
+        if ace_id:
+            self.section_objective.set_visual_summary(
+                objective_rows, plain_text="\n".join(objective_lines)
+            )
+        else:
+            self.section_objective.set_summary(t("Aucun Ace sélectionné"))
+
+        profile_text = f"{t('Profil')}: {profile_summary(profile, self.context.language)}"
+        race_text = f"{t('Course')}: {self.race_editor.current_course_label()}"
+        self.section_course.set_visual_summary(
+            (
+                SummaryVisualRow(profile_text, self._summary_profile_icons(profile)),
+                SummaryVisualRow(race_text),
+            ),
+            plain_text=f"{profile_text}\n{race_text}",
         )
 
         static_labels = self.race_editor.static_condition_labels()
-        self.section_conditions.set_summary(
-            " · ".join(static_labels)
-            if static_labels
-            else t("Aucune condition fixée")
-        )
+        static_rows: list[SummaryVisualRow] = []
+        static_lines: list[str] = []
+        if self.race_editor.track_combo.currentIndex() > 0:
+            text = f"{t('Piste')}: {self.race_editor.track_combo.currentText()}"
+            static_lines.append(text)
+            static_rows.append(SummaryVisualRow(text))
+        condition_values = [
+            t(value)
+            for value in (
+                state.rotation,
+                state.season,
+                state.weather,
+                state.ground_condition,
+            )
+            if value and value != "Non précisé"
+        ]
+        if condition_values:
+            text = f"{t('Conditions')}: {' · '.join(condition_values)}"
+            static_lines.append(text)
+            static_rows.append(SummaryVisualRow(text, self._summary_condition_icons()))
+        overrides: list[str] = []
+        if self.race_editor.custom_scoring.isChecked():
+            overrides.append(t("pondérations personnalisées"))
+        if self.race_editor.priority_picker.text().strip():
+            overrides.append(t("priorités white personnalisées"))
+        if overrides:
+            text = f"{t('Personnalisation')}: {' · '.join(overrides)}"
+            static_lines.append(text)
+            static_rows.append(SummaryVisualRow(text))
+        if static_rows:
+            self.section_conditions.set_visual_summary(
+                static_rows, plain_text="\n".join(static_lines)
+            )
+        else:
+            self.section_conditions.set_summary(t("Aucune condition fixée"))
         self.section_conditions.set_modified(bool(static_labels), t("Modifié"))
 
     def _refresh_online_validation(self) -> None:

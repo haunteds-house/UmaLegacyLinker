@@ -120,7 +120,7 @@ on hover/expand. A collapsed section is a summary, never a hiding place.
 | --- | --- | --- |
 | **Objectif** (default expanded) | Ace, future parent, Top N — today's `objective` grid | `Oguri (Noël) → Tamamo · Top 30` |
 | **Course & profil** | surface / distance / style / preset / racecourse — today's compact `LineageRaceEditor` panel | `CM17 · Ooi Dirt 2000 · Late Surger` |
-| **Conditions statiques** | rotation, season, weather, ground, custom-scoring toggle, priorities file, course-overrides file — today's `advanced` grid, sole content of `RaceConditionsDialog` | `Été · Pluie · Lourd · scoring perso` |
+| **Conditions statiques** | racecourse, season, weather, ground, custom-scoring toggle, priorities file, course-overrides file — rotation Right/Left is derived from `master.mdb` course metadata rather than user-selected | `Kyoto · Right · Autumn · Sunny · Firm` |
 | **uma.moe · Récupération** (shared) | `uql_*` retrieval flags, pink min stars, lineage blue/pink minima, costume allow/exclude lists | `Cohorte Surface · pink ≥ 3★ · 12 exclus` |
 | **moe · Parents distants** | pairing (auto / fixed local **parent**), pools, fetch limit, import path, required costume | `appariement auto · 2000 candidats API · 100×100` |
 | **moe · Grands-parents distants** | pairing (auto / fixed local **GP1**), pools, fetch limit, import path, opposing parent (local/external JSON), G1 budget, win-probability cutoff | `appariement auto · 500 candidats API · G1 20` |
