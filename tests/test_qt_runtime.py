@@ -1168,6 +1168,13 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.assertAlmostEqual(white["proc_probability_over_run"], 0.246576)
             self.assertTrue(white["is_score_priority"])
             self.assertIn("Inspiration Events", dialog.spark_legend.text())
+            dialog.tree.set_zoom(1.2)
+            self.application.processEvents()
+            self.assertEqual(dialog.tree.width(), 1872)
+            self.assertEqual(dialog.tree_zoom_control.reset_button.text(), "120 %")
+            self.assertEqual(store.get("lineage_view_zoom"), "1.20")
+            dialog._reset_active_zoom()
+            self.assertEqual(dialog.tree.zoom_level(), 1.0)
             self.assertFalse(dialog.grab().toImage().isNull())
             self.assertIn("GameTora", dialog.attribution.text())
             dialog.close()
@@ -1233,6 +1240,17 @@ class QtRuntimeSmokeTests(unittest.TestCase):
                 dialog.calendar.resize(width, dialog.calendar.height())
                 self.application.processEvents()
                 self.assertEqual(dialog.calendar.sizeHint(), first_hint)
+            dialog.calendar.set_zoom(1.5)
+            self.application.processEvents()
+            self.assertEqual(dialog.calendar.width(), 2196)
+            self.assertEqual(
+                dialog.calendar_zoom_control.reset_button.text(),
+                "150 %",
+            )
+            self.assertEqual(store.get("lineage_calendar_zoom"), "1.50")
+            dialog.tabs.setCurrentWidget(dialog.planning_page)
+            dialog._reset_active_zoom()
+            self.assertEqual(dialog.calendar.zoom_level(), 1.0)
             self.assertIn("+6", dialog.planning_legend.text())
             self.assertIn("+3", dialog.planning_legend.text())
             self.assertEqual(

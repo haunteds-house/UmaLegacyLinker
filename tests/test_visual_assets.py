@@ -53,7 +53,16 @@ class VisualAssetTests(unittest.TestCase):
             for node in calendar.body
             if isinstance(node, ast.FunctionDef)
         }
-        self.assertNotIn("sizeHint", methods)
+        self.assertIn("sizeHint", methods)
+        size_hint_calls = {
+            node.func.attr
+            for node in ast.walk(methods["sizeHint"])
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+        }
+        self.assertFalse(
+            {"setMinimumHeight", "setMinimumSize", "setFixedSize"}
+            & size_hint_calls
+        )
         layout_calls = {
             node.func.attr
             for node in ast.walk(methods["_layout_metrics"])
@@ -62,6 +71,35 @@ class VisualAssetTests(unittest.TestCase):
         self.assertFalse(
             {"setMinimumHeight", "setMinimumSize", "setFixedSize"} & layout_calls
         )
+
+    def test_dense_canvases_share_zoomed_geometry_and_pointer_mapping(self) -> None:
+        source = Path("ui_qt/lineage_view.py").read_text(encoding="utf-8")
+        module = ast.parse(source)
+        classes = {
+            node.name: node
+            for node in module.body
+            if isinstance(node, ast.ClassDef)
+        }
+        for name in ("LineageTree", "RaceCalendarWidget"):
+            bases = {
+                base.id
+                for base in classes[name].bases
+                if isinstance(base, ast.Name)
+            }
+            self.assertIn("ZoomableCanvas", bases)
+        self.assertEqual(source.count("painter.scale(self._zoom, self._zoom)"), 2)
+        self.assertEqual(
+            source.count("self.logical_position(event.position())"),
+            2,
+        )
+        self.assertIn("target.width() * self._zoom", source)
+        self.assertIn("visible_width_px / self._zoom", source)
+        self.assertIn("scroll.setWidgetResizable(False)", source)
+
+    def test_qt_launcher_preserves_fractional_high_dpi_scaling(self) -> None:
+        source = Path("qt_app.py").read_text(encoding="utf-8")
+        self.assertIn("setHighDpiScaleFactorRoundingPolicy", source)
+        self.assertIn("HighDpiScaleFactorRoundingPolicy.PassThrough", source)
 
     def test_race_calendar_uses_one_slot_and_banner_as_the_title(self) -> None:
         source = Path("ui_qt/lineage_view.py").read_text(encoding="utf-8")

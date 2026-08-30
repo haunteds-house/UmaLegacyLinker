@@ -5,6 +5,8 @@ import sys
 
 def main() -> int:
     try:
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QGuiApplication
         from PySide6.QtWidgets import QApplication
     except ImportError:
         print(
@@ -18,6 +20,12 @@ def main() -> int:
     from ui_qt.main_window import MainWindow
     from ui_qt.theme import application_stylesheet
 
+    # Qt 6 already follows per-monitor Windows scaling. Keep fractional DPRs
+    # explicitly instead of silently rounding 125/150/175% displays to a very
+    # different integer scale; dense canvases provide their own user zoom.
+    QGuiApplication.setHighDpiScaleFactorRoundingPolicy(
+        Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
+    )
     application = QApplication(sys.argv)
     application.setApplicationName("Uma Legacy Linker")
     application.setOrganizationName("UmaLegacyLinker")

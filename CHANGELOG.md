@@ -20,6 +20,11 @@ This project uses feature-level semantic versioning. Small internal iterations a
   families and raised every painted label to the 8 pt readability floor. This
   establishes the shared typography substrate required by the upcoming
   lineage and calendar zoom work.
+- Added independent 75–200% zoom to the lineage tree and G1 calendar, with
+  visible controls, Ctrl+wheel, Ctrl+0 and per-view persistence. Pointer hit
+  testing now follows transformed canvas coordinates, fractional Windows DPI
+  scaling is preserved explicitly, and race banners remain capped at their
+  native bitmap resolution at every zoom level.
 
 ## 1.8.0 - Search workspace redesign and uma.moe retrieval overhaul
 

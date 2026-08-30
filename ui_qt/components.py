@@ -49,6 +49,14 @@ class NoWheelFilter(QObject):
     """
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if (
+            event.type() == QEvent.Type.Wheel
+            and event.modifiers() & Qt.KeyboardModifier.ControlModifier
+            and bool(watched.property("allowCtrlWheelZoom"))
+        ):
+            # Dense canvases reserve Ctrl+wheel for view zoom. Do not consume
+            # that gesture in the global accidental-value-change guard.
+            return super().eventFilter(watched, event)
         if event.type() == QEvent.Type.Wheel and isinstance(
             watched, (QComboBox, QAbstractSpinBox)
         ):

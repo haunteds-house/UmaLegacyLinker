@@ -41,6 +41,8 @@ The PySide6 interface is the desktop application. It shares the engines, configu
 - one named point-size scale shared by the application stylesheet, painted
   charts/canvases and rich-text diagnostics, with a 10 pt body base and an 8 pt
   minimum for dense labels;
+- independent 75–200% lineage and G1-calendar zoom, remembered per view and
+  available through visible controls, Ctrl+wheel and Ctrl+0;
 - a fixed opposing-parent context and offline local GP-pair ranking in the uma.moe search.
 
 The lineage view retains the compact identities, Sparks and skill IDs required for rendering, then displays the White full-run probability already emitted by the scoring engine for its configured Inspiration Events. G1 planning likewise renders the engine's pair comparison: a race carried by both selected legacies is worth two future `+3` links, while a one-sided race is worth one. In future-GP mode, the engine also emits the target parent's Independent Training aptitude profile, base/effective win chances and binary cutoff result; the UI only presents those values. The solver maximises obtainable affinity with one race per turn, applies the documented penalties from the third consecutive race onward, then minimises risky streaks; fixed target-character objectives constrain the standard variant, while Trackblazer switches to a precomputed objective-free variant.
@@ -51,7 +53,7 @@ The Windows workflow renders every page, the Search workspace with its context r
 
 ## Artwork and offline behaviour
 
-The application does not bundle or redistribute game artwork. The lineage inspector derives costume-aware trainee, resolved White Skill icon and G1 banner URLs from current MDB IDs, downloads only assets needed by the opened view and caches them under Qt's per-user application cache directory. The exact directory is shown as a tooltip on the cache status. Cached artwork remains usable offline; online loading can be disabled and the cache can be cleared from the inspector. The G1 planning is a fixed-size canvas inside a scroll area: resizing the dialog does not stretch the calendar or upscale low-resolution banners.
+The application does not bundle or redistribute game artwork. The lineage inspector derives costume-aware trainee, resolved White Skill icon and G1 banner URLs from current MDB IDs, downloads only assets needed by the opened view and caches them under Qt's per-user application cache directory. The exact directory is shown as a tooltip on the cache status. Cached artwork remains usable offline; online loading can be disabled and the cache can be cleared from the inspector. The lineage and G1 planning views are fixed logical canvases inside scroll areas. Their explicit user zoom changes canvas geometry instead of stretching it to the dialog; low-resolution race banners remain capped at native bitmap resolution even when the surrounding calendar is enlarged.
 
 The asset catalogue contains validated URL builders for trainee artwork, support-card artwork and skill icons. Trainee and skill assets are now used by the lineage inspector; support-card integration remains deliberately outside this project step. The shared asynchronous loader, strict HTTPS host allowlist, placeholders and cache are reusable by later views.
 
@@ -96,6 +98,7 @@ The **Windows release** GitHub Actions workflow runs the tests and visual audit,
 | `ui_qt/icon_catalog.py` | vendored SVG icons, tinted for the active theme at paint time |
 | `ui_qt/icons/` | vendored Lucide SVG sources (see [`THIRD_PARTY.md`](THIRD_PARTY.md)) |
 | `ui_qt/typography.py` | shared named point-size scale for QSS, painted views and rich text |
+| `ui_qt/zoom.py` | shared canvas zoom bounds, stepping, formatting and persistence keys |
 | `ui_qt/image_assets.py` | asynchronous loading, allowlist and persistent disk cache |
 | `ui_qt/lineage_nodes.py` | compatibility layer for current and older pair, branch and grandparent-result schemas |
 | `ui_qt/lineage_view.py` | top-down lineage inspector, G1 planning calendar, rich Spark cards and artwork controls |

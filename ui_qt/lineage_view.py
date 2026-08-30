@@ -3,16 +3,18 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from PySide6.QtCore import QPointF, QRectF, QSize, Qt, QTimer
+from PySide6.QtCore import QPointF, QRectF, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import (
     QColor,
     QFont,
     QFontMetrics,
+    QKeySequence,
     QLinearGradient,
     QPainter,
     QPainterPath,
     QPen,
     QPixmap,
+    QShortcut,
 )
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -27,6 +29,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QTabWidget,
     QTextBrowser,
+    QToolButton,
     QToolTip,
     QVBoxLayout,
     QWidget,
@@ -47,6 +50,18 @@ from ui_qt.lineage_nodes import (
 )
 from ui_qt.theme import COLORS, SPARK_COLORS
 from ui_qt.typography import css_point_size, point_size
+from ui_qt.zoom import (
+    CALENDAR_ZOOM_KEY,
+    DEFAULT_ZOOM,
+    LINEAGE_ZOOM_KEY,
+    MAX_ZOOM,
+    MIN_ZOOM,
+    normalise_zoom,
+    scaled_dimension,
+    stepped_zoom,
+    stored_zoom,
+    zoom_percentage,
+)
 
 
 PARENT_POSITIONS = ("p1", "p2")
@@ -105,7 +120,116 @@ def _probability_text(probability: float | None) -> str:
     return "" if probability is None else f"{100.0 * probability:.2f}%"
 
 
-class LineageTree(QWidget):
+class ZoomableCanvas(QWidget):
+    """Fixed logical canvas with deterministic user-controlled scaling."""
+
+    zoom_changed = Signal(float)
+
+    def __init__(self, zoom: object = DEFAULT_ZOOM, parent=None) -> None:
+        super().__init__(parent)
+        self._zoom = normalise_zoom(zoom)
+        self.setProperty("allowCtrlWheelZoom", True)
+
+    def zoom_level(self) -> float:
+        return self._zoom
+
+    def set_zoom(self, zoom: object) -> None:
+        resolved = normalise_zoom(zoom)
+        if abs(resolved - self._zoom) < 0.001:
+            return
+        self._zoom = resolved
+        self._apply_zoom_geometry()
+        self.updateGeometry()
+        self.update()
+        self.zoom_changed.emit(self._zoom)
+
+    def reset_zoom(self) -> None:
+        self.set_zoom(DEFAULT_ZOOM)
+
+    def logical_position(self, point: QPointF) -> QPointF:
+        return QPointF(point.x() / self._zoom, point.y() / self._zoom)
+
+    def wheelEvent(self, event) -> None:  # noqa: N802
+        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            direction = event.angleDelta().y()
+            if direction:
+                self.set_zoom(stepped_zoom(self._zoom, direction))
+            event.accept()
+            return
+        super().wheelEvent(event)
+
+    def _apply_zoom_geometry(self) -> None:
+        raise NotImplementedError
+
+
+class ZoomControl(QWidget):
+    """Compact keyboard-accessible controls for one zoomable canvas."""
+
+    zoom_requested = Signal(float)
+
+    def __init__(self, context: AppContext, zoom: object, parent=None) -> None:
+        super().__init__(parent)
+        self.context = context
+        self._zoom = normalise_zoom(zoom)
+        self._accessible_name = "Zoom"
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+        self.label = QLabel("Zoom")
+        self.label.setObjectName("muted")
+        self.zoom_out_button = QToolButton()
+        self.zoom_out_button.setText("-")
+        self.zoom_out_button.setFixedSize(30, 28)
+        self.reset_button = QToolButton()
+        self.reset_button.setMinimumWidth(62)
+        self.reset_button.setFixedHeight(28)
+        self.zoom_in_button = QToolButton()
+        self.zoom_in_button.setText("+")
+        self.zoom_in_button.setFixedSize(30, 28)
+        layout.addWidget(self.label)
+        layout.addWidget(self.zoom_out_button)
+        layout.addWidget(self.reset_button)
+        layout.addWidget(self.zoom_in_button)
+        self.zoom_out_button.clicked.connect(
+            lambda: self.zoom_requested.emit(stepped_zoom(self._zoom, -1))
+        )
+        self.zoom_in_button.clicked.connect(
+            lambda: self.zoom_requested.emit(stepped_zoom(self._zoom, 1))
+        )
+        self.reset_button.clicked.connect(
+            lambda: self.zoom_requested.emit(DEFAULT_ZOOM)
+        )
+        self.set_zoom(self._zoom)
+
+    def set_zoom(self, zoom: object) -> None:
+        self._zoom = normalise_zoom(zoom)
+        self.reset_button.setText(zoom_percentage(self._zoom))
+        self.zoom_out_button.setEnabled(self._zoom > MIN_ZOOM)
+        self.zoom_in_button.setEnabled(self._zoom < MAX_ZOOM)
+
+    def retranslate(self, accessible_name: str) -> None:
+        self._accessible_name = accessible_name
+        self.setAccessibleName(accessible_name)
+        self.label.setToolTip(accessible_name)
+        self.zoom_out_button.setAccessibleName(
+            self.context.t("Réduire le zoom")
+        )
+        self.zoom_out_button.setToolTip(self.context.t("Réduire le zoom"))
+        self.zoom_in_button.setAccessibleName(
+            self.context.t("Agrandir le zoom")
+        )
+        self.zoom_in_button.setToolTip(self.context.t("Agrandir le zoom"))
+        self.reset_button.setAccessibleName(
+            self.context.t("Réinitialiser le zoom")
+        )
+        self.reset_button.setToolTip(
+            self.context.t(
+                "Réinitialiser le zoom · Ctrl+molette pour zoomer · Ctrl+0 pour réinitialiser"
+            )
+        )
+
+
+class LineageTree(ZoomableCanvas):
     """Scrollable top-down lineage diagram with rich Spark cards."""
 
     BASE_WIDTH = 1560
@@ -116,9 +240,10 @@ class LineageTree(QWidget):
         nodes: dict[str, dict[str, Any]],
         repository: ImageRepository,
         mode: str = "pair",
+        zoom: object = DEFAULT_ZOOM,
         parent=None,
     ) -> None:
-        super().__init__(parent)
+        super().__init__(zoom, parent)
         self.context = context
         self.nodes = dict(nodes)
         self.repository = repository
@@ -132,19 +257,26 @@ class LineageTree(QWidget):
         self._generation_labels: dict[str, str] = {}
         self._height_update_pending = False
         self._scheduled_minimum_height: int | None = None
+        self._logical_height = 1080
         self._height_timer = QTimer(self)
         self._height_timer.setSingleShot(True)
         self._height_timer.timeout.connect(self._apply_scheduled_height)
         self.setMouseTracking(True)
-        self.setMinimumSize(self.BASE_WIDTH, 1080)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self._apply_zoom_geometry()
         self.repository.image_ready.connect(self._image_ready)
         self.repository.image_failed.connect(self._image_failed)
         self.retranslate()
         self.refresh_images()
 
     def sizeHint(self) -> QSize:  # noqa: N802
-        return QSize(self.BASE_WIDTH, max(1080, self.minimumHeight()))
+        return QSize(
+            scaled_dimension(self.BASE_WIDTH, self._zoom),
+            scaled_dimension(self._logical_height, self._zoom),
+        )
+
+    def _apply_zoom_geometry(self) -> None:
+        self.setFixedSize(self.sizeHint())
 
     def retranslate(self) -> None:
         t = self.context.t
@@ -271,7 +403,7 @@ class LineageTree(QWidget):
 
     def _schedule_height(self, height: float) -> None:
         required = max(760, int(math.ceil(height)))
-        if abs(self.minimumHeight() - required) <= 1:
+        if abs(self._logical_height - required) <= 1:
             return
         self._scheduled_minimum_height = required
         if not self._height_update_pending:
@@ -282,12 +414,13 @@ class LineageTree(QWidget):
         required = self._scheduled_minimum_height
         self._scheduled_minimum_height = None
         self._height_update_pending = False
-        if required is not None and abs(self.minimumHeight() - required) > 1:
-            self.setMinimumHeight(required)
+        if required is not None and abs(self._logical_height - required) > 1:
+            self._logical_height = required
+            self._apply_zoom_geometry()
             self.updateGeometry()
 
     def _layout_rects(self) -> dict[str, QRectF]:
-        width = max(float(self.width()), float(self.BASE_WIDTH))
+        width = float(self.BASE_WIDTH)
         margin = 42.0
         direct_positions = (
             ("p1",)
@@ -384,6 +517,7 @@ class LineageTree(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         painter.fillRect(self.rect(), QColor(COLORS["background"]))
+        painter.scale(self._zoom, self._zoom)
         rects = self._layout_rects()
         self._card_rects = rects
         self._spark_rects = []
@@ -435,7 +569,7 @@ class LineageTree(QWidget):
         painter.setFont(font)
         painter.setPen(QColor("#72849d"))
         painter.drawText(
-            QRectF(0.0, y, float(self.width()), 22.0),
+            QRectF(0.0, y, float(self.BASE_WIDTH), 22.0),
             Qt.AlignmentFlag.AlignCenter,
             text.upper(),
         )
@@ -833,7 +967,7 @@ class LineageTree(QWidget):
         return "\n".join(lines)
 
     def mouseMoveEvent(self, event) -> None:  # noqa: N802
-        point = event.position()
+        point = self.logical_position(event.position())
         for rect, _position, factor in reversed(self._spark_rects):
             if rect.contains(point):
                 QToolTip.showText(event.globalPosition().toPoint(), self._spark_tooltip(factor), self)
@@ -849,7 +983,7 @@ class LineageTree(QWidget):
         super().leaveEvent(event)
 
 
-class RaceCalendarWidget(QWidget):
+class RaceCalendarWidget(ZoomableCanvas):
     """Fixed, themed three-year calendar for race-affinity planning."""
 
     BASE_WIDTH = 1464
@@ -887,9 +1021,10 @@ class RaceCalendarWidget(QWidget):
         context: AppContext,
         plan: dict[str, Any],
         repository: ImageRepository,
+        zoom: object = DEFAULT_ZOOM,
         parent=None,
     ) -> None:
-        super().__init__(parent)
+        super().__init__(zoom, parent)
         self.context = context
         self.plan = dict(plan)
         self.repository = repository
@@ -902,11 +1037,21 @@ class RaceCalendarWidget(QWidget):
         # sizeHint() mutate the minimum height, recursively triggering another
         # sizeHint() call until Python exhausted its stack.
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        self.setFixedSize(self.BASE_WIDTH, self._required_height())
+        self._logical_height = self._required_height()
+        self._apply_zoom_geometry()
         self.repository.image_ready.connect(self._image_ready)
         self.repository.image_failed.connect(self._image_failed)
         self.refresh_images()
         self.retranslate()
+
+    def sizeHint(self) -> QSize:  # noqa: N802
+        return QSize(
+            scaled_dimension(self.BASE_WIDTH, self._zoom),
+            scaled_dimension(self._logical_height, self._zoom),
+        )
+
+    def _apply_zoom_geometry(self) -> None:
+        self.setFixedSize(self.sizeHint())
 
     def _races(self) -> list[dict[str, Any]]:
         return [
@@ -920,7 +1065,8 @@ class RaceCalendarWidget(QWidget):
 
         self.plan = dict(plan)
         self.refresh_images()
-        self.setFixedSize(self.BASE_WIDTH, self._required_height())
+        self._logical_height = self._required_height()
+        self._apply_zoom_geometry()
         self.updateGeometry()
         self.update()
 
@@ -1106,6 +1252,7 @@ class RaceCalendarWidget(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         painter.fillRect(self.rect(), QColor(COLORS["surface"]))
+        painter.scale(self._zoom, self._zoom)
         (
             margin,
             column_width,
@@ -1249,11 +1396,13 @@ class RaceCalendarWidget(QWidget):
         has_banner = pixmap is not None and not pixmap.isNull() and not compact
         if has_banner:
             target = rect.adjusted(2.0, 2.0, -2.0, -2.0)
-            # Scale down to cover the card, but never enlarge a low-resolution
-            # GameTora banner.  Any uncovered edge keeps the card background.
+            # The painter zoom transforms logical destination units into
+            # physical pixels. Account for that transform here so a 200% user
+            # zoom never enlarges a low-resolution GameTora banner beyond its
+            # native bitmap dimensions.
             cover_scale = max(
-                target.width() / float(pixmap.width()),
-                target.height() / float(pixmap.height()),
+                target.width() * self._zoom / float(pixmap.width()),
+                target.height() * self._zoom / float(pixmap.height()),
             )
             scale = min(1.0, cover_scale)
             scaled = pixmap.scaled(
@@ -1262,8 +1411,16 @@ class RaceCalendarWidget(QWidget):
                 Qt.AspectRatioMode.IgnoreAspectRatio,
                 Qt.TransformationMode.SmoothTransformation,
             )
-            visible_width = min(target.width(), float(scaled.width()))
-            visible_height = min(target.height(), float(scaled.height()))
+            visible_width_px = min(
+                target.width() * self._zoom,
+                float(scaled.width()),
+            )
+            visible_height_px = min(
+                target.height() * self._zoom,
+                float(scaled.height()),
+            )
+            visible_width = visible_width_px / self._zoom
+            visible_height = visible_height_px / self._zoom
             destination = QRectF(
                 target.center().x() - visible_width / 2.0,
                 target.center().y() - visible_height / 2.0,
@@ -1271,10 +1428,10 @@ class RaceCalendarWidget(QWidget):
                 visible_height,
             )
             source = QRectF(
-                max(0.0, (scaled.width() - visible_width) / 2.0),
-                max(0.0, (scaled.height() - visible_height) / 2.0),
-                visible_width,
-                visible_height,
+                max(0.0, (scaled.width() - visible_width_px) / 2.0),
+                max(0.0, (scaled.height() - visible_height_px) / 2.0),
+                visible_width_px,
+                visible_height_px,
             )
             painter.save()
             clip = QPainterPath()
@@ -1386,7 +1543,7 @@ class RaceCalendarWidget(QWidget):
         return labels[source_kind]
 
     def mouseMoveEvent(self, event) -> None:  # noqa: N802
-        point = event.position()
+        point = self.logical_position(event.position())
         for rect, race in reversed(self._race_rects):
             if not rect.contains(point):
                 continue
@@ -1630,12 +1787,30 @@ class LineageDialog(QDialog):
         self.spark_legend = QLabel()
         self.spark_legend.setObjectName("muted")
         self.spark_legend.setWordWrap(True)
-        visual_layout.addWidget(self.spark_legend)
+        tree_zoom = normalise_zoom(
+            context.store.get(LINEAGE_ZOOM_KEY, stored_zoom(DEFAULT_ZOOM))
+        )
+        visual_header = QHBoxLayout()
+        visual_header.addWidget(self.spark_legend, 1)
+        self.tree_zoom_control = ZoomControl(context, tree_zoom)
+        visual_header.addWidget(self.tree_zoom_control)
+        visual_layout.addLayout(visual_header)
         scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
+        scroll.setWidgetResizable(False)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
-        self.tree = LineageTree(context, self.nodes, self.repository, self.mode)
+        self.tree = LineageTree(
+            context,
+            self.nodes,
+            self.repository,
+            self.mode,
+            tree_zoom,
+        )
+        self.tree_zoom_control.zoom_requested.connect(self.tree.set_zoom)
+        self.tree.zoom_changed.connect(self.tree_zoom_control.set_zoom)
+        self.tree.zoom_changed.connect(
+            lambda value: self._persist_zoom(LINEAGE_ZOOM_KEY, value)
+        )
         scroll.setWidget(self.tree)
         visual_layout.addWidget(scroll, 1)
         self.attribution = QLabel()
@@ -1660,6 +1835,7 @@ class LineageDialog(QDialog):
         self.planning_key: QLabel | None = None
         self.planning_title: QLabel | None = None
         self.trackblazer_toggle: QCheckBox | None = None
+        self.calendar_zoom_control: ZoomControl | None = None
         if self.race_plan.get("races"):
             self.planning_page = QWidget()
             planning_layout = QVBoxLayout(self.planning_page)
@@ -1696,6 +1872,11 @@ class LineageDialog(QDialog):
             self.planning_title.setObjectName("planningTitle")
             mode_row.addWidget(self.planning_title)
             mode_row.addStretch(1)
+            calendar_zoom = normalise_zoom(
+                context.store.get(CALENDAR_ZOOM_KEY, stored_zoom(DEFAULT_ZOOM))
+            )
+            self.calendar_zoom_control = ZoomControl(context, calendar_zoom)
+            mode_row.addWidget(self.calendar_zoom_control)
             self.trackblazer_toggle = QCheckBox()
             self.trackblazer_toggle.setObjectName("trackblazerToggle")
             variants = self.race_plan.get("schedule_variants") or {}
@@ -1732,6 +1913,16 @@ class LineageDialog(QDialog):
                 context,
                 self._active_race_plan(),
                 self.repository,
+                calendar_zoom,
+            )
+            self.calendar_zoom_control.zoom_requested.connect(
+                self.calendar.set_zoom
+            )
+            self.calendar.zoom_changed.connect(
+                self.calendar_zoom_control.set_zoom
+            )
+            self.calendar.zoom_changed.connect(
+                lambda value: self._persist_zoom(CALENDAR_ZOOM_KEY, value)
             )
             planning_scroll.setWidget(self.calendar)
             planning_layout.addWidget(planning_scroll, 1)
@@ -1754,8 +1945,20 @@ class LineageDialog(QDialog):
             self.trackblazer_toggle.toggled.connect(
                 self._toggle_trackblazer_schedule
             )
+        self.reset_zoom_shortcut = QShortcut(QKeySequence("Ctrl+0"), self)
+        self.reset_zoom_shortcut.activated.connect(self._reset_active_zoom)
         self.repository.cache_changed.connect(self._update_cache_label)
         self.retranslate()
+
+    def _persist_zoom(self, key: str, value: float) -> None:
+        self.context.store.update({key: stored_zoom(value)})
+
+    def _reset_active_zoom(self) -> None:
+        current = self.tabs.currentWidget()
+        if current is self.visual_page:
+            self.tree.reset_zoom()
+        elif current is self.planning_page and self.calendar is not None:
+            self.calendar.reset_zoom()
 
     def _active_race_plan(self) -> dict[str, Any]:
         variants = self.race_plan.get("schedule_variants") or {}
@@ -1903,8 +2106,11 @@ class LineageDialog(QDialog):
         self.online_toggle.setText(t("Illustrations en ligne (cache local)"))
         self.clear_cache_button.setText(t("Vider le cache d’images"))
         self.tabs.setTabText(self.tabs.indexOf(self.visual_page), t("Vue de lignée"))
+        self.tree_zoom_control.retranslate(t("Zoom de la lignée"))
         if self.planning_page is not None:
             self.tabs.setTabText(self.tabs.indexOf(self.planning_page), t("Planning G1"))
+        if self.calendar_zoom_control is not None:
+            self.calendar_zoom_control.retranslate(t("Zoom du planning G1"))
         if self.planning_title is not None:
             self.planning_title.setText(t("Planning optimal proposé"))
         if self.trackblazer_toggle is not None:
