@@ -22,7 +22,7 @@ The PySide6 interface is the desktop application. It shares the engines, configu
 - branch summaries that total each final parent with its two grandparents, condense duplicate Blue/Pink/White Sparks, keep Green sources distinct and mark Sparks carried by the direct parent;
 - costume-aware trainee artwork and White Skill icons loaded asynchronously through a persistent, optional local cache;
 - explicit shared/local/remote G1 diagnostics and a themed three-year optimal calendar for both parent and grandparent pairs, with `+6`/`+3` link values, mandatory objective locks, an objective-free Trackblazer switch and cached GameTora race banners;
-- rich, colour-coded Spark chips ordered Blue → Pink → Green → White, with resolved skill icons, the existing full-run White inheritance probability and gold emphasis for the three strongest White score contributions;
+- high-contrast Spark chips ordered Blue → Pink → Green → White, with visible semantic labels independent of colour, resolved skill icons, the existing full-run White inheritance probability and priority emphasis for the three strongest White score contributions;
 - loading the latest generated ranking;
 - export of a selected final pair to the uma.moe Lineage Planner format;
 - live and imported uma.moe parent/grandparent searches, with shared retrieval constraints and per-search pairing, pool, fetch and import settings edited in the context rail, plus costume filters and Friend ID copy;
@@ -56,7 +56,7 @@ The lineage view retains the compact identities, Sparks and skill IDs required f
 
 ## Visual QA
 
-The Windows workflow renders every page, the Search workspace with its context rail expanded, collapsed, focused on each uma.moe search mode and on each result family, the embedded local and remote result panes, and all four lineage variants in French and English at 1120×720, 1366×768 and 1600×900. Its fixtures deliberately include long names, dense White summaries and all aptitude ranks. It fails on clipped button/label text, hidden horizontal overflow or a root rich-text table that collapses into a narrow strip, and currently covers 132 screenshots plus `layout-report.json`. Unit tests also enforce readable semantic-colour contrast, English coverage for visible Qt copy and safe result-pane construction before table sorting emits model callbacks.
+The Windows workflow renders every page, the Search workspace with its context rail expanded, collapsed, focused on each uma.moe search mode and on each result family, the embedded local and remote result panes, and all four lineage variants in French and English at 1120×720, 1366×768 and 1600×900. Its fixtures deliberately include long names, dense White summaries and all aptitude ranks. It fails on clipped button/label text, hidden horizontal overflow or a root rich-text table that collapses into a narrow strip, and currently covers 132 screenshots plus `layout-report.json`. Unit tests also enforce readable text contrast, 3:1 structural and Spark-boundary contrast, non-colour Spark labels, English coverage for visible Qt copy and safe result-pane construction before table sorting emits model callbacks.
 
 ## Artwork and offline behaviour
 

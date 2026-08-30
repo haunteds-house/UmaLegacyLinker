@@ -37,6 +37,11 @@ This project uses feature-level semantic versioning. Small internal iterations a
   visible even when preserved; and all replacement aggregates, stats and
   lineage fields are rendered. The detail pane now honours the documented
   520 px readability floor. Per-context deltas remain a separate engine lot.
+- Raised structural and Spark-chip boundaries to the WCAG 2.2 non-text
+  contrast floor of 3:1, while keeping text contrast unchanged. Every Spark
+  chip now carries an explicit semantic label instead of relying on hue, and
+  keyboard focus is styled for checkboxes, tabs, tables, detail browsers and
+  sliders. Dedicated non-Qt tests guard the contrast and labelling contracts.
 
 ## 1.8.0 - Search workspace redesign and uma.moe retrieval overhaul
 

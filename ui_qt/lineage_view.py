@@ -48,7 +48,12 @@ from ui_qt.lineage_nodes import (
     GREAT_GRANDPARENT_POSITIONS,
     build_result_lineage_nodes,
 )
-from ui_qt.theme import COLORS, SPARK_COLORS
+from ui_qt.theme import (
+    COLORS,
+    SPARK_COLORS,
+    spark_semantic_label,
+    spark_style_key,
+)
 from ui_qt.typography import css_point_size, point_size
 from ui_qt.zoom import (
     CALENDAR_ZOOM_KEY,
@@ -94,19 +99,7 @@ def _human_size(size: int) -> str:
 
 
 def _factor_style(factor: dict[str, Any]) -> tuple[str, str, str]:
-    if factor.get("is_score_priority"):
-        return SPARK_COLORS["white_priority"]
-    if factor.get("is_score_useful"):
-        return SPARK_COLORS["white_useful"]
-    return SPARK_COLORS.get(str(factor.get("type") or "other"), SPARK_COLORS["other"])
-
-
-def _factor_marker(factor: dict[str, Any]) -> str:
-    if factor.get("is_score_priority"):
-        return "◆ "
-    if factor.get("is_score_useful"):
-        return "◇ "
-    return ""
+    return SPARK_COLORS[spark_style_key(factor)]
 
 
 def _run_probability(factor: dict[str, Any]) -> float | None:
@@ -360,7 +353,7 @@ class LineageTree(ZoomableCanvas):
     def _spark_chip_width(self, factor: dict[str, Any], maximum: float) -> float:
         metrics = QFontMetrics(self._spark_font())
         stars = max(0, int(factor.get("stars") or 0))
-        marker = _factor_marker(factor)
+        marker = f"[{self.context.t(spark_semantic_label(factor))}] "
         text = f"{marker}{stars}★  {factor.get('name') or '—'}"
         probability = _probability_text(_run_probability(factor))
         if probability:
@@ -620,7 +613,7 @@ class LineageTree(ZoomableCanvas):
             "target": COLORS["accent"],
             "p1": "#4aa58c",
             "p2": "#4e82c4",
-        }.get(position, "#3a4656" if compact else COLORS["border"])
+        }.get(position, COLORS["border"])
         fill = {
             "target": "#162724",
             "p1": "#171f1e",
@@ -879,7 +872,7 @@ class LineageTree(ZoomableCanvas):
             else 0.0
         )
         stars = max(0, int(factor.get("stars") or 0))
-        marker = _factor_marker(factor)
+        marker = f"[{self.context.t(spark_semantic_label(factor))}] "
         name = f"{marker}{stars}★  {factor.get('name') or '—'}"
         available = max(12, int(rect.right() - left - 7.0 - probability_width))
         visible = painter.fontMetrics().elidedText(name, Qt.TextElideMode.ElideRight, available)
@@ -2147,7 +2140,7 @@ class LineageDialog(QDialog):
         self.spark_legend.setText(
             t(
                 "Whites : le % indique la chance d’au moins un proc sur les {count} Inspiration Events "
-                "de la run lorsqu’elle est disponible · ◆ doré = priorité majeure · ◇ bleu = white compatible, utile ou rare pour le profil."
+                "de la run lorsqu’elle est disponible · [Priorité] = contribution majeure · [Utile] = white compatible, utile ou rare pour le profil."
             ).replace("{count}", str(event_count))
         )
         self._update_planning_copy()

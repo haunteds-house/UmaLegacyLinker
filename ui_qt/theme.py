@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from ui_qt.typography import FONT_FAMILY_QSS, css_point_size
 
 
@@ -8,7 +10,8 @@ COLORS = {
     "sidebar": "#0f1622",
     "surface": "#141d2b",
     "surface_alt": "#192536",
-    "border": "#25344a",
+    "border": "#60748e",
+    "focus": "#b7ffe7",
     "text": "#edf4ff",
     "muted": "#91a3bb",
     "accent": "#68d3b1",
@@ -22,23 +25,51 @@ COLORS = {
 # background, border and foreground for compact Spark chips.  Kept beside the
 # main palette so contrast can be audited without importing the Qt runtime.
 SPARK_COLORS = {
-    "blue_stat": ("#0d304d", "#286da3", "#83c7ff"),
-    "red_aptitude": ("#3a1424", "#7f294a", "#ff8bb0"),
-    "unique": ("#14351f", "#397848", "#8cdd9a"),
-    "white_skill": ("#2b3037", "#59636f", "#e1e8f0"),
-    "white_race": ("#292e35", "#58616c", "#d9e0e8"),
+    "blue_stat": ("#0d304d", "#3a7fb5", "#83c7ff"),
+    "red_aptitude": ("#3a1424", "#b04e71", "#ff8bb0"),
+    "unique": ("#14351f", "#468855", "#8cdd9a"),
+    "white_skill": ("#2b3037", "#747e89", "#e1e8f0"),
+    "white_race": ("#292e35", "#737c86", "#d9e0e8"),
     # Useful profile-compatible whites get a visible but deliberately quieter
     # treatment than the very strongest contributors.  This lets the result
     # view surface more than an arbitrary top three without turning the whole
     # Spark list gold.
-    "white_useful": ("#132d3b", "#397896", "#bfe9ff"),
+    "white_useful": ("#132d3b", "#407e9b", "#bfe9ff"),
     "white_priority": ("#352b12", "#d5aa3f", "#ffe9a3"),
     # Scenario Sparks are informative/stat-oriented, not automatically major
     # white priorities.  A muted violet keeps them distinct from both ordinary
     # race whites and the gold priority treatment.
-    "scenario": ("#26243a", "#5d5984", "#cbc7f4"),
-    "other": ("#252b34", "#4b5869", "#cbd6e4"),
+    "scenario": ("#26243a", "#726e99", "#cbc7f4"),
+    "other": ("#252b34", "#6b7888", "#cbd6e4"),
 }
+
+# Text labels make Spark semantics independent from colour perception.  The
+# source strings are translated at the rendering boundary so this module stays
+# usable by contrast tests without importing Qt or the i18n layer.
+SPARK_SEMANTIC_LABELS = {
+    "blue_stat": "Stat",
+    "red_aptitude": "Aptitude",
+    "unique": "Unique",
+    "white_skill": "White",
+    "white_race": "Course",
+    "white_useful": "Utile",
+    "white_priority": "Priorité",
+    "scenario": "Scénario",
+    "other": "Autre",
+}
+
+
+def spark_style_key(factor: Mapping[str, object]) -> str:
+    if factor.get("is_score_priority"):
+        return "white_priority"
+    if factor.get("is_score_useful"):
+        return "white_useful"
+    factor_type = str(factor.get("type") or "other")
+    return factor_type if factor_type in SPARK_COLORS else "other"
+
+
+def spark_semantic_label(factor: Mapping[str, object]) -> str:
+    return SPARK_SEMANTIC_LABELS[spark_style_key(factor)]
 
 APTITUDE_COLORS = {
     "header_background": "#347f1b",
@@ -158,12 +189,12 @@ def application_stylesheet() -> str:
     }}
     QFrame#subtlePanel {{
         background: #101824;
-        border: 1px solid #223149;
+        border: 1px solid {COLORS['border']};
         border-radius: 8px;
     }}
     QFrame#infoCallout {{
         background: #112331;
-        border: 1px solid #294a60;
+        border: 1px solid {COLORS['border']};
         border-radius: 8px;
     }}
     QLabel#calloutTitle {{
@@ -189,13 +220,13 @@ def application_stylesheet() -> str:
     }}
     QPushButton:hover {{
         background: #213149;
-        border-color: #3a5273;
+        border-color: {COLORS['border']};
     }}
     QPushButton:pressed {{
         background: #101a27;
     }}
     QPushButton:focus {{
-        border-color: {COLORS['accent']};
+        border-color: {COLORS['focus']};
     }}
     QPushButton:disabled {{
         color: #647287;
@@ -237,7 +268,7 @@ def application_stylesheet() -> str:
         selection-background-color: #2b675b;
     }}
     QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {{
-        border-color: {COLORS['accent']};
+        border-color: {COLORS['focus']};
     }}
     QLineEdit:disabled, QComboBox:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled {{
         color: #647287;
@@ -269,11 +300,17 @@ def application_stylesheet() -> str:
     QCheckBox {{
         spacing: 7px;
         color: {COLORS['text']};
+        border: 1px solid transparent;
+        border-radius: 5px;
+        padding: 2px;
+    }}
+    QCheckBox:focus {{
+        border-color: {COLORS['focus']};
     }}
     QCheckBox::indicator {{
         width: 16px;
         height: 16px;
-        border: 1px solid #40536d;
+        border: 1px solid {COLORS['border']};
         border-radius: 4px;
         background: #0f1723;
     }}
@@ -281,9 +318,16 @@ def application_stylesheet() -> str:
         background: {COLORS['accent']};
         border-color: {COLORS['accent']};
     }}
+    QSlider {{
+        border: 1px solid transparent;
+        border-radius: 6px;
+    }}
+    QSlider:focus {{
+        border-color: {COLORS['focus']};
+    }}
     QSlider::groove:horizontal {{
         height: 6px;
-        background: #26364d;
+        background: {COLORS['border']};
         border-radius: 3px;
     }}
     QSlider::sub-page:horizontal {{
@@ -319,6 +363,9 @@ def application_stylesheet() -> str:
     QListWidget::item:selected {{
         background: #28584f;
     }}
+    QListWidget:focus {{
+        border-color: {COLORS['focus']};
+    }}
     QTabWidget::pane {{
         border: 1px solid {COLORS['border']};
         border-radius: 8px;
@@ -335,18 +382,27 @@ def application_stylesheet() -> str:
         color: {COLORS['accent']};
         border-bottom-color: {COLORS['accent']};
     }}
+    QTabBar::tab:selected:focus {{
+        border: 1px solid {COLORS['focus']};
+        border-bottom: 2px solid {COLORS['focus']};
+        border-radius: 5px 5px 0 0;
+    }}
     QTableView {{
         background: #101824;
         alternate-background-color: #131e2d;
-        border: none;
-        gridline-color: #223149;
+        border: 1px solid {COLORS['border']};
+        gridline-color: {COLORS['border']};
         selection-background-color: #28584f;
         selection-color: {COLORS['text']};
+        outline: none;
+    }}
+    QTableView:focus {{
+        border-color: {COLORS['focus']};
     }}
     QTreeWidget#weightsTree {{
         background: #101824;
         alternate-background-color: #121c2a;
-        border: 1px solid #223149;
+        border: 1px solid {COLORS['border']};
         border-radius: 8px;
         outline: none;
         padding: 3px;
@@ -366,9 +422,12 @@ def application_stylesheet() -> str:
     QTreeWidget#weightsTree::branch {{
         background: transparent;
     }}
+    QTreeWidget#weightsTree:focus {{
+        border-color: {COLORS['focus']};
+    }}
     QFrame#weightsToolbar {{
         background: #121c29;
-        border: 1px solid #223149;
+        border: 1px solid {COLORS['border']};
         border-radius: 9px;
     }}
     QFrame#weightsNavigationPanel, QFrame#weightsEditorPanel {{
@@ -380,22 +439,25 @@ def application_stylesheet() -> str:
         background: #182436;
         color: #bdd0e7;
         border: none;
-        border-right: 1px solid #263751;
-        border-bottom: 1px solid #263751;
+        border-right: 1px solid {COLORS['border']};
+        border-bottom: 1px solid {COLORS['border']};
         padding: 8px 7px;
         font-weight: 650;
     }}
     QTableCornerButton::section {{
         background: #182436;
         border: none;
-        border-right: 1px solid #263751;
-        border-bottom: 1px solid #263751;
+        border-right: 1px solid {COLORS['border']};
+        border-bottom: 1px solid {COLORS['border']};
     }}
     QTextBrowser, QPlainTextEdit {{
         background: #0f1723;
         border: 1px solid {COLORS['border']};
         border-radius: 7px;
         padding: 8px;
+    }}
+    QTextBrowser:focus, QPlainTextEdit:focus {{
+        border-color: {COLORS['focus']};
     }}
     QToolButton {{
         color: {COLORS['text']};
@@ -425,7 +487,7 @@ def application_stylesheet() -> str:
         margin: 1px;
     }}
     QScrollBar::handle:vertical {{
-        background: #34475f;
+        background: {COLORS['border']};
         border-radius: 5px;
         min-height: 24px;
     }}
@@ -436,7 +498,7 @@ def application_stylesheet() -> str:
         margin: 1px;
     }}
     QScrollBar::handle:horizontal {{
-        background: #34475f;
+        background: {COLORS['border']};
         border-radius: 5px;
         min-width: 24px;
     }}

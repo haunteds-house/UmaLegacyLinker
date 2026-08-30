@@ -5,7 +5,13 @@ from typing import Any
 
 from i18n import profile_label, translate_text
 from ui_qt.lineage_nodes import build_result_lineage_nodes
-from ui_qt.theme import RANK_BADGE_COLORS, SPARK_COLORS
+from ui_qt.theme import (
+    COLORS,
+    RANK_BADGE_COLORS,
+    SPARK_COLORS,
+    spark_semantic_label,
+    spark_style_key,
+)
 from ui_qt.typography import TYPE_SCALE_PT, css_point_size
 from veteran_identity import (
     canonical_veteran_label,
@@ -57,7 +63,7 @@ PANEL = {
     "surface": "#16202e",
     "surface_alt": "#111a26",
     "surface_deep": "#0d151f",
-    "border": "#26364b",
+    "border": COLORS["border"],
     "border_soft": "#1d2939",
     "accent": "#6fdcb8",
     "accent_soft": "#8af0d0",
@@ -708,26 +714,13 @@ def _spark_probability_text(entry: dict[str, Any]) -> str:
     return f"{100 * (1.0 - failure):.2f}%"
 
 
-def _spark_card(entry: dict[str, Any]) -> str:
-    factor_type = str(entry.get("type") or "other")
-    style_key = (
-        "white_priority"
-        if entry.get("is_score_priority")
-        else "white_useful"
-        if entry.get("is_score_useful")
-        else factor_type
-    )
+def _spark_card(entry: dict[str, Any], language: str) -> str:
+    style_key = spark_style_key(entry)
     background, border, foreground = SPARK_COLORS.get(style_key, SPARK_COLORS["other"])
+    semantic_label = _t(spark_semantic_label(entry), language)
     marker = (
         "<span class='parent-marker'>P</span>&nbsp;"
         if entry.get("is_direct")
-        else ""
-    )
-    priority = (
-        "◆&nbsp;"
-        if entry.get("is_score_priority")
-        else "◇&nbsp;"
-        if entry.get("is_score_useful")
         else ""
     )
     copies = int(entry.get("copy_count") or 0)
@@ -754,21 +747,22 @@ def _spark_card(entry: dict[str, Any]) -> str:
         f"<td class='spark-accent' width='3' bgcolor='{border}' "
         f"style='background-color:{border};'>&nbsp;</td>"
         f"<td class='spark-stars' width='68' style='color:{foreground};'>"
-        f"{marker}{priority}<b>{int(entry.get('stars') or 0)}★</b></td>"
+        f"{marker}<b>{int(entry.get('stars') or 0)}★</b></td>"
         f"<td class='spark-name' style='color:{foreground};'>"
+        f"<span class='spark-kind'>[{escape(semantic_label)}]</span>&nbsp;"
         f"{escape(str(entry.get('name') or '—'))}</td>"
         f"{meta_cell}</tr></table>"
     )
 
 
-def _spark_grid(entries: list[dict[str, Any]]) -> str:
+def _spark_grid(entries: list[dict[str, Any]], language: str) -> str:
     rows = []
     for index in range(0, len(entries), 2):
         cells = []
         for entry in entries[index:index + 2]:
             cells.append(
                 "<td class='spark-grid-cell' width='50%' valign='top'>"
-                + _spark_card(entry)
+                + _spark_card(entry, language)
                 + "</td>"
             )
         if len(cells) == 1:
@@ -816,7 +810,7 @@ def _spark_recap(row: dict[str, Any], mode: str, language: str) -> str:
                 f"<th style='color:{accent};'>{escape(family_labels[family])}"
                 f"<span class='spark-count'>&nbsp;&nbsp;{len(family_entries)}</span></th>"
                 "</tr></table>"
-                + _spark_grid(family_entries)
+                + _spark_grid(family_entries, language)
             )
         name = str(direct_node.get("card_name") or direct_node.get("uma_name") or "—")
         visible_member_count = sum(1 for position in positions if nodes.get(position))
@@ -849,9 +843,13 @@ def _spark_recap(row: dict[str, Any], mode: str, language: str) -> str:
             + escape(_t("présent sur le parent direct", language))
             + "&nbsp;·&nbsp;"
             + escape(_t("totaux Bleu/Rose/White sur la branche", language))
-            + "&nbsp;·&nbsp;◆ "
+            + "&nbsp;·&nbsp;["
+            + escape(_t("Priorité", language))
+            + "] "
             + escape(_t("priorité majeure", language))
-            + "&nbsp;·&nbsp;◇ "
+            + "&nbsp;·&nbsp;["
+            + escape(_t("Utile", language))
+            + "] "
             + escape(_t("white utile au profil", language))
             + "</p>"
         )
@@ -1077,6 +1075,7 @@ def _detail_styles() -> str:
       .spark-accent {{ padding:0; }}
       .spark-stars {{ white-space:nowrap; font-size:{FONT_SIZE['micro']}; }}
       .spark-name {{ font-size:{FONT_SIZE['caption']}; font-weight:650; text-align:left; }}
+      .spark-kind {{ font-size:{FONT_SIZE['micro']}; font-weight:900; }}
       .spark-meta {{ color:{muted}; white-space:nowrap; font-size:{FONT_SIZE['micro']}; }}
       .generation-gain {{ color:{accent}; font-weight:750; }}
       .diagnostic-note {{ color:{muted}; font-size:{FONT_SIZE['micro']}; margin:6px 1px 9px 1px; }}
