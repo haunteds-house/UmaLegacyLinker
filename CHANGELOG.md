@@ -4,6 +4,12 @@ This project uses feature-level semantic versioning. Small internal iterations a
 
 ## Unreleased
 
+- Isolated local lineage optimisation, uma.moe pairing and Transfer Helper
+  analysis in one spawned backend process per run. Qt remains in the GUI
+  process while a lightweight pool thread supervises typed IPC for logs,
+  progress, results, errors and cancellation; ordinary data/extractor I/O
+  keeps the existing thread worker. The boundary is spawn-safe for the frozen
+  Windows build and does not alter scoring or result order.
 - Fixed the PySide6 6.8 OpenType-tag binding used by tabular numerals. Passing
   the raw `"tnum"` string raised during lazy page construction, making Search
   and Transfer navigation appear inert and crashing the Weights page; the
@@ -11,8 +17,9 @@ This project uses feature-level semantic versioning. Small internal iterations a
 - Replaced iteration-count yielding in local and uma.moe parent-pair searches
   with one shared 10 ms monotonic checkpoint. The same deadline now reaches
   branch evaluation, Blue/Pink/White/Race/Unique scoring hot loops and G1
-  planning, so the Qt worker regularly releases the GIL without sleeping in
-  every iteration. Ranking formulas, scores and result ordering are unchanged.
+  planning, so the engine regularly reaches its external scheduling or
+  cancellation callback without sleeping in every iteration. Ranking formulas,
+  scores and result ordering are unchanged.
 - Replaced the Unicode glyphs used as icons in primary navigation, the Search
   context-rail toggle and the lineage inspector's affinity tag with vendored,
   theme-tinted Lucide SVGs. Those glyphs depended on the host's font-fallback

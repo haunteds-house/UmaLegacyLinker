@@ -1535,6 +1535,8 @@ EXACT_EN.update({
 })
 
 FRAGMENTS_EN.update({
+    "Le processus de calcul s’est arrêté de façon inattendue (code ": "The calculation process stopped unexpectedly (exit code ",
+    "Type de message IPC backend inconnu : ": "Unknown backend IPC message type: ",
     " vétéran(s) emprunté(s) écarté(s) : carrière en cours.": " borrowed veteran(s) skipped: in-progress career.",
     " — lecture de la mémoire du jeu…": " — reading the game memory…",
     "s'est terminé avec le code ": "exited with code ",
@@ -1550,6 +1552,10 @@ _FRAGMENTS_EN_PATTERN = re.compile(
 
 
 EXACT_EN.update({
+    "Aucun diagnostic backend n’a été reçu.": "No backend diagnostic was received.",
+    "Message IPC backend invalide.": "Invalid backend IPC message.",
+    "Progression IPC backend invalide.": "Invalid backend IPC progress message.",
+    "Erreur IPC backend invalide.": "Invalid backend IPC error message.",
     "Type de recherche locale invalide.": "Invalid local search type.",
     "Recherche de lignées": "Lineage Search",
     "Configure les intégrations stables et retrouve les outils techniques secondaires.": "Configure stable integrations and access secondary technical tools.",

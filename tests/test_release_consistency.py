@@ -75,6 +75,15 @@ class ReleaseConsistencyTests(unittest.TestCase):
         self.assertIn("where pyw", script)
         self.assertIn('start "" pyw qt_app.py', script)
 
+    def test_qt_entrypoint_supports_spawned_frozen_workers(self) -> None:
+        entrypoint = (ROOT / "qt_app.py").read_text(encoding="utf-8")
+
+        self.assertIn("from multiprocessing import freeze_support", entrypoint)
+        self.assertRegex(
+            entrypoint,
+            r'if __name__ == "__main__":\s+freeze_support\(\)\s+raise SystemExit\(main\(\)\)',
+        )
+
     def test_release_docs_and_dependencies_are_qt_only(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         spec = (ROOT / "UmaLegacyLinkerQt.spec").read_text(encoding="utf-8")

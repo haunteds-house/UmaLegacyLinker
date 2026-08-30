@@ -228,9 +228,11 @@ Five tabs, ordered by frequency, first selected by default (NN/g):
 - **Per-tab empty state**: one sentence on what the family answers + the Run
   button. Replaces the single generic placeholder and restores information
   scent for first-time club users.
-- **Single-worker reality**: `MainWindow` runs one `FunctionWorker` at a
-  time. While busy, every Lancer disables, the running tab shows `⟳`, other
-  tabs keep their fresh/stale badges, cancel stays in the status bar.
+- **Single-operation reality**: `MainWindow` runs one task at a time. Heavy
+  Search and Transfer operations use an isolated backend process supervised by
+  a lightweight Qt-pool worker; I/O tasks keep the thread worker. While busy,
+  every Lancer disables, the running tab shows `⟳`, other tabs keep their
+  fresh/stale badges, cancel stays in the status bar.
   Queueing or concurrent runs are out of scope (engine `cancel_event` design
   and output-directory write collisions would need their own pass).
 - Tab labels must pass the layout audit's button-text-width check in both

@@ -345,7 +345,7 @@ The workflow can also be started manually to obtain a downloadable build artifac
 
 - [`docs/SCORING.md`](docs/SCORING.md) — scoring model and formulas;
 - [`docs/WEIGHTS_FORMAT.md`](docs/WEIGHTS_FORMAT.md) — White Spark priority format;
-- [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) — proposed process-based multicore design;
+- [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) — desktop process isolation and future multicore design;
 - [`docs/QT_UI.md`](docs/QT_UI.md) — desktop UI architecture and packaging;
 - [`docs/RELEASING.md`](docs/RELEASING.md) — Windows build and GitHub release procedure;
 - [`docs/THIRD_PARTY.md`](docs/THIRD_PARTY.md) — external tools and services;
@@ -355,7 +355,9 @@ The workflow can also be started manually to obtain a downloadable build artifac
 
 - Always verify that an online Friend ID is still active before starting a career.
 - Alternate costumes are never considered interchangeable by Transfer Helper.
-- Expensive pair calculations are currently deterministic and sequential; process-based parallel execution is documented but not enabled yet.
+- Expensive Search and Transfer calculations remain deterministic and
+  sequential inside a backend process whose GIL is isolated from Qt;
+  process-based multicore execution is documented but not enabled yet.
 - No game assets, executable files, `master.mdb`, extractor binaries or uma.moe datasets are distributed with this project.
 
 Umamusume: Pretty Derby and related assets belong to their respective rights holders.

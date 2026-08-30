@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from backend_process import ProcessTask
 from error_guidance import actionable_error
 from i18n import LANGUAGE_LABELS
 from ui_qt.accessibility import describe_control, label_control
@@ -44,7 +45,10 @@ from ui_qt.pages_search import SearchPage
 from ui_qt.pages_tools import ToolsPage
 from ui_qt.pages_transfer import TransferPage
 from ui_qt.pages_weights import WeightsPage
-from ui_qt.workers import FunctionWorker
+from ui_qt.workers import FunctionWorker, ProcessFunctionWorker
+
+
+TaskWorker = FunctionWorker | ProcessFunctionWorker
 
 
 class MainWindow(QMainWindow):
@@ -52,8 +56,8 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.context = context or AppContext()
         self.thread_pool = QThreadPool.globalInstance()
-        self._workers: list[FunctionWorker] = []
-        self._active_worker: FunctionWorker | None = None
+        self._workers: list[TaskWorker] = []
+        self._active_worker: TaskWorker | None = None
         self._busy = False
         self._status_source = "Prêt"
         self._nav_order = ["home", "data", "search", "transfer", "weights", "tools"]
@@ -340,7 +344,7 @@ class MainWindow(QMainWindow):
     @Slot(object, str, object)
     def start_task(
         self,
-        operation: Callable[..., Any],
+        operation: Callable[..., Any] | ProcessTask,
         title: str,
         on_success: Callable[[object], None],
     ) -> None:
@@ -358,7 +362,11 @@ class MainWindow(QMainWindow):
         self.progress.setAccessibleDescription(title)
         self.append_log(title)
 
-        worker = FunctionWorker(operation)
+        worker: TaskWorker
+        if isinstance(operation, ProcessTask):
+            worker = ProcessFunctionWorker(operation)
+        else:
+            worker = FunctionWorker(operation)
         self._workers.append(worker)
         self._active_worker = worker
         self.cancel_button.setEnabled(True)
@@ -374,7 +382,7 @@ class MainWindow(QMainWindow):
         worker = self._active_worker
         if worker is None:
             return
-        worker.cancel_event.set()
+        worker.request_cancel()
         self.cancel_button.setEnabled(False)
         self._status_source = "Annulation demandée — arrêt à la prochaine étape…"
         self.status_label.setText(self.context.t(self._status_source))
@@ -415,7 +423,7 @@ class MainWindow(QMainWindow):
             actionable_error(message, translate=self.context.t),
         )
 
-    def _task_finished(self, worker: FunctionWorker) -> None:
+    def _task_finished(self, worker: TaskWorker) -> None:
         if worker in self._workers:
             self._workers.remove(worker)
         if worker is self._active_worker:
@@ -440,6 +448,9 @@ class MainWindow(QMainWindow):
             QMessageBox.StandardButton.No,
         )
         if answer == QMessageBox.StandardButton.Yes:
+            worker = self._active_worker
+            if worker is not None:
+                worker.request_cancel(force=True)
             event.accept()
         else:
             event.ignore()

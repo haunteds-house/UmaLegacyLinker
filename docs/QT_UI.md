@@ -44,7 +44,11 @@ The PySide6 interface is the desktop application. It shares the engines, configu
 - actionable error dialogs that preserve the technical diagnostic and add one
   concrete recovery step, while full worker tracebacks remain in the log;
 - live French/English switching;
-- cooperative cancellation of long-running tasks from the status bar;
+- process-isolated local, uma.moe and Transfer Helper calculations, with Qt
+  confined to the GUI process and a lightweight worker thread relaying typed
+  IPC messages;
+- cooperative cancellation from the status bar, with bounded termination when
+  a backend cannot reach its next checkpoint;
 - vendored, theme-tinted SVG icons for primary navigation, the Search context-rail
   toggle and the lineage inspector's affinity tag, replacing bare Unicode glyphs
   whose rendering depended on the host's font-fallback chain;
@@ -102,11 +106,13 @@ The **Windows release** GitHub Actions workflow runs the tests and visual audit,
 | Path | Purpose |
 | --- | --- |
 | `qt_app.py` | Qt entry point |
+| `backend_process.py` | Qt-free process-task and typed IPC boundary |
 | `cli.py` | Headless CLI sharing the same engines |
 | `veteran_identity.py` | canonical local-veteran labels, score formatting and collision handling |
 | `ui_qt/core.py` | GUI-independent configuration and workflow orchestration |
 | `ui_qt/accessibility.py` | shared explicit name, description and visible-label bindings for Qt assistive APIs |
 | `ui_qt/main_window.py` | application shell, navigation, progress and log drawer |
+| `ui_qt/workers.py` | thread worker and backend-process IPC supervisor |
 | `ui_qt/pages_home_data.py` | dashboard and local linking workflow |
 | `ui_qt/pages_search.py` | unified context rail, adaptive toolbar and result families |
 | `ui_qt/result_families.py` | one tab and one persistent pane per result family, with per-family freshness |

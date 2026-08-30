@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from backend_process import ProcessTask
 from error_guidance import actionable_error
 from lineage_planner import LineagePlannerError, write_lineage_planner_export
 from parent_optimizer import (
@@ -713,7 +714,7 @@ class SearchPage(QWidget):
             top_n=request.top_n,
         )
         self.task_requested.emit(
-            partial(run_optimization, request),
+            ProcessTask(partial(run_optimization, request)),
             self.context.t(labels[kind]),
             lambda result: self._local_done(result, kind),
         )
@@ -851,7 +852,7 @@ class SearchPage(QWidget):
             else "Recherche et classement uma.moe…"
         )
         self.task_requested.emit(
-            partial(run_online_search, request),
+            ProcessTask(partial(run_online_search, request)),
             self.context.t(label),
             lambda result: self._online_done(result, request),
         )

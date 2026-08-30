@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from backend_process import ProcessTask
 from error_guidance import actionable_error
 from ui_qt.accessibility import describe_control, label_control
 from ui_qt.components import PageHeader, StatusCard, ThemedComboBox, muted_label
@@ -642,7 +643,7 @@ class TransferPage(QWidget):
             include_generic_profiles=self.generic_profiles_check.isChecked(),
         )
         self.task_requested.emit(
-            partial(run_transfer_analysis, request),
+            ProcessTask(partial(run_transfer_analysis, request)),
             self.context.t("Analyse Transfer Helper…"),
             self._analysis_done,
         )

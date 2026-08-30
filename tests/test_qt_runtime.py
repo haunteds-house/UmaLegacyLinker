@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -54,6 +55,78 @@ class QtRuntimeSmokeTests(unittest.TestCase):
                 all(button.accessibleName() for button in window._nav_buttons.values())
             )
             window.close()
+
+    def test_process_worker_relays_backend_without_loading_qt_in_child(self) -> None:
+        from PySide6.QtCore import QThreadPool
+
+        from backend_process import ProcessTask
+        from tests.process_test_support import report_process_state
+        from ui_qt.workers import ProcessFunctionWorker
+
+        logs: list[str] = []
+        progress: list[tuple[int, str]] = []
+        results: list[dict[str, object]] = []
+        errors: list[tuple[str, str]] = []
+        finished: list[bool] = []
+        worker = ProcessFunctionWorker(ProcessTask(report_process_state))
+        worker.signals.log.connect(logs.append)
+        worker.signals.progress.connect(
+            lambda value, message: progress.append((value, message))
+        )
+        worker.signals.result.connect(results.append)
+        worker.signals.error.connect(
+            lambda message, trace: errors.append((message, trace))
+        )
+        worker.signals.finished.connect(lambda: finished.append(True))
+
+        QThreadPool.globalInstance().start(worker)
+        deadline = time.monotonic() + 10.0
+        while not finished and time.monotonic() < deadline:
+            self.application.processEvents()
+            time.sleep(0.01)
+        self.application.processEvents()
+
+        self.assertTrue(finished)
+        self.assertEqual(errors, [])
+        self.assertEqual(logs, ["child-log"])
+        self.assertEqual(progress, [(37, "child-progress")])
+        self.assertEqual(len(results), 1)
+        self.assertNotEqual(results[0]["pid"], os.getpid())
+        self.assertEqual(results[0]["qt_modules"], [])
+
+    def test_process_worker_bounds_uncooperative_cancellation(self) -> None:
+        from PySide6.QtCore import QThreadPool
+
+        from backend_process import ProcessTask
+        from tests.process_test_support import block_without_checkpoint
+        from ui_qt.workers import ProcessFunctionWorker
+
+        logs: list[str] = []
+        cancelled: list[bool] = []
+        finished: list[bool] = []
+        worker = ProcessFunctionWorker(ProcessTask(block_without_checkpoint))
+        worker.signals.log.connect(logs.append)
+        worker.signals.cancelled.connect(lambda: cancelled.append(True))
+        worker.signals.finished.connect(lambda: finished.append(True))
+
+        QThreadPool.globalInstance().start(worker)
+        start_deadline = time.monotonic() + 10.0
+        while not logs and time.monotonic() < start_deadline:
+            self.application.processEvents()
+            time.sleep(0.01)
+        self.assertEqual(logs, ["child-blocking"])
+
+        cancelled_at = time.monotonic()
+        worker.request_cancel()
+        finish_deadline = cancelled_at + 5.0
+        while not finished and time.monotonic() < finish_deadline:
+            self.application.processEvents()
+            time.sleep(0.01)
+        self.application.processEvents()
+
+        self.assertTrue(finished)
+        self.assertEqual(cancelled, [True])
+        self.assertLess(time.monotonic() - cancelled_at, 3.0)
 
     def test_transfer_report_becomes_stale_when_scope_changes(self) -> None:
         from ui_qt.context import AppContext
