@@ -4,6 +4,12 @@ This project uses feature-level semantic versioning. Small internal iterations a
 
 ## Unreleased
 
+- Replaced the Unicode glyphs used as icons in primary navigation, the Search
+  context-rail toggle and the lineage inspector's affinity tag with vendored,
+  theme-tinted Lucide SVGs. Those glyphs depended on the host's font-fallback
+  chain and could render as an unrelated character (observed as a bare "j") when
+  the active UI font lacked them.
+
 ## 1.8.0 - Search workspace redesign and uma.moe retrieval overhaul
 
 - The desktop launcher (`run.bat`) no longer leaves a blank console window open behind the app for the whole session; it now starts through the windowed Python interpreter when one is available.

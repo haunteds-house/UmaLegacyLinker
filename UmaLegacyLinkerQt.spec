@@ -13,6 +13,8 @@ data_files = [
     (str(project_root / "docs" / "QT_UI.md"), "docs"),
     (str(project_root / "docs" / "WEIGHTS_UI_DESIGN.md"), "docs"),
 ]
+for icon_file in sorted((project_root / "ui_qt" / "icons").glob("*.svg")):
+    data_files.append((str(icon_file), "ui_qt/icons"))
 for distribution in ("PySide6", "PySide6_Essentials", "shiboken6"):
     try:
         data_files += copy_metadata(distribution)

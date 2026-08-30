@@ -4,7 +4,7 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from PySide6.QtCore import QThreadPool, Slot
+from PySide6.QtCore import QSize, QThreadPool, Slot
 from PySide6.QtGui import QCloseEvent, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QAbstractButton,
@@ -28,6 +28,18 @@ from i18n import LANGUAGE_LABELS
 from ui_qt.components import ThemedComboBox
 from ui_qt.context import AppContext
 from ui_qt.core import APP_NAME, APP_VERSION
+from ui_qt.icon_catalog import stateful_icon
+from ui_qt.theme import COLORS
+
+NAV_ICON_SIZE = QSize(18, 18)
+NAV_ICON_KEYS = {
+    "home": "nav-home",
+    "data": "nav-data",
+    "search": "nav-search",
+    "transfer": "nav-transfer",
+    "weights": "nav-weights",
+    "tools": "nav-tools",
+}
 from ui_qt.pages_home_data import DataPage, HomePage
 from ui_qt.pages_search import SearchPage
 from ui_qt.pages_tools import ToolsPage
@@ -106,6 +118,15 @@ class MainWindow(QMainWindow):
                 button = QPushButton()
                 button.setObjectName("nav")
                 button.setCheckable(True)
+                button.setIcon(
+                    stateful_icon(
+                        NAV_ICON_KEYS[key],
+                        off_color=COLORS["muted"],
+                        on_color=COLORS["accent"],
+                        size=NAV_ICON_SIZE.width(),
+                    )
+                )
+                button.setIconSize(NAV_ICON_SIZE)
                 button.clicked.connect(lambda _checked=False, target=key: self.show_page(target))
                 nav_group.addButton(button)
                 self._nav_buttons[key] = button
@@ -273,17 +294,9 @@ class MainWindow(QMainWindow):
             "weights": "Pondérations",
             "tools": "Paramètres",
         }
-        prefixes = {
-            "home": "⌂",
-            "data": "◫",
-            "search": "⌕",
-            "transfer": "⇄",
-            "weights": "⚙",
-            "tools": "⌘",
-        }
         for key, source in labels.items():
             translated = t(source)
-            self._nav_buttons[key].setText(f"{prefixes[key]}   {translated}")
+            self._nav_buttons[key].setText(translated)
             self._nav_buttons[key].setAccessibleName(translated)
         section_labels = {
             "overview": "VUE D’ENSEMBLE",

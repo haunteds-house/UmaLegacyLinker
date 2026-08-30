@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
 )
 
 from ui_qt.asset_catalog import race_banner_url, skill_icon_url, trainee_image_url
+from ui_qt.icon_catalog import tinted_pixmap
 from ui_qt.context import AppContext
 from ui_qt.image_assets import (
     ImageRepository,
@@ -443,19 +444,34 @@ class LineageTree(QWidget):
         affinity = _optional_number(node.get("inheritance_affinity"))
         if affinity is None or position == "target" or position in GREAT_GRANDPARENT_POSITIONS:
             return
-        text = f"♥ {affinity:.0f}"
+        value_text = f"{affinity:.0f}"
+        color = "#ff7ca5" if position in PARENT_POSITIONS else "#77b6ff"
         font = QFont(self.font())
         font.setPointSizeF(10.0)
         font.setBold(True)
         metrics = QFontMetrics(font)
-        width = metrics.horizontalAdvance(text) + 24.0
+        icon_size = 13.0
+        icon_gap = 4.0
+        width = metrics.horizontalAdvance(value_text) + icon_size + icon_gap + 24.0
         tag = QRectF(rect.center().x() - width / 2.0, rect.top() - 29.0, width, 24.0)
-        painter.setFont(font)
         painter.setBrush(QColor("#111923"))
         painter.setPen(QPen(QColor("#3d5675"), 1.0))
         painter.drawRoundedRect(tag, 11.0, 11.0)
-        painter.setPen(QColor("#ff7ca5" if position in PARENT_POSITIONS else "#77b6ff"))
-        painter.drawText(tag, Qt.AlignmentFlag.AlignCenter, text)
+        icon_rect = QRectF(
+            tag.left() + 12.0, tag.center().y() - icon_size / 2.0, icon_size, icon_size
+        )
+        painter.drawPixmap(
+            icon_rect, tinted_pixmap("affinity", color, int(icon_size)), QRectF(0, 0, icon_size, icon_size)
+        )
+        text_rect = QRectF(
+            icon_rect.right() + icon_gap,
+            tag.top(),
+            tag.right() - icon_rect.right() - icon_gap - 12.0,
+            tag.height(),
+        )
+        painter.setFont(font)
+        painter.setPen(QColor(color))
+        painter.drawText(text_rect, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, value_text)
 
     def _draw_card(
         self,

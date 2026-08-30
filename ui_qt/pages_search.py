@@ -5,7 +5,7 @@ from functools import partial
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import QSize, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
@@ -48,6 +48,7 @@ from ui_qt.core import (
     run_online_search,
     run_optimization,
 )
+from ui_qt.icon_catalog import icon
 from ui_qt.lineage_settings import LineageRaceEditor
 from ui_qt.online_options import (
     GRANDPARENT_MODE,
@@ -73,6 +74,7 @@ from ui_qt.result_families import (
 )
 from ui_qt.result_panes import OnlineResultsPane, ResultPane
 from ui_qt.presentation import profile_summary
+from ui_qt.theme import COLORS
 
 RAIL_COLLAPSED_KEY = "search_rail_collapsed"
 RAIL_WIDTH = 344
@@ -214,6 +216,7 @@ class SearchPage(QWidget):
         self.rail_toggle = QToolButton()
         self.rail_toggle.setCheckable(True)
         self.rail_toggle.setAutoRaise(True)
+        self.rail_toggle.setIconSize(QSize(16, 16))
         self.context_summary = muted_label("")
         ribbon.addWidget(self.rail_toggle)
         ribbon.addWidget(self.context_summary, 1)
@@ -408,8 +411,9 @@ class SearchPage(QWidget):
     def _retranslate_rail_toggle(self) -> None:
         t = self.context.t
         collapsed = self.rail_toggle.isChecked()
-        self.rail_toggle.setText(
-            f"⇥  {t('Contexte')}" if collapsed else f"⇤  {t('Contexte')}"
+        self.rail_toggle.setText(t("Contexte"))
+        self.rail_toggle.setIcon(
+            icon("rail-expand" if collapsed else "rail-collapse", COLORS["muted"], size=16)
         )
         self.rail_toggle.setToolTip(
             t("Afficher le contexte") if collapsed else t("Masquer le contexte")
