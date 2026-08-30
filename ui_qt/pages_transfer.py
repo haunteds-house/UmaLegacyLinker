@@ -31,12 +31,20 @@ from error_guidance import actionable_error
 from output_history import (
     CURRENT_REVISION,
     OutputProvenance,
+    PREVIOUS_REVISION,
     available_output_revisions,
     format_output_timestamp,
     read_json_output_revision,
 )
+from result_comparison import (
+    TRANSFER_METRICS,
+    ComparisonDataset,
+    intersect_datasets,
+    transfer_comparison_dataset,
+)
 from ui_qt.accessibility import describe_control, label_control
 from ui_qt.components import PageHeader, StatusCard, ThemedComboBox, muted_label
+from ui_qt.comparison_dialog import ResultComparisonDialog
 from ui_qt.context import AppContext
 from ui_qt.core import (
     TransferRequest,
@@ -116,6 +124,7 @@ class TransferPage(QWidget):
         self.history_menu = QMenu(self.load_button)
         self.history_menu.aboutToShow.connect(self._rebuild_history_menu)
         self.load_button.setMenu(self.history_menu)
+        self.compare_button = QPushButton("")
         self.open_button = QPushButton("")
         self.result_state = QLabel("")
         self.result_state.setObjectName("pill")
@@ -189,6 +198,7 @@ class TransferPage(QWidget):
         filter_layout.addWidget(self.filter_label)
         filter_layout.addWidget(self.status_combo)
         filter_layout.addWidget(self.search, 1)
+        filter_layout.addWidget(self.compare_button)
         filter_layout.addWidget(self.count_label)
         root.addWidget(filters)
 
@@ -234,6 +244,7 @@ class TransferPage(QWidget):
         self.upcoming_cm_limit.valueChanged.connect(self._scope_changed)
         self.team_trials_check.toggled.connect(self._scope_changed)
         self.generic_profiles_check.toggled.connect(self._scope_changed)
+        self.compare_button.clicked.connect(self.compare_selected_veteran)
         self.open_button.clicked.connect(self.open_output)
         self.status_combo.currentIndexChanged.connect(self._status_filter_changed)
         self.search.textChanged.connect(self.apply_filters)
@@ -354,6 +365,7 @@ class TransferPage(QWidget):
         self.generic_profiles_check.setText(t("Inclure les profils génériques"))
         self.run_button.setText(t("Analyser les vétérans locaux"))
         self.load_button.setText(t("Historique"))
+        self.compare_button.setText(t("Comparer…"))
         self.open_button.setText(t("Ouvrir la sortie"))
         self.filter_label.setText(t("Afficher"))
         self.search.setPlaceholderText(t("Rechercher un nom, un score ou un remplaçant…"))
@@ -377,6 +389,9 @@ class TransferPage(QWidget):
         )
         self.load_button.setToolTip(
             t("Charge le rapport courant ou l’unique rapport précédent conservé sur le disque.")
+        )
+        self.compare_button.setToolTip(
+            t("Compare le vétéran sélectionné avec son remplaçant ou sa couverture conservée.")
         )
         self.open_button.setToolTip(
             t("Ouvre le dossier contenant le rapport JSON, le CSV et le résumé.")
@@ -467,6 +482,7 @@ class TransferPage(QWidget):
         self._refresh_cards()
         self._render_result_state()
         self.apply_filters()
+        self._update_compare_button()
 
     def _scope_values(self) -> dict[str, object]:
         return {
@@ -587,6 +603,7 @@ class TransferPage(QWidget):
         self._records = list(records)
         self._refresh_cards()
         self.apply_filters()
+        self._update_compare_button()
 
     def apply_filters(self, *_args: object) -> None:
         status = self.status_combo.currentData()
@@ -645,6 +662,80 @@ class TransferPage(QWidget):
 
     def _selection_changed(self, _selected: QItemSelection, _deselected: QItemSelection) -> None:
         self.detail.setHtml(transfer_detail_html(self.selected_row(), self.context.language))
+        self._update_compare_button()
+
+    @staticmethod
+    def _record_id(record: dict[str, Any]) -> str:
+        return str(record.get("trained_chara_id") or "")
+
+    def _comparison_targets(
+        self,
+        record: dict[str, Any] | None,
+    ) -> list[dict[str, Any]]:
+        if not record:
+            return []
+        target_ids: list[str] = []
+        dominated = record.get("dominated_by")
+        if isinstance(dominated, dict):
+            target_ids.append(self._record_id(dominated))
+        for target in record.get("covered_by_portfolio") or []:
+            if isinstance(target, dict):
+                target_ids.append(self._record_id(target))
+        by_id = {
+            self._record_id(candidate): candidate
+            for candidate in self._records
+            if self._record_id(candidate)
+        }
+        own_id = self._record_id(record)
+        return [
+            by_id[target_id]
+            for target_id in dict.fromkeys(target_ids)
+            if target_id and target_id != own_id and target_id in by_id
+        ]
+
+    def _update_compare_button(self) -> None:
+        self.compare_button.setEnabled(
+            not self._busy and bool(self._comparison_targets(self.selected_row()))
+        )
+
+    def _comparison_renderer(self, item, _dataset: ComparisonDataset) -> str:
+        return transfer_detail_html(item.row, self.context.language)
+
+    def _show_comparison_error(self, message: str) -> None:
+        QMessageBox.information(
+            self,
+            self.context.t("Comparaison"),
+            self.context.t(message),
+        )
+
+    def compare_selected_veteran(self) -> None:
+        selected = self.selected_row()
+        targets = self._comparison_targets(selected)
+        if selected is None or not targets:
+            self._show_comparison_error(
+                "Ce vétéran n’a aucun remplaçant ou élément de couverture comparable dans le rapport."
+            )
+            return
+        source = transfer_comparison_dataset(
+            [selected],
+            title=self.context.t("Vétéran évalué"),
+            provenance=self._provenance,
+        )
+        coverage = transfer_comparison_dataset(
+            targets,
+            title=self.context.t("Couverture conservée"),
+            provenance=self._provenance,
+        )
+        ResultComparisonDialog(
+            self.context,
+            title="Comparer vétéran et couverture",
+            left=source,
+            right=coverage,
+            metrics=TRANSFER_METRICS,
+            renderer=self._comparison_renderer,
+            lock_left=True,
+            parent=self,
+        ).exec()
 
     def start_analysis(self) -> None:
         priority_text = self.context.store.get("skill_priorities_path")
@@ -712,6 +803,62 @@ class TransferPage(QWidget):
                     key, show_errors=True
                 )
             )
+        revision_keys = {revision.key for revision in revisions}
+        if {CURRENT_REVISION, PREVIOUS_REVISION}.issubset(revision_keys):
+            self.history_menu.addSeparator()
+            compare = self.history_menu.addAction(
+                self.context.t("Comparer courant ↔ précédent")
+            )
+            compare.triggered.connect(self.compare_history)
+
+    def compare_history(self) -> None:
+        try:
+            current_payload, current_provenance = read_json_output_revision(
+                self._report_path(), CURRENT_REVISION
+            )
+            previous_payload, previous_provenance = read_json_output_revision(
+                self._report_path(), PREVIOUS_REVISION
+            )
+        except (OSError, json.JSONDecodeError, ValueError) as exc:
+            QMessageBox.warning(
+                self,
+                self.context.t("Comparaison"),
+                actionable_error(exc, translate=self.context.t),
+            )
+            return
+        current_records = current_payload.get("records")
+        previous_records = previous_payload.get("records")
+        if not isinstance(current_records, list) or not isinstance(previous_records, list):
+            self._show_comparison_error(
+                "Les deux rapports doivent contenir une liste de résultats."
+            )
+            return
+        current = transfer_comparison_dataset(
+            (row for row in current_records if isinstance(row, dict)),
+            title=self.context.t("Exécution courante"),
+            provenance=current_provenance,
+        )
+        previous = transfer_comparison_dataset(
+            (row for row in previous_records if isinstance(row, dict)),
+            title=self.context.t("Exécution précédente"),
+            provenance=previous_provenance,
+        )
+        current, previous = intersect_datasets(current, previous)
+        if not current.items:
+            self._show_comparison_error(
+                "Aucun vétéran identifiable n’est commun aux deux exécutions."
+            )
+            return
+        ResultComparisonDialog(
+            self.context,
+            title="Comparer avant / après recalcul",
+            left=previous,
+            right=current,
+            metrics=TRANSFER_METRICS,
+            renderer=self._comparison_renderer,
+            match_identities=True,
+            parent=self,
+        ).exec()
 
     def load_revision(
         self,
@@ -746,6 +893,7 @@ class TransferPage(QWidget):
         self._busy = busy
         self.run_button.setEnabled(not busy)
         self.load_button.setEnabled(not busy)
+        self._update_compare_button()
         if not busy and self._result_state == STATE_RUNNING:
             self._set_result_state(self._state_before_running)
 

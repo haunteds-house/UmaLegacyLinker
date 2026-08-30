@@ -32,6 +32,10 @@ The PySide6 interface is the desktop application. It shares the engines, configu
 - History menus for Search rankings and Transfer Helper reports, exposing the
   current and immediately previous retained generation with file, timestamp,
   schema, source and available input SHA-256 provenance;
+- side-by-side comparison of two candidates in one Search family, a Transfer
+  Helper veteran against full retained coverage records, and stable identities
+  before/after a recalculation, with original diagnostics, provenance and
+  numeric right-minus-left deltas;
 - export of a selected final pair to the uma.moe Lineage Planner format;
 - live and imported uma.moe parent/grandparent searches, with shared retrieval constraints and per-search pairing, pool, fetch and import settings edited in the context rail, plus costume filters and Friend ID copy;
 - stable uma.moe API URL/key configuration under Settings, separate from scoring weights and per-search filters;
@@ -110,6 +114,7 @@ The **Windows release** GitHub Actions workflow runs the tests and visual audit,
 | `qt_app.py` | Qt entry point |
 | `backend_process.py` | Qt-free process-task and typed IPC boundary |
 | `output_history.py` | atomic output replacement, one retained predecessor and shared provenance contract |
+| `result_comparison.py` | Qt-free stable identities, datasets and metric definitions for comparisons |
 | `cli.py` | Headless CLI sharing the same engines |
 | `veteran_identity.py` | canonical local-veteran labels, score formatting and collision handling |
 | `ui_qt/core.py` | GUI-independent configuration and workflow orchestration |
@@ -120,6 +125,7 @@ The **Windows release** GitHub Actions workflow runs the tests and visual audit,
 | `ui_qt/pages_search.py` | unified context rail, adaptive toolbar and result families |
 | `ui_qt/result_families.py` | one tab and one persistent pane per result family, with per-family freshness and provenance |
 | `ui_qt/provenance.py` | shared revision labels and provenance presentation for retained outputs |
+| `ui_qt/comparison_dialog.py` | shared two-column diagnostics and delta table for Search and Transfer Helper |
 | `ui_qt/result_panes.py` | result tables and diagnostics shared by every family |
 | `ui_qt/online_options.py` | shared uma.moe retrieval constraints and per-search strategy sections |
 | `ui_qt/pages_optimizer.py` | reusable local result explorer and diagnostics |

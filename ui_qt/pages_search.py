@@ -29,6 +29,7 @@ from lineage_planner import LineagePlannerError, write_lineage_planner_export
 from output_history import (
     CURRENT_REVISION,
     OutputProvenance,
+    PREVIOUS_REVISION,
     available_output_revisions,
     read_json_output_revision,
 )
@@ -36,6 +37,13 @@ from parent_optimizer import (
     OptimizerError,
     load_ace_options,
     load_track_options,
+)
+from result_comparison import (
+    SEARCH_METRICS,
+    ComparisonDataset,
+    intersect_datasets,
+    search_comparison_dataset,
+    search_payload_rows,
 )
 from uma_moe import UmaMoeError
 from ui_qt.accessibility import describe_control, label_control
@@ -46,6 +54,7 @@ from ui_qt.components import (
     muted_label,
     section_label,
 )
+from ui_qt.comparison_dialog import ResultComparisonDialog
 from ui_qt.context import AppContext, LineageContextState
 from ui_qt.core import (
     OnlineSearchRequest,
@@ -83,7 +92,7 @@ from ui_qt.result_families import (
 )
 from ui_qt.result_panes import OnlineResultsPane, ResultPane
 from ui_qt.view_state import bind_collapsible_state
-from ui_qt.presentation import profile_summary
+from ui_qt.presentation import online_detail_html, profile_summary, result_detail_html
 from ui_qt.provenance import (
     provenance_badge_text,
     provenance_tooltip,
@@ -270,6 +279,7 @@ class SearchPage(QWidget):
         self.history_menu = QMenu(self.load_button)
         self.history_menu.aboutToShow.connect(self._rebuild_history_menu)
         self.load_button.setMenu(self.history_menu)
+        self.compare_button = QPushButton("")
         self.export_button = QPushButton("")
         self.import_button = QPushButton("")
         self.local_gp_pairs_button = QPushButton("")
@@ -295,6 +305,7 @@ class SearchPage(QWidget):
         for widget in (
             self.run_button,
             self.load_button,
+            self.compare_button,
             self.export_button,
             self.import_button,
             self.local_gp_pairs_button,
@@ -367,6 +378,7 @@ class SearchPage(QWidget):
             lambda: self.start_online("grandparent", local_pairs=True)
         )
         self.export_button.clicked.connect(self.export_selected_pair)
+        self.compare_button.clicked.connect(self.compare_current_candidates)
         self.open_button.clicked.connect(self.open_output)
         context.lineage_changed.connect(self._sync_lineage_context)
         context.lineage_changed.connect(self._refresh_freshness)
@@ -993,6 +1005,11 @@ class SearchPage(QWidget):
             t("Traçabilité"),
             self.provenance_badge.toolTip(),
         )
+        pane = self._result_pane(family)
+        self.compare_button.setVisible(view.has_result())
+        self.compare_button.setEnabled(
+            not self._busy and pane.model.rowCount() >= 2
+        )
         self.results_context.setText(
             profile_summary(dict(view.profile), self.context.language)
             if view.has_result()
@@ -1072,6 +1089,168 @@ class SearchPage(QWidget):
                     key, show_errors=True
                 )
             )
+        revision_keys = {revision.key for revision in revisions}
+        if {CURRENT_REVISION, PREVIOUS_REVISION}.issubset(revision_keys):
+            self.history_menu.addSeparator()
+            compare = self.history_menu.addAction(
+                self.context.t("Comparer courant ↔ précédent")
+            )
+            compare.triggered.connect(self.compare_history)
+
+    def _result_pane(self, family: str):
+        return {
+            PAIRS: self.pair_results,
+            BRANCHES: self.branch_results,
+            FUTURE: self.future_results,
+            ONLINE_PARENT: self.online_parent_results,
+            ONLINE_GP: self.online_gp_results,
+        }[family]
+
+    @staticmethod
+    def _pane_rows(pane: QWidget) -> list[dict[str, Any]]:
+        model = getattr(pane, "model")
+        return [
+            row
+            for index in range(model.rowCount())
+            if (row := model.row(index)) is not None
+        ]
+
+    def _comparison_renderer(self, family: str):
+        def render(item, dataset: ComparisonDataset) -> str:
+            if family in ONLINE_FAMILIES:
+                return online_detail_html(
+                    item.row,
+                    dataset.mode,
+                    self.context.language,
+                    dataset.profile,
+                )
+            return result_detail_html(
+                item.row,
+                local_kind_for_family(family),
+                self.context.language,
+                dataset.profile,
+            )
+
+        return render
+
+    def _show_comparison_error(self, message: str) -> None:
+        QMessageBox.information(
+            self,
+            self.context.t("Comparaison"),
+            self.context.t(message),
+        )
+
+    def compare_current_candidates(self) -> None:
+        family = self.families.current_family()
+        pane = self._result_pane(family)
+        rows = self._pane_rows(pane)
+        if len(rows) < 2:
+            self._show_comparison_error(
+                "Cette vue doit contenir au moins deux candidats à comparer."
+            )
+            return
+        view = self.families.view(family)
+        base = search_comparison_dataset(
+            family,
+            rows,
+            title=self.context.t("Résultat affiché"),
+            profile=view.profile,
+            provenance=view.provenance,
+        )
+        left = ComparisonDataset(
+            self.context.t("Candidat A"),
+            base.items,
+            profile=base.profile,
+            mode=base.mode,
+            provenance=base.provenance,
+        )
+        right = ComparisonDataset(
+            self.context.t("Candidat B"),
+            base.items,
+            profile=base.profile,
+            mode=base.mode,
+            provenance=base.provenance,
+        )
+        selected = pane.selected_row()
+        selected_rank = selected.get("_rank") if selected else None
+        left_index = next(
+            (
+                index
+                for index, item in enumerate(left.items)
+                if item.row.get("_rank") == selected_rank
+            ),
+            0,
+        )
+        right_index = (left_index + 1) % len(right.items)
+        ResultComparisonDialog(
+            self.context,
+            title="Comparer deux candidats",
+            left=left,
+            right=right,
+            metrics=SEARCH_METRICS,
+            renderer=self._comparison_renderer(family),
+            left_key=left.items[left_index].key,
+            right_key=right.items[right_index].key,
+            parent=self,
+        ).exec()
+
+    def compare_history(self) -> None:
+        family = self.families.current_family()
+        path = self._result_output_path(family)
+        try:
+            current_payload, current_provenance = read_json_output_revision(
+                path, CURRENT_REVISION
+            )
+            previous_payload, previous_provenance = read_json_output_revision(
+                path, PREVIOUS_REVISION
+            )
+        except (OSError, json.JSONDecodeError, ValueError) as exc:
+            QMessageBox.warning(
+                self,
+                self.context.t("Comparaison"),
+                actionable_error(exc, translate=self.context.t),
+            )
+            return
+        current_profile = (
+            (current_payload.get("metadata") or {}).get("profile")
+            if family in ONLINE_FAMILIES
+            else current_payload.get("profile")
+        )
+        previous_profile = (
+            (previous_payload.get("metadata") or {}).get("profile")
+            if family in ONLINE_FAMILIES
+            else previous_payload.get("profile")
+        )
+        current = search_comparison_dataset(
+            family,
+            search_payload_rows(family, current_payload),
+            title=self.context.t("Exécution courante"),
+            profile=current_profile if isinstance(current_profile, dict) else {},
+            provenance=current_provenance,
+        )
+        previous = search_comparison_dataset(
+            family,
+            search_payload_rows(family, previous_payload),
+            title=self.context.t("Exécution précédente"),
+            profile=previous_profile if isinstance(previous_profile, dict) else {},
+            provenance=previous_provenance,
+        )
+        current, previous = intersect_datasets(current, previous)
+        if not current.items:
+            self._show_comparison_error(
+                "Aucun candidat identifiable n’est commun aux deux exécutions."
+            )
+            return
+        ResultComparisonDialog(
+            self.context,
+            title="Comparer avant / après recalcul",
+            left=previous,
+            right=current,
+            metrics=SEARCH_METRICS,
+            renderer=self._comparison_renderer(family),
+            match_identities=True,
+            parent=self,
+        ).exec()
 
     def load_latest(self, *, show_errors: bool = True) -> None:
         self.load_revision(CURRENT_REVISION, show_errors=show_errors)
@@ -1239,6 +1418,7 @@ class SearchPage(QWidget):
             self.import_button,
             self.local_gp_pairs_button,
             self.load_button,
+            self.compare_button,
         ):
             widget.setEnabled(not busy)
         if not busy:
@@ -1286,6 +1466,10 @@ class SearchPage(QWidget):
         self.load_button.setText(t("Historique"))
         self.load_button.setToolTip(
             t("Charge l’exécution courante ou l’unique exécution précédente conservée sur le disque.")
+        )
+        self.compare_button.setText(t("Comparer…"))
+        self.compare_button.setToolTip(
+            t("Compare côte à côte deux candidats du résultat affiché.")
         )
         self.import_button.setText(t("Reclasser un JSON…"))
         self.import_button.setToolTip(

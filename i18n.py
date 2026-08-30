@@ -1660,6 +1660,34 @@ EXACT_EN.update({
     "La sortie doit contenir un objet JSON.": "The output must contain one JSON object.",
 })
 
+EXACT_EN.update({
+    "Comparer…": "Compare…",
+    "Comparaison": "Comparison",
+    "Comparer courant ↔ précédent": "Compare current ↔ previous",
+    "Compare côte à côte deux candidats du résultat affiché.": "Compares two candidates from the displayed result side by side.",
+    "Cette vue doit contenir au moins deux candidats à comparer.": "This view must contain at least two candidates to compare.",
+    "Résultat affiché": "Displayed result",
+    "Candidat A": "Candidate A",
+    "Candidat B": "Candidate B",
+    "Comparer deux candidats": "Compare two candidates",
+    "Aucun candidat identifiable n’est commun aux deux exécutions.": "No identifiable candidate is shared by both runs.",
+    "Comparer avant / après recalcul": "Compare before / after recomputation",
+    "Compare le vétéran sélectionné avec son remplaçant ou sa couverture conservée.": "Compares the selected veteran with their replacement or retained coverage.",
+    "Ce vétéran n’a aucun remplaçant ou élément de couverture comparable dans le rapport.": "This veteran has no comparable replacement or coverage item in the report.",
+    "Vétéran évalué": "Evaluated veteran",
+    "Couverture conservée": "Retained coverage",
+    "Comparer vétéran et couverture": "Compare veteran and coverage",
+    "Les deux rapports doivent contenir une liste de résultats.": "Both reports must contain a result list.",
+    "Aucun vétéran identifiable n’est commun aux deux exécutions.": "No identifiable veteran is shared by both runs.",
+    "Les valeurs et diagnostics restent ceux des rapports enregistrés ; l’écart est calculé droite moins gauche.": "Values and diagnostics remain those of the saved reports; the delta is right minus left.",
+    "Métrique": "Metric",
+    "Écart droite − gauche": "Right − left delta",
+    "Comparaison chiffrée": "Numeric comparison",
+    "Score d’évaluation": "Evaluation score",
+    "Contextes parent compétitifs": "Competitive parent contexts",
+    "Contextes GP compétitifs": "Competitive GP contexts",
+})
+
 
 PROFILE_OPTIONS: dict[str, dict[str, dict[str, str]]] = {
     "surface": {

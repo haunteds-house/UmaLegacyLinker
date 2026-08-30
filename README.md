@@ -15,6 +15,8 @@ Uma Legacy Linker links an exported veteran collection to the current `master.md
 - Audits duplicate local veterans with the conservative **Transfer Helper**.
 - Reopens the current or immediately previous Search and Transfer Helper run,
   with visible generation metadata and input-file fingerprints.
+- Compares two lineage candidates, a veteran with retained coverage, or the
+  same stable result before and after a recalculation in a side-by-side view.
 - Opens every parent, pair and grandparent result as a context-aware top-down lineage with costume artwork, resolved skill icons, rich Spark details and optional ancestry history in the Qt interface.
 - Exports detailed JSON, compact CSV and readable diagnostics.
 - Provides an English and French desktop interface.

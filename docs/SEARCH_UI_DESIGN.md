@@ -295,8 +295,15 @@ fingerprint(kind) = sha1(canonical_json({
   A worded current/previous badge exposes its generation time; its tooltip
   records the exact output filename, schema/source metadata and every input
   filename/SHA-256 pair emitted by the backend. The existing one-predecessor
-  retention contract remains unchanged, and side-by-side comparison remains a
-  separate phase.
+  retention contract remains unchanged; comparison is layered over those two
+  immutable generations.
+- The completed comparison phase adds two scoped entry points. `Comparer…`
+  contrasts any two rows already present in the active family; the History
+  menu contrasts current and previous generations only after intersecting
+  their stable candidate identities. Both sides retain their own profile,
+  provenance and complete diagnostic HTML, while a compact table shows
+  `right - left` for the shared score components. Different families and
+  unmatched historical rows are never compared implicitly.
 - The existing `_last_profile` / `profile_summary` machinery stays as the
   human-readable "computed with" line; the fingerprint is its machine twin.
 - **Stale is stated twice, deliberately.** The tab glyph answers "which of my

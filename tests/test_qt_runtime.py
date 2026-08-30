@@ -211,10 +211,110 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.assertIsNotNone(page._provenance)
             assert page._provenance is not None
             self.assertEqual(page._provenance.revision.key, PREVIOUS_REVISION)
-            self.assertIn("Précédent", page.revision_badge.text())
+            self.assertIn("précédente", page.revision_badge.text())
             self.assertIn("transfer_helper_report.prev.json", page.revision_badge.toolTip())
             self.assertIn("veterans-old.json · old-sha256", page.revision_badge.toolTip())
-            self.assertEqual(len(page.history_menu.actions()), 2)
+            self.assertEqual(
+                [
+                    action.text()
+                    for action in page.history_menu.actions()
+                    if not action.isSeparator()
+                ][-1],
+                "Comparer courant ↔ précédent",
+            )
+            _dispose_widget(page, self.application)
+
+    def test_transfer_compares_selected_veteran_with_full_retained_record(self) -> None:
+        from unittest.mock import patch
+
+        from ui_qt.context import AppContext
+        from ui_qt.core import SettingsStore
+        from ui_qt.layout_audit import _dispose_widget
+        from ui_qt.pages_transfer import TransferPage
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            page = TransferPage(
+                AppContext(SettingsStore(Path(temp_dir) / "config.json"))
+            )
+            candidate = {
+                "trained_chara_id": 1,
+                "card_name": "Candidate",
+                "rank_score": 100,
+                "status": "safe_transfer",
+                "dominated_by": {"trained_chara_id": 2},
+            }
+            replacement = {
+                "trained_chara_id": 2,
+                "card_name": "Replacement",
+                "rank_score": 120,
+                "status": "keep",
+            }
+            page.set_records([candidate, replacement])
+            for index in range(page.model.rowCount()):
+                if page.model.row(index).get("trained_chara_id") == 1:
+                    page.table.selectRow(index)
+                    break
+            self.application.processEvents()
+
+            self.assertTrue(page.compare_button.isEnabled())
+            with patch("ui_qt.pages_transfer.ResultComparisonDialog") as dialog:
+                page.compare_selected_veteran()
+
+            options = dialog.call_args.kwargs
+            self.assertEqual(options["left"].items[0].key, "trained:1")
+            self.assertEqual(options["right"].items[0].key, "trained:2")
+            self.assertTrue(options["lock_left"])
+            _dispose_widget(page, self.application)
+
+    def test_transfer_history_compares_same_veteran_before_and_after(self) -> None:
+        from unittest.mock import patch
+
+        from output_history import write_json_with_history
+        from ui_qt.context import AppContext
+        from ui_qt.core import SettingsStore
+        from ui_qt.layout_audit import _dispose_widget
+        from ui_qt.pages_transfer import TransferPage
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            report = root / "output" / "transfer_helper_report.json"
+            write_json_with_history(
+                report,
+                {
+                    "metadata": {"format_version": 5},
+                    "records": [
+                        {
+                            "trained_chara_id": 1,
+                            "card_name": "Veteran",
+                            "rank_score": 100,
+                        }
+                    ],
+                },
+            )
+            write_json_with_history(
+                report,
+                {
+                    "metadata": {"format_version": 5},
+                    "records": [
+                        {
+                            "trained_chara_id": 1,
+                            "card_name": "Veteran",
+                            "rank_score": 120,
+                        }
+                    ],
+                },
+            )
+            store = SettingsStore(root / "config.json")
+            store.update({"output_dir": str(root / "output")})
+            page = TransferPage(AppContext(store))
+
+            with patch("ui_qt.pages_transfer.ResultComparisonDialog") as dialog:
+                page.compare_history()
+
+            options = dialog.call_args.kwargs
+            self.assertEqual(options["left"].items[0].row["rank_score"], 100)
+            self.assertEqual(options["right"].items[0].row["rank_score"], 120)
+            self.assertTrue(options["match_identities"])
             _dispose_widget(page, self.application)
 
     def test_table_header_state_restores_hidden_order_and_sort(self) -> None:
@@ -957,8 +1057,169 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.assertIn("Précédent", search.provenance_badge.text())
             self.assertIn("uma_moe_parent_pairs.prev.json", search.provenance_badge.toolTip())
             self.assertIn("imported response", search.provenance_badge.toolTip())
-            self.assertEqual(len(search.history_menu.actions()), 2)
+            self.assertEqual(
+                [
+                    action.text()
+                    for action in search.history_menu.actions()
+                    if not action.isSeparator()
+                ][-1],
+                "Comparer courant ↔ précédent",
+            )
             _dispose_widget(search, self.application)
+
+    def test_search_history_compares_only_stable_common_candidates(self) -> None:
+        from unittest.mock import patch
+
+        from output_history import write_json_with_history
+        from ui_qt.context import AppContext
+        from ui_qt.core import SettingsStore
+        from ui_qt.layout_audit import _dispose_widget
+        from ui_qt.pages_search import SearchPage
+        from ui_qt.result_families import PAIRS
+
+        def pair(left_id: int, right_id: int, score: float) -> dict[str, object]:
+            return {
+                "parent_1": {
+                    "trained_chara_id": left_id,
+                    "card_name": f"Left {left_id}",
+                },
+                "parent_2": {
+                    "trained_chara_id": right_id,
+                    "card_name": f"Right {right_id}",
+                },
+                "score": score,
+            }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            output = root / "output"
+            ranking = output / "legacy_parent_rankings.json"
+            write_json_with_history(
+                ranking,
+                {
+                    "metadata": {"schema_version": 8},
+                    "profile": {},
+                    "top_parent_pairs": [pair(1, 2, 10.0), pair(7, 8, 8.0)],
+                },
+            )
+            write_json_with_history(
+                ranking,
+                {
+                    "metadata": {"schema_version": 8},
+                    "profile": {},
+                    "top_parent_pairs": [pair(1, 2, 12.0), pair(9, 10, 9.0)],
+                },
+            )
+            store = SettingsStore(root / "config.json")
+            store.update({"output_dir": str(output)})
+            search = SearchPage(AppContext(store))
+            search._initial_refresh_timer.stop()
+            search._initial_result_timer.stop()
+            search.families.set_current_family(PAIRS)
+
+            with patch("ui_qt.pages_search.ResultComparisonDialog") as dialog:
+                search.compare_history()
+
+            options = dialog.call_args.kwargs
+            self.assertEqual(len(options["left"].items), 1)
+            self.assertEqual(len(options["right"].items), 1)
+            self.assertEqual(
+                options["left"].items[0].key,
+                options["right"].items[0].key,
+            )
+            self.assertTrue(options["match_identities"])
+            _dispose_widget(search, self.application)
+
+    def test_search_compares_two_candidates_from_the_displayed_family(self) -> None:
+        from unittest.mock import patch
+
+        from ui_qt.context import AppContext
+        from ui_qt.core import SettingsStore
+        from ui_qt.layout_audit import _dispose_widget
+        from ui_qt.pages_search import SearchPage
+        from ui_qt.result_families import PAIRS
+
+        def pair(left_id: int, right_id: int, score: float) -> dict[str, object]:
+            return {
+                "parent_1": {
+                    "trained_chara_id": left_id,
+                    "card_name": f"Left {left_id}",
+                },
+                "parent_2": {
+                    "trained_chara_id": right_id,
+                    "card_name": f"Right {right_id}",
+                },
+                "score": score,
+            }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            search = SearchPage(
+                AppContext(SettingsStore(Path(temp_dir) / "config.json"))
+            )
+            search._initial_refresh_timer.stop()
+            search._initial_result_timer.stop()
+            rows = [pair(1, 2, 12.0), pair(3, 4, 10.0)]
+            search.pair_results.set_rows(rows, {})
+            search._show_results(PAIRS, "local:pairs", {})
+
+            self.assertTrue(search.compare_button.isEnabled())
+            with patch("ui_qt.pages_search.ResultComparisonDialog") as dialog:
+                search.compare_current_candidates()
+
+            options = dialog.call_args.kwargs
+            self.assertNotEqual(options["left_key"], options["right_key"])
+            self.assertEqual(len(options["left"].items), 2)
+            _dispose_widget(search, self.application)
+
+    def test_comparison_dialog_updates_metrics_and_diagnostics(self) -> None:
+        from result_comparison import SEARCH_METRICS, search_comparison_dataset
+        from ui_qt.comparison_dialog import ResultComparisonDialog
+        from ui_qt.context import AppContext
+        from ui_qt.core import SettingsStore
+        from ui_qt.layout_audit import _dispose_widget, audit_window
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            context = AppContext(SettingsStore(Path(temp_dir) / "config.json"))
+            rows = [
+                {
+                    "trained_chara_id": 1,
+                    "card_name": "First",
+                    "score": 10.0,
+                },
+                {
+                    "trained_chara_id": 2,
+                    "card_name": "Second",
+                    "score": 12.5,
+                },
+            ]
+            left = search_comparison_dataset(
+                "branches", rows, title="Candidat A"
+            )
+            right = search_comparison_dataset(
+                "branches", rows, title="Candidat B"
+            )
+            dialog = ResultComparisonDialog(
+                context,
+                title="Comparer deux candidats",
+                left=left,
+                right=right,
+                metrics=SEARCH_METRICS,
+                renderer=lambda item, _dataset: f"<p>{item.label}</p>",
+                left_key=left.items[0].key,
+                right_key=right.items[1].key,
+            )
+            dialog.resize(1120, 720)
+            dialog.show()
+            self.application.processEvents()
+
+            self.assertEqual(dialog.metric_table.item(1, 3).text(), "+2.50")
+            self.assertIn("First", dialog.left_detail.toPlainText())
+            self.assertIn("Second", dialog.right_detail.toPlainText())
+            self.assertEqual(dialog.metric_table.accessibleName(), "Comparaison chiffrée")
+            self.assertFalse(
+                any("overflow" in issue for issue in audit_window(dialog))
+            )
+            _dispose_widget(dialog, self.application)
 
     def test_result_families_keep_their_own_result_and_toolbar(self) -> None:
         from ui_qt.context import AppContext

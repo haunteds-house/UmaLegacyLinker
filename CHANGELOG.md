@@ -4,6 +4,14 @@ This project uses feature-level semantic versioning. Small internal iterations a
 
 ## Unreleased
 
+- Added explicit side-by-side comparison without changing any stored score or
+  verdict. Search can compare any two candidates from its active result family;
+  Search and Transfer Helper can compare stable identities across the current
+  and previous retained runs; Transfer Helper can compare a selected veteran
+  with each complete retained replacement/coverage record. Both sides preserve
+  their original diagnostics and provenance, while a shared table reports the
+  numeric `right - left` deltas. Cross-family and unidentifiable before/after
+  matches are rejected rather than guessed.
 - Exposed the retained output history in Search and Transfer Helper. Their
   History menus now list the current run and the single predecessor already
   maintained by `output_history.py`; loading either generation records its
