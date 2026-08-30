@@ -6,6 +6,7 @@ from typing import Any
 from i18n import profile_label, translate_text
 from ui_qt.lineage_nodes import build_result_lineage_nodes
 from ui_qt.theme import RANK_BADGE_COLORS, SPARK_COLORS
+from ui_qt.typography import TYPE_SCALE_PT, css_point_size
 
 
 COMPONENT_LABELS = {
@@ -56,6 +57,11 @@ PANEL = {
     "accent_soft": "#8af0d0",
     "pink": "#ff9dbb",
     "gold": "#f4d179",
+}
+
+FONT_SIZE = {
+    role: css_point_size(role)
+    for role in TYPE_SCALE_PT
 }
 
 
@@ -135,14 +141,14 @@ def _rank_badge(rank: object, *, large: bool = False) -> str:
     css_class = value if value in RANK_BADGE_COLORS else "unknown"
     background, border, foreground = RANK_BADGE_COLORS[css_class]
     width = 38 if large else 29
-    font_size = 25 if large else 17
+    font_size = FONT_SIZE["brand" if large else "section"]
     return (
         "<table class='rank-badge-table' cellspacing='0' cellpadding='0'>"
         "<tr>"
         f"<td class='rank rank-{css_class}' width='{width}' "
         f"style='color:{foreground}; background-color:{background}; "
         f"border:1px solid {border}; padding:3px 5px; "
-        f"font-size:{font_size}px; font-weight:900; font-style:italic; "
+        f"font-size:{font_size}; font-weight:900; font-style:italic; "
         "text-align:center;'>"
         f"{escape(value)}</td>"
         "</tr></table>"
@@ -249,15 +255,15 @@ def _share_bar(ratio: float) -> str:
     filled = max(2, min(100, int(round(100 * ratio))))
     rest = 100 - filled
     remainder = (
-        f"<td width='{rest}%' bgcolor='{PANEL['surface_deep']}' "
-        f"style='background-color:{PANEL['surface_deep']};'>&nbsp;</td>"
+        f"<td width='{rest}%' height='5' bgcolor='{PANEL['surface_deep']}' "
+        f"style='background-color:{PANEL['surface_deep']}; height:5px;'></td>"
         if rest > 0
         else ""
     )
     return (
         "<table class='share-bar' width='100%' cellspacing='0' cellpadding='0'><tr>"
-        f"<td width='{filled}%' bgcolor='{PANEL['accent']}' "
-        f"style='background-color:{PANEL['accent']};'>&nbsp;</td>"
+        f"<td width='{filled}%' height='5' bgcolor='{PANEL['accent']}' "
+        f"style='background-color:{PANEL['accent']}; height:5px;'></td>"
         f"{remainder}</tr></table>"
     )
 
@@ -999,25 +1005,25 @@ def _detail_styles() -> str:
     accent = PANEL["accent"]
     return f"""
     <style>
-      body {{ color:{text}; font-family:'Segoe UI'; font-size:12px; line-height:1.45; }}
-      h2 {{ margin:1px 0 4px 0; color:#f5f9ff; font-size:18px; font-weight:800; }}
+      body {{ color:{text}; font-size:{FONT_SIZE['body']}; line-height:1.45; }}
+      h2 {{ margin:1px 0 4px 0; color:#f5f9ff; font-size:{FONT_SIZE['heading']}; font-weight:800; }}
       p {{ margin:7px 0; }}
       table {{ width:100%; border-collapse:collapse; }}
-      .eyebrow {{ color:{accent}; font-weight:750; font-size:10px; }}
-      .muted {{ color:{muted}; font-size:11px; }}
+      .eyebrow {{ color:{accent}; font-weight:750; font-size:{FONT_SIZE['micro']}; }}
+      .muted {{ color:{muted}; font-size:{FONT_SIZE['caption']}; }}
       .empty {{ color:{muted}; }}
 
       .section-head {{ margin:17px 0 7px 0; border-collapse:separate; }}
       .section-mark {{ padding:0; }}
-      .section-title {{ color:#dce8f6; font-size:13px; font-weight:750; padding:0 0 0 8px; }}
+      .section-title {{ color:#dce8f6; font-size:{FONT_SIZE['body']}; font-weight:750; padding:0 0 0 8px; }}
 
       .metric-row {{ border-collapse:separate; margin:13px 0 4px 0; }}
       .metric-card {{ text-align:left; }}
       .metric-content td {{ border:0; padding:0; vertical-align:middle; }}
       .metric-copy {{ text-align:left; }}
       .metric-badge {{ text-align:left; padding:0 10px 0 0; }}
-      .metric-label {{ font-size:9px; font-weight:800; }}
-      .metric-value {{ color:{text}; font-size:21px; font-weight:800; }}
+      .metric-label {{ font-size:{FONT_SIZE['micro']}; font-weight:800; }}
+      .metric-value {{ color:{text}; font-size:{FONT_SIZE['brand']}; font-weight:800; }}
       .score-value {{ color:#8af0d0; }}
       .affinity-value {{ color:#ff9dbb; }}
       .rank-value {{ color:#f4d179; }}
@@ -1026,60 +1032,60 @@ def _detail_styles() -> str:
       .rank-badge-table td {{ line-height:1; }}
       .rank-transition {{ width:auto; }}
       .rank-transition td {{ border:0; padding:0; background-color:transparent; vertical-align:middle; }}
-      .rank-arrow {{ color:{faint}; text-align:center; font-size:13px; }}
+      .rank-arrow {{ color:{faint}; text-align:center; font-size:{FONT_SIZE['body']}; }}
 
       .aptitude-table {{ margin:0 0 4px 0; border:1px solid {border}; }}
-      .aptitude-table .aptitude-heading th {{ color:{muted}; background-color:{surface}; border-bottom:1px solid {border}; padding:7px 11px; font-size:9px; font-weight:800; text-align:left; }}
-      .aptitude-table th {{ color:{muted}; background-color:{surface_alt}; border-bottom:1px solid {border_soft}; padding:7px 10px; font-size:11px; font-weight:650; text-align:left; }}
+      .aptitude-table .aptitude-heading th {{ color:{muted}; background-color:{surface}; border-bottom:1px solid {border}; padding:7px 11px; font-size:{FONT_SIZE['micro']}; font-weight:800; text-align:left; }}
+      .aptitude-table th {{ color:{muted}; background-color:{surface_alt}; border-bottom:1px solid {border_soft}; padding:7px 10px; font-size:{FONT_SIZE['caption']}; font-weight:650; text-align:left; }}
       .aptitude-table td {{ background-color:{surface_alt}; border-bottom:1px solid {border_soft}; padding:6px 10px; vertical-align:middle; }}
-      .aptitude-name {{ color:{text}; font-size:12px; font-weight:700; text-align:left; }}
+      .aptitude-name {{ color:{text}; font-size:{FONT_SIZE['body']}; font-weight:700; text-align:left; }}
       .aptitude-ranks {{ text-align:center; white-space:nowrap; }}
       .aptitude-chance {{ white-space:nowrap; }}
       .aptitude-table .rank-transition td {{ background-color:transparent; border:0; padding:0; }}
       .aptitude-table .rank-badge-table td {{ border:1px solid; padding:3px 5px; }}
-      .s-chance-value {{ color:{soft}; font-size:12px; font-weight:700; }}
-      .s-chance-strong {{ color:#f4d179; font-size:12px; font-weight:800; }}
+      .s-chance-value {{ color:{soft}; font-size:{FONT_SIZE['body']}; font-weight:700; }}
+      .s-chance-strong {{ color:#f4d179; font-size:{FONT_SIZE['body']}; font-weight:800; }}
       .no-chance {{ color:{faint}; }}
 
       .facts-table {{ margin:0 0 4px 0; }}
-      .facts-table th {{ width:52%; color:{muted}; text-align:left; font-size:11px; font-weight:600; padding:6px 2px 6px 1px; border-bottom:1px solid {border_soft}; }}
-      .facts-table td {{ color:{text}; font-size:12px; padding:6px 1px 6px 2px; border-bottom:1px solid {border_soft}; }}
+      .facts-table th {{ width:52%; color:{muted}; text-align:left; font-size:{FONT_SIZE['caption']}; font-weight:600; padding:6px 2px 6px 1px; border-bottom:1px solid {border_soft}; }}
+      .facts-table td {{ color:{text}; font-size:{FONT_SIZE['body']}; padding:6px 1px 6px 2px; border-bottom:1px solid {border_soft}; }}
       .facts-table .facts-last {{ border-bottom:0; }}
 
       .component-table {{ margin:0 0 4px 0; }}
-      .component-table th {{ color:{muted}; text-align:left; font-size:9px; font-weight:800; padding:6px 8px 6px 1px; border-bottom:1px solid {border}; }}
-      .component-table td {{ color:{soft}; font-size:12px; padding:6px 8px 6px 1px; border-bottom:1px solid {border_soft}; vertical-align:middle; }}
+      .component-table th {{ color:{muted}; text-align:left; font-size:{FONT_SIZE['micro']}; font-weight:800; padding:6px 8px 6px 1px; border-bottom:1px solid {border}; }}
+      .component-table td {{ color:{soft}; font-size:{FONT_SIZE['body']}; padding:6px 8px 6px 1px; border-bottom:1px solid {border_soft}; vertical-align:middle; }}
       .component-name {{ color:{text}; }}
       .component-points {{ color:#8af0d0; }}
       .component-bar {{ padding:7px 0 7px 10px; }}
       .share-bar {{ border-collapse:collapse; }}
-      .share-bar td {{ padding:0; border:0; font-size:5px; line-height:5px; }}
+      .share-bar td {{ padding:0; border:0; height:5px; }}
 
       .factor-table {{ margin:0 0 4px 0; }}
-      .factor-table th {{ width:26%; color:{muted}; text-align:left; font-size:11px; font-weight:600; padding:6px 10px 6px 1px; border-bottom:1px solid {border_soft}; vertical-align:top; }}
-      .factor-table td {{ color:{soft}; font-size:11px; padding:6px 1px; border-bottom:1px solid {border_soft}; vertical-align:top; }}
+      .factor-table th {{ width:26%; color:{muted}; text-align:left; font-size:{FONT_SIZE['caption']}; font-weight:600; padding:6px 10px 6px 1px; border-bottom:1px solid {border_soft}; vertical-align:top; }}
+      .factor-table td {{ color:{soft}; font-size:{FONT_SIZE['caption']}; padding:6px 1px; border-bottom:1px solid {border_soft}; vertical-align:top; }}
 
       .spark-summary {{ margin-top:2px; }}
       .spark-owner {{ margin:12px 0 0 0; background-color:{surface}; border:1px solid {border}; }}
-      .spark-owner td {{ padding:7px 10px; color:{text}; font-size:12px; }}
-      .spark-owner .spark-scope {{ color:{muted}; text-align:right; font-size:10px; }}
+      .spark-owner td {{ padding:7px 10px; color:{text}; font-size:{FONT_SIZE['body']}; }}
+      .spark-owner .spark-scope {{ color:{muted}; text-align:right; font-size:{FONT_SIZE['micro']}; }}
       .spark-families {{ margin:0 0 4px 0; background-color:{surface_alt}; border:1px solid {border}; border-top:0; }}
       .spark-families-body {{ padding:6px 8px 7px 8px; }}
       .spark-family {{ margin:6px 0 2px 0; border-bottom:1px solid {border_soft}; }}
-      .spark-family th {{ padding:4px 1px; text-align:left; font-size:10px; font-weight:800; }}
-      .spark-count {{ color:{faint}; font-size:10px; font-weight:600; }}
+      .spark-family th {{ padding:4px 1px; text-align:left; font-size:{FONT_SIZE['micro']}; font-weight:800; }}
+      .spark-count {{ color:{faint}; font-size:{FONT_SIZE['micro']}; font-weight:600; }}
       .spark-grid {{ width:100%; margin:2px 0 3px 0; border-collapse:separate; }}
       .spark-grid-cell {{ padding:0; border:0; }}
       .spark-card {{ width:100%; border-collapse:separate; }}
       .spark-card td {{ padding:4px 7px; border:0; vertical-align:middle; }}
       .spark-accent {{ padding:0; }}
-      .spark-stars {{ white-space:nowrap; font-size:10px; }}
-      .spark-name {{ font-size:11px; font-weight:650; text-align:left; }}
-      .spark-meta {{ color:{muted}; white-space:nowrap; font-size:10px; }}
+      .spark-stars {{ white-space:nowrap; font-size:{FONT_SIZE['micro']}; }}
+      .spark-name {{ font-size:{FONT_SIZE['caption']}; font-weight:650; text-align:left; }}
+      .spark-meta {{ color:{muted}; white-space:nowrap; font-size:{FONT_SIZE['micro']}; }}
       .generation-gain {{ color:{accent}; font-weight:750; }}
-      .diagnostic-note {{ color:{muted}; font-size:10px; margin:6px 1px 9px 1px; }}
-      .spark-legend {{ margin:2px 0 7px 0; color:{muted}; font-size:10px; }}
-      .parent-marker {{ color:#140e02; background-color:#ffd36b; padding:1px 5px; font-size:11px; font-weight:900; }}
+      .diagnostic-note {{ color:{muted}; font-size:{FONT_SIZE['micro']}; margin:6px 1px 9px 1px; }}
+      .spark-legend {{ margin:2px 0 7px 0; color:{muted}; font-size:{FONT_SIZE['micro']}; }}
+      .parent-marker {{ color:#140e02; background-color:#ffd36b; padding:1px 5px; font-size:{FONT_SIZE['caption']}; font-weight:900; }}
     </style>
     """
 
@@ -1371,17 +1377,17 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
 
     html = f"""
     <style>
-      body {{ color:{PANEL['text']}; font-family:'Segoe UI'; font-size:11px; line-height:1.45; }}
-      h2 {{ margin:0 0 4px; font-size:17px; font-weight:800; }}
-      h3 {{ color:#dce8f6; margin:17px 0 7px; font-size:12px; font-weight:750; }}
-      .eyebrow {{ color:{PANEL['accent']}; font-weight:750; font-size:9px; }}
-      .muted {{ color:{PANEL['muted']}; font-size:10px; }}
+      body {{ color:{PANEL['text']}; font-size:{FONT_SIZE['body']}; line-height:1.45; }}
+      h2 {{ margin:0 0 4px; font-size:{FONT_SIZE['heading']}; font-weight:800; }}
+      h3 {{ color:#dce8f6; margin:17px 0 7px; font-size:{FONT_SIZE['section']}; font-weight:750; }}
+      .eyebrow {{ color:{PANEL['accent']}; font-weight:750; font-size:{FONT_SIZE['micro']}; }}
+      .muted {{ color:{PANEL['muted']}; font-size:{FONT_SIZE['caption']}; }}
       .replacement {{ background:{PANEL['surface']}; border-left:3px solid {PANEL['accent']}; padding:9px 11px; margin-top:8px; }}
       .protection {{ background:{PANEL['surface_alt']}; border-left:3px solid {PANEL['gold']}; padding:9px 11px; margin-top:8px; }}
       table {{ width:100%; border-collapse:collapse; }}
       td {{ color:{PANEL['text_soft']}; padding:6px 1px; border-bottom:1px solid {PANEL['border_soft']}; }}
-      .facts-table th {{ width:52%; color:{PANEL['muted']}; text-align:left; font-size:11px; font-weight:600; padding:6px 2px 6px 1px; border-bottom:1px solid {PANEL['border_soft']}; }}
-      .facts-table td {{ color:{PANEL['text']}; font-size:11px; padding:6px 1px 6px 2px; border-bottom:1px solid {PANEL['border_soft']}; }}
+      .facts-table th {{ width:52%; color:{PANEL['muted']}; text-align:left; font-size:{FONT_SIZE['caption']}; font-weight:600; padding:6px 2px 6px 1px; border-bottom:1px solid {PANEL['border_soft']}; }}
+      .facts-table td {{ color:{PANEL['text']}; font-size:{FONT_SIZE['body']}; padding:6px 1px 6px 2px; border-bottom:1px solid {PANEL['border_soft']}; }}
       .facts-table .facts-last {{ border-bottom:0; }}
     </style>
     <div class='eyebrow'>{escape(status)}</div>

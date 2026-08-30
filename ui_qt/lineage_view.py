@@ -46,6 +46,7 @@ from ui_qt.lineage_nodes import (
     build_result_lineage_nodes,
 )
 from ui_qt.theme import COLORS, SPARK_COLORS
+from ui_qt.typography import css_point_size, point_size
 
 
 PARENT_POSITIONS = ("p1", "p2")
@@ -220,7 +221,7 @@ class LineageTree(QWidget):
 
     def _spark_font(self) -> QFont:
         font = QFont(self.font())
-        font.setPointSizeF(7.6)
+        font.setPointSizeF(point_size("micro"))
         font.setBold(True)
         return font
 
@@ -429,7 +430,7 @@ class LineageTree(QWidget):
 
     def _draw_generation_label(self, painter: QPainter, y: float, text: str) -> None:
         font = QFont(self.font())
-        font.setPointSizeF(8.0)
+        font.setPointSizeF(point_size("micro"))
         font.setBold(True)
         painter.setFont(font)
         painter.setPen(QColor("#72849d"))
@@ -447,7 +448,7 @@ class LineageTree(QWidget):
         value_text = f"{affinity:.0f}"
         color = "#ff7ca5" if position in PARENT_POSITIONS else "#77b6ff"
         font = QFont(self.font())
-        font.setPointSizeF(10.0)
+        font.setPointSizeF(point_size("body"))
         font.setBold(True)
         metrics = QFontMetrics(font)
         icon_size = 13.0
@@ -503,7 +504,7 @@ class LineageTree(QWidget):
             return
 
         role_font = QFont(self.font())
-        role_font.setPointSizeF(7.2)
+        role_font.setPointSizeF(point_size("micro"))
         role_font.setBold(True)
         painter.setFont(role_font)
         painter.setPen(QColor(border))
@@ -524,7 +525,9 @@ class LineageTree(QWidget):
         primary = str(node.get("card_name") or node.get("uma_name") or "—")
         secondary = str(node.get("uma_name") or "")
         name_font = QFont(self.font())
-        name_font.setPointSizeF(10.2 if position in PARENT_POSITIONS else 9.4)
+        name_font.setPointSizeF(
+            point_size("body" if position in PARENT_POSITIONS else "caption")
+        )
         name_font.setBold(True)
         painter.setFont(name_font)
         painter.setPen(QColor(COLORS["text"]))
@@ -538,7 +541,7 @@ class LineageTree(QWidget):
         )
 
         detail_font = QFont(self.font())
-        detail_font.setPointSizeF(7.8)
+        detail_font.setPointSizeF(point_size("micro"))
         painter.setFont(detail_font)
         painter.setPen(QColor(COLORS["muted"]))
         if secondary and secondary.casefold() != primary.casefold():
@@ -577,7 +580,7 @@ class LineageTree(QWidget):
             QPointF(rect.right() - 12.0, divider_y),
         )
         section_font = QFont(self.font())
-        section_font.setPointSizeF(7.0)
+        section_font.setPointSizeF(point_size("micro"))
         section_font.setBold(True)
         painter.setFont(section_font)
         painter.setPen(QColor("#73839a"))
@@ -597,7 +600,7 @@ class LineageTree(QWidget):
 
     def _draw_missing_card(self, painter: QPainter, position: str, rect: QRectF) -> None:
         role_font = QFont(self.font())
-        role_font.setPointSizeF(7.2)
+        role_font.setPointSizeF(point_size("micro"))
         role_font.setBold(True)
         painter.setFont(role_font)
         painter.setPen(QColor("#65758b"))
@@ -619,7 +622,7 @@ class LineageTree(QWidget):
         left = image_rect.right() + 9.0
         width = rect.right() - left - 8.0
         name_font = QFont(self.font())
-        name_font.setPointSizeF(8.0)
+        name_font.setPointSizeF(point_size("micro"))
         name_font.setBold(True)
         painter.setFont(name_font)
         painter.setPen(QColor(COLORS["text"]))
@@ -630,7 +633,7 @@ class LineageTree(QWidget):
             painter.fontMetrics().elidedText(name, Qt.TextElideMode.ElideRight, max(15, int(width))),
         )
         detail_font = QFont(self.font())
-        detail_font.setPointSizeF(6.7)
+        detail_font.setPointSizeF(point_size("micro"))
         painter.setFont(detail_font)
         painter.setPen(QColor(COLORS["muted"]))
         painter.drawText(
@@ -695,7 +698,7 @@ class LineageTree(QWidget):
         name = str((node or {}).get("uma_name") or (node or {}).get("card_name") or "?")
         initials = "".join(part[0] for part in name.split()[:2] if part)[:2].upper() or "?"
         font = QFont(self.font())
-        font.setPointSizeF(max(10.0, min(16.0, rect.height() / 4.0)))
+        font.setPointSizeF(point_size("heading"))
         font.setBold(True)
         painter.setFont(font)
         painter.setPen(QColor("#edf4ff"))
@@ -1117,7 +1120,7 @@ class RaceCalendarWidget(QWidget):
         self._race_rects = []
 
         year_font = QFont(self.font())
-        year_font.setPointSizeF(9.0)
+        year_font.setPointSizeF(point_size("caption"))
         year_font.setBold(True)
         painter.setFont(year_font)
         year_names = {
@@ -1152,7 +1155,7 @@ class RaceCalendarWidget(QWidget):
             painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, year_names[year])
 
         label_font = QFont(self.font())
-        label_font.setPointSizeF(7.3)
+        label_font.setPointSizeF(point_size("micro"))
         label_font.setBold(True)
         y = 45.0
         for row_index, row_height in enumerate(row_heights):
@@ -1290,7 +1293,7 @@ class RaceCalendarWidget(QWidget):
         )
         bonus = f"+{bonus_value}"
         badge_font = QFont(self.font())
-        badge_font.setPointSizeF(7.2)
+        badge_font.setPointSizeF(point_size("micro"))
         badge_font.setBold(True)
         painter.setFont(badge_font)
         badge_width = 0.0
@@ -1327,7 +1330,7 @@ class RaceCalendarWidget(QWidget):
         # label as a placeholder while the image is unavailable.
         if compact or not has_banner:
             text_font = QFont(self.font())
-            text_font.setPointSizeF(7.6)
+            text_font.setPointSizeF(point_size("micro"))
             text_font.setBold(True)
             painter.setFont(text_font)
             text_rect = rect.adjusted(
@@ -1509,8 +1512,9 @@ class GameRankGlyph(QWidget):
             return
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        font = QFont("Segoe UI Black")
-        font.setPixelSize(34)
+        font = QFont(self.font())
+        font.setPointSizeF(point_size("display"))
+        font.setWeight(QFont.Weight.Black)
         font.setBold(True)
         path = QPainterPath()
         metrics = QFontMetrics(font)
@@ -1545,10 +1549,12 @@ class GameMetricCard(QFrame):
         text = QVBoxLayout()
         text.setSpacing(0)
         self.label = QLabel()
-        self.label.setStyleSheet("color:#91a3bb; font-size:8pt; font-weight:650;")
+        self.label.setStyleSheet(
+            f"color:#91a3bb; font-size:{css_point_size('micro')}; font-weight:650;"
+        )
         self.value = QLabel()
         self.value.setStyleSheet(
-            f"color:{accent}; font-size:13pt; font-weight:750;"
+            f"color:{accent}; font-size:{css_point_size('heading')}; font-weight:750;"
         )
         text.addWidget(self.label)
         text.addWidget(self.value)
@@ -1668,7 +1674,7 @@ class LineageDialog(QDialog):
                 " border-radius:10px;"
                 "}"
                 "QLabel#planningTitle {"
-                f" color:{COLORS['text']}; font-size:12pt; font-weight:700;"
+                f" color:{COLORS['text']}; font-size:{css_point_size('section')}; font-weight:700;"
                 "}"
                 "QCheckBox#trackblazerToggle {"
                 f" color:{COLORS['text']};"

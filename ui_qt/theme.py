@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ui_qt.typography import FONT_FAMILY_QSS, css_point_size
+
 
 COLORS = {
     "background": "#0b1018",
@@ -71,8 +73,8 @@ RANK_BADGE_COLORS = {
 def application_stylesheet() -> str:
     return f"""
     * {{
-        font-family: "Segoe UI", "Inter", sans-serif;
-        font-size: 10pt;
+        font-family: {FONT_FAMILY_QSS};
+        font-size: {css_point_size("body")};
         color: {COLORS['text']};
     }}
     QMainWindow, QWidget#root {{
@@ -89,13 +91,13 @@ def application_stylesheet() -> str:
         border-right: 1px solid {COLORS['border']};
     }}
     QLabel#brand {{
-        font-size: 17pt;
+        font-size: {css_point_size("brand")};
         font-weight: 700;
         color: {COLORS['text']};
     }}
     QLabel#navSection {{
         color: #72849d;
-        font-size: 8pt;
+        font-size: {css_point_size("micro")};
         font-weight: 700;
         padding: 4px 10px 0 10px;
     }}
@@ -105,29 +107,29 @@ def application_stylesheet() -> str:
         border: 1px solid #2a6659;
         border-radius: 9px;
         padding: 3px 8px;
-        font-size: 8.5pt;
+        font-size: {css_point_size("caption")};
         font-weight: 600;
     }}
     QLabel#pageTitle {{
-        font-size: 22pt;
+        font-size: {css_point_size("display")};
         font-weight: 700;
     }}
     QLabel#pageSubtitle, QLabel#muted, QLabel#cardDetail {{
         color: {COLORS['muted']};
     }}
     QLabel#sectionTitle {{
-        font-size: 12pt;
+        font-size: {css_point_size("section")};
         font-weight: 650;
     }}
     QLabel#settingSummary {{
         color: #dce9f8;
-        font-size: 11pt;
+        font-size: {css_point_size("body_large")};
         padding: 2px 1px 5px 1px;
     }}
     QLabel#pill, QLabel#pillAccent, QLabel#pillWarning {{
         border-radius: 9px;
         padding: 3px 8px;
-        font-size: 8.5pt;
+        font-size: {css_point_size("caption")};
         font-weight: 650;
     }}
     QLabel#pill {{
@@ -146,7 +148,7 @@ def application_stylesheet() -> str:
         border: 1px solid #69552a;
     }}
     QLabel#metric {{
-        font-size: 18pt;
+        font-size: {css_point_size("brand")};
         font-weight: 700;
     }}
     QFrame#card, QFrame#panel, QGroupBox {{

@@ -14,6 +14,12 @@ This project uses feature-level semantic versioning. Small internal iterations a
   drive ranking instead); the CLI diagnostic path (`--umalator-batch`) and the
   underlying `simulator_weights` engine are unaffected. The Settings page now
   covers uma.moe integration only.
+- Unified Qt stylesheets, painted canvases and rich-text diagnostics on one
+  named point-size scale derived from a 10 pt base. Removed the 5 px layout
+  workaround from contribution bars, eliminated hard-coded rich-text font
+  families and raised every painted label to the 8 pt readability floor. This
+  establishes the shared typography substrate required by the upcoming
+  lineage and calendar zoom work.
 
 ## 1.8.0 - Search workspace redesign and uma.moe retrieval overhaul
 

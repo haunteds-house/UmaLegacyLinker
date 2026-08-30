@@ -4,6 +4,8 @@ from PySide6.QtCore import QRectF, QSize, Qt
 from PySide6.QtGui import QColor, QFont, QPainter, QPen
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
+from ui_qt.typography import point_size
+
 
 SEGMENT_COLORS = (
     "#68d3b1",
@@ -90,14 +92,14 @@ class DistributionDonut(QWidget):
             else 0.0
         )
         center_font = QFont(self.font())
-        center_font.setPointSizeF(13.0)
+        center_font.setPointSizeF(point_size("section"))
         center_font.setBold(True)
         painter.setFont(center_font)
         painter.setPen(QColor("#edf4ff"))
         center_top = QRectF(inner_rect.left(), inner_rect.top() + 5, inner_rect.width(), 25)
         painter.drawText(center_top, Qt.AlignmentFlag.AlignCenter, f"{selected_share * 100:.1f}%")
         caption_font = QFont(self.font())
-        caption_font.setPointSizeF(7.5)
+        caption_font.setPointSizeF(point_size("micro"))
         painter.setFont(caption_font)
         painter.setPen(QColor("#91a3bb"))
         caption_rect = QRectF(

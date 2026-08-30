@@ -15,6 +15,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ui_qt.typography import point_size
+
 
 class CurveCanvas(QWidget):
     pointMoved = Signal(int, float, float)
@@ -91,7 +93,7 @@ class CurveCanvas(QWidget):
 
         painter.setPen(QColor("#8ea1b7"))
         font = painter.font()
-        font.setPointSize(max(7, font.pointSize() - 1))
+        font.setPointSizeF(point_size("micro"))
         painter.setFont(font)
         painter.drawText(QRectF(0, rect.bottom() - 9, self._pad_left - 6, 18), Qt.AlignmentFlag.AlignRight, "0")
         painter.drawText(QRectF(rect.right() - 55, rect.bottom() + 5, 55, 20), Qt.AlignmentFlag.AlignRight, f"{self._x_max:g}")

@@ -38,6 +38,9 @@ The PySide6 interface is the desktop application. It shares the engines, configu
 - vendored, theme-tinted SVG icons for primary navigation, the Search context-rail
   toggle and the lineage inspector's affinity tag, replacing bare Unicode glyphs
   whose rendering depended on the host's font-fallback chain;
+- one named point-size scale shared by the application stylesheet, painted
+  charts/canvases and rich-text diagnostics, with a 10 pt body base and an 8 pt
+  minimum for dense labels;
 - a fixed opposing-parent context and offline local GP-pair ranking in the uma.moe search.
 
 The lineage view retains the compact identities, Sparks and skill IDs required for rendering, then displays the White full-run probability already emitted by the scoring engine for its configured Inspiration Events. G1 planning likewise renders the engine's pair comparison: a race carried by both selected legacies is worth two future `+3` links, while a one-sided race is worth one. In future-GP mode, the engine also emits the target parent's Independent Training aptitude profile, base/effective win chances and binary cutoff result; the UI only presents those values. The solver maximises obtainable affinity with one race per turn, applies the documented penalties from the third consecutive race onward, then minimises risky streaks; fixed target-character objectives constrain the standard variant, while Trackblazer switches to a precomputed objective-free variant.
@@ -92,6 +95,7 @@ The **Windows release** GitHub Actions workflow runs the tests and visual audit,
 | `ui_qt/asset_catalog.py` | validated GameTora trainee, support, skill and race-banner asset URLs |
 | `ui_qt/icon_catalog.py` | vendored SVG icons, tinted for the active theme at paint time |
 | `ui_qt/icons/` | vendored Lucide SVG sources (see [`THIRD_PARTY.md`](THIRD_PARTY.md)) |
+| `ui_qt/typography.py` | shared named point-size scale for QSS, painted views and rich text |
 | `ui_qt/image_assets.py` | asynchronous loading, allowlist and persistent disk cache |
 | `ui_qt/lineage_nodes.py` | compatibility layer for current and older pair, branch and grandparent-result schemas |
 | `ui_qt/lineage_view.py` | top-down lineage inspector, G1 planning calendar, rich Spark cards and artwork controls |
