@@ -39,6 +39,7 @@ from lineage_planner import (
     write_lineage_planner_export,
 )
 from uma_moe import OnlineParentSearchResult
+from ui_qt.accessibility import describe_control
 from ui_qt.components import muted_label
 from ui_qt.context import AppContext
 from ui_qt.lineage_view import LineageDialog
@@ -284,6 +285,11 @@ class ResultPane(QWidget):
             if hidden
             else self.context.t("Masquer le détail")
         )
+        describe_control(
+            self.detail_toggle,
+            self.detail_toggle.text(),
+            self.detail.accessibleName(),
+        )
 
     def detail_is_hidden(self) -> bool:
         return self.detail_toggle.isChecked()
@@ -316,6 +322,23 @@ class ResultPane(QWidget):
             result_detail_html(
                 self.selected_row(), self.kind, self.context.language, self.profile
             )
+        )
+        result_name = names[self.kind]
+        describe_control(self.table, result_name, self.summary.text())
+        describe_control(
+            self.detail,
+            f"{t('Détail')} · {result_name}",
+            self.summary.text(),
+        )
+        describe_control(
+            self.detail_toggle,
+            self.detail_toggle.text(),
+            result_name,
+        )
+        describe_control(
+            self.lineage_button,
+            self.lineage_button.text(),
+            result_name,
         )
         self._update_lineage_button()
 
@@ -361,6 +384,8 @@ class CardFilterDialog(QDialog):
         )
         buttons.button(QDialogButtonBox.StandardButton.Ok).setText(context.t("Valider"))
         buttons.button(QDialogButtonBox.StandardButton.Cancel).setText(context.t("Annuler"))
+        describe_control(self.search, self.search.placeholderText(), title)
+        describe_control(self.list, title, self.search.placeholderText())
         root.addWidget(buttons)
         self.search.textChanged.connect(self._filter)
         all_button.clicked.connect(lambda: self._set_visible(Qt.CheckState.Checked))
@@ -701,6 +726,11 @@ class OnlineResultsPane(QWidget):
             if hidden
             else self.context.t("Masquer le détail")
         )
+        describe_control(
+            self.detail_toggle,
+            self.detail_toggle.text(),
+            self.detail.accessibleName(),
+        )
 
     def detail_is_hidden(self) -> bool:
         return self.detail_toggle.isChecked()
@@ -745,5 +775,28 @@ class OnlineResultsPane(QWidget):
                 self.profile,
             )
         )
+        result_name = (
+            t("Parents distants")
+            if self.mode == "parent"
+            else t("Grands-parents distants")
+        )
+        describe_control(self.table, result_name, self.summary.text())
+        describe_control(
+            self.detail,
+            f"{t('Détail')} · {result_name}",
+            self.summary.text(),
+        )
+        describe_control(
+            self.detail_toggle,
+            self.detail_toggle.text(),
+            result_name,
+        )
+        for button in (
+            self.lineage_button,
+            self.export_button,
+            self.copy_export_button,
+            self.copy_button,
+        ):
+            describe_control(button, button.text(), result_name)
         self._update_lineage_button()
         self._update_export_button()

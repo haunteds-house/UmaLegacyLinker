@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ui_qt.accessibility import describe_control
 from ui_qt.components import muted_label
 from ui_qt.context import AppContext
 
@@ -223,6 +224,7 @@ class ResultFamilyTabs(QWidget):
     def _tab_changed(self, index: int) -> None:
         if 0 <= index < len(FAMILY_ORDER):
             self.stack.setCurrentIndex(index)
+            self.bar.setAccessibleDescription(self.bar.tabToolTip(index))
             self.current_changed.emit(FAMILY_ORDER[index])
 
     def current_family(self) -> str:
@@ -256,6 +258,11 @@ class ResultFamilyTabs(QWidget):
         for view in self.views.values():
             view.retranslate()
         self.refresh_states()
+        describe_control(
+            self.bar,
+            self.context.t("Résultats"),
+            self.bar.tabToolTip(self.bar.currentIndex()),
+        )
 
 
 def family_for_local_kind(kind: str) -> str:

@@ -44,6 +44,7 @@ from parent_optimizer import (
     STYLE_FACTOR_NAMES,
     SURFACE_FACTOR_NAMES,
 )
+from ui_qt.accessibility import describe_control, label_control
 from ui_qt.components import (
     PathPicker,
     SearchableComboBox,
@@ -405,6 +406,31 @@ class OnlineRetrievalSection(SummarySection):
         for spin in (self.lineage_blue_stars, self.lineage_pink_stars):
             spin.setSpecialValueText(t("désactivé"))
         self.costume_label.setText(t("Filtres de costumes"))
+        description = self.hint.text()
+        for check in (
+            self.prefer_profile,
+            self.prefer_lineage,
+            self.surface_cohort,
+            self.require_surface,
+            self.require_distance,
+            self.require_style,
+        ):
+            describe_control(check, check.text(), description)
+        label_control(self.pink_label, self.pink_spin, description)
+        for label, combo, spin in (
+            (
+                self.lineage_blue_label,
+                self.lineage_blue_combo,
+                self.lineage_blue_stars,
+            ),
+            (
+                self.lineage_pink_label,
+                self.lineage_pink_combo,
+                self.lineage_pink_stars,
+            ),
+        ):
+            label_control(label, combo, self.lineage_hint.text())
+            describe_control(spin, label.text(), self.lineage_hint.text())
         self.refresh_summary()
 
 
@@ -877,4 +903,34 @@ class OnlineModeSection(SummarySection):
             self._refresh_opposing_options()
         self.import_label.setText(t("Réponse JSON à classer hors ligne"))
         self.import_picker.set_button_text(t("Parcourir…"))
+        description = self.toggle.text()
+        describe_control(self.auto_pairs, self.auto_pairs.text(), description)
+        for label, control in (
+            (self.fixed_label, self.fixed_combo),
+            (self.local_pool_label, self.local_pool),
+            (self.remote_pool_label, self.remote_pool),
+            (self.fetch_label, self.fetch_spin),
+        ):
+            label_control(label, control, description)
+        if self.mode == PARENT_MODE:
+            label_control(self.required_label, self.required_combo, description)
+        else:
+            label_control(self.opposing_label, self.opposing_combo, description)
+            self.opposing_json_label.setBuddy(self.opposing_picker.edit)
+            self.opposing_picker.set_accessible_label(
+                self.opposing_json_label.text(),
+                description,
+            )
+            label_control(self.g1_budget_label, self.g1_budget, description)
+            label_control(self.g1_weight_label, self.g1_weight, description)
+            describe_control(
+                self.opposing_extract_button,
+                self.opposing_extract_button.text(),
+                self.opposing_json_label.text(),
+            )
+        self.import_label.setBuddy(self.import_picker.edit)
+        self.import_picker.set_accessible_label(
+            self.import_label.text(),
+            description,
+        )
         self.refresh_summary()

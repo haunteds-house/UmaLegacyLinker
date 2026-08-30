@@ -7,13 +7,10 @@ from typing import Any
 from PySide6.QtCore import QSize, QThreadPool, Slot
 from PySide6.QtGui import QCloseEvent, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
-    QAbstractButton,
-    QAbstractSpinBox,
     QButtonGroup,
     QFrame,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QMainWindow,
     QMessageBox,
     QPlainTextEdit,
@@ -25,6 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from i18n import LANGUAGE_LABELS
+from ui_qt.accessibility import describe_control, label_control
 from ui_qt.components import ThemedComboBox
 from ui_qt.context import AppContext
 from ui_qt.core import APP_NAME, APP_VERSION
@@ -223,7 +221,6 @@ class MainWindow(QMainWindow):
         setter = getattr(page, "set_busy", None)
         if callable(setter):
             setter(self._busy)
-        self._assign_accessible_names(page)
         return page
 
     def _install_shortcuts(self) -> None:
@@ -262,27 +259,6 @@ class MainWindow(QMainWindow):
         if callable(action):
             action()
 
-    @staticmethod
-    def _assign_accessible_names(root: QWidget) -> None:
-        for widget in (root, *root.findChildren(QWidget)):
-            if widget.accessibleName():
-                continue
-            name = ""
-            if isinstance(widget, QAbstractButton):
-                name = widget.text().replace("&", "").strip()
-                if "   " in name:
-                    name = name.split("   ", 1)[1].strip()
-            elif isinstance(widget, QLineEdit):
-                name = widget.placeholderText().strip() or widget.toolTip().strip()
-            elif isinstance(widget, QAbstractSpinBox):
-                name = widget.toolTip().strip()
-            else:
-                tooltip = widget.toolTip().strip()
-                if tooltip:
-                    name = tooltip.splitlines()[0]
-            if name:
-                widget.setAccessibleName(name)
-
     def retranslate(self) -> None:
         t = self.context.t
         self.cancel_button.setText(t("Annuler la tâche"))
@@ -311,12 +287,16 @@ class MainWindow(QMainWindow):
         self.clear_log_button.setText(t("Effacer"))
         self.log_button.setText(t("Journal"))
         self.status_label.setText(t(self._status_source))
-        self.language_combo.setAccessibleName(t("Langue"))
-        self.clear_log_button.setAccessibleName(t("Effacer le journal"))
-        self.log.setAccessibleName(t("Journal d’exécution"))
-        self.log_button.setAccessibleName(t("Journal"))
-        self.cancel_button.setAccessibleName(t("Annuler la tâche"))
-        self._assign_accessible_names(self)
+        label_control(self.language_label, self.language_combo)
+        describe_control(self.clear_log_button, t("Effacer le journal"))
+        describe_control(self.log, t("Journal d’exécution"))
+        describe_control(self.log_button, t("Journal"), t("Journal d’exécution"))
+        describe_control(self.cancel_button, t("Annuler la tâche"))
+        describe_control(
+            self.progress,
+            t("Progression de la tâche"),
+            t(self._status_source),
+        )
 
     @Slot(int)
     def _language_selected(self, _index: int) -> None:
@@ -343,6 +323,7 @@ class MainWindow(QMainWindow):
     def set_status(self, source: str) -> None:
         self._status_source = source
         self.status_label.setText(self.context.t(source))
+        self.progress.setAccessibleDescription(self.context.t(source))
 
     def _set_busy(self, busy: bool) -> None:
         self._busy = busy
@@ -373,6 +354,7 @@ class MainWindow(QMainWindow):
         self._status_source = title
         self.status_label.setText(title)
         self.progress.setValue(1)
+        self.progress.setAccessibleDescription(title)
         self.append_log(title)
 
         worker = FunctionWorker(operation)
@@ -407,6 +389,7 @@ class MainWindow(QMainWindow):
         self.progress.setValue(max(0, min(100, value)))
         self._status_source = message
         self.status_label.setText(self.context.t(message))
+        self.progress.setAccessibleDescription(self.context.t(message))
 
     def _task_result(self, callback: Callable[[object], None], result: object) -> None:
         try:

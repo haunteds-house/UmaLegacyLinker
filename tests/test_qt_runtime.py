@@ -93,6 +93,78 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             data.deleteLater()
             transfer.deleteLater()
 
+    def test_semantic_controls_have_bilingual_accessible_contracts(self) -> None:
+        from ui_qt.context import AppContext
+        from ui_qt.core import SettingsStore
+        from ui_qt.layout_audit import _dispose_widget
+        from ui_qt.main_window import MainWindow
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            context = AppContext(SettingsStore(root / "config.json"))
+            window = MainWindow(context)
+            for key in window._nav_order:
+                window.show_page(key)
+            self.application.processEvents()
+
+            data = window._pages["data"]
+            search = window._pages["search"]
+            transfer = window._pages["transfer"]
+            weights = window._pages["weights"]
+            tools = window._pages["tools"]
+
+            for language in ("fr", "en"):
+                context.set_language(language)
+                self.application.processEvents()
+
+                for label, control in (
+                    (window.language_label, window.language_combo),
+                    (search.ace_label, search.ace_combo),
+                    (search.target_label, search.target_combo),
+                    (search.top_label, search.top_spin),
+                    (transfer.mode_label, transfer.mode_combo),
+                    (transfer.filter_label, transfer.status_combo),
+                    (weights.category_filter_label, weights.category_combo),
+                    (tools.api_base_label, tools.api_base),
+                    (tools.api_key_label, tools.api_key),
+                ):
+                    with self.subTest(language=language, control=type(control).__name__):
+                        self.assertIs(label.buddy(), control)
+                        self.assertEqual(control.accessibleName(), label.text())
+
+                for label, picker in (
+                    (data.master_label, data.master_picker),
+                    (data.data_label, data.data_picker),
+                    (data.extractor_label, data.extractor_picker),
+                    (data.output_label, data.output_picker),
+                ):
+                    with self.subTest(language=language, picker=label.text()):
+                        self.assertIs(label.buddy(), picker.edit)
+                        self.assertEqual(picker.edit.accessibleName(), label.text())
+                        self.assertIn(label.text(), picker.button.accessibleName())
+                        self.assertTrue(picker.edit.accessibleDescription())
+
+                for control in (
+                    window.progress,
+                    search.rail_toggle,
+                    search.families.bar,
+                    search.pair_results.table,
+                    search.pair_results.detail,
+                    search.online_parent_results.table,
+                    search.online_parent_results.detail,
+                    transfer.search,
+                    transfer.table,
+                    transfer.detail,
+                    weights.search,
+                    weights.tree,
+                    tools.show_key,
+                ):
+                    with self.subTest(language=language, named=type(control).__name__):
+                        self.assertTrue(control.accessibleName())
+                        self.assertTrue(control.accessibleDescription())
+
+            _dispose_widget(window, self.application)
+
     def test_result_panes_do_not_refresh_before_the_detail_browser_exists(self) -> None:
         from ui_qt.context import AppContext
         from ui_qt.core import SettingsStore

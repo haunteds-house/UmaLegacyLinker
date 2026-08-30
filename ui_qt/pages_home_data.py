@@ -438,6 +438,14 @@ class DataPage(QWidget):
         self.open_button.setToolTip(
             t("Ouvre le dossier contenant les fichiers générés.")
         )
+        for label, picker in (
+            (self.master_label, self.master_picker),
+            (self.data_label, self.data_picker),
+            (self.extractor_label, self.extractor_picker),
+            (self.output_label, self.output_picker),
+        ):
+            label.setBuddy(picker.edit)
+            picker.set_accessible_label(label.text(), picker.toolTip())
         self.refresh_status()
 
     def refresh_status(self) -> None:

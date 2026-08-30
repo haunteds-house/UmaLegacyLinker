@@ -16,6 +16,8 @@ Uma Legacy Linker links an exported veteran collection to the current `master.md
 - Opens every parent, pair and grandparent result as a context-aware top-down lineage with costume artwork, resolved skill icons, rich Spark details and optional ancestry history in the Qt interface.
 - Exports detailed JSON, compact CSV and readable diagnostics.
 - Provides an English and French desktop interface.
+- Exposes explicit bilingual names and descriptions to desktop assistive
+  technologies for the main controls, result tables and diagnostic views.
 
 ## Main workflows
 

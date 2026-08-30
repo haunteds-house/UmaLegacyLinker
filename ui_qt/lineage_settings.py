@@ -22,6 +22,7 @@ from course_presets import (
     racecourse_names_match,
 )
 from i18n import profile_values
+from ui_qt.accessibility import describe_control, label_control
 from ui_qt.components import (
     CollapsibleSection,
     PathPicker,
@@ -391,6 +392,36 @@ class LineageRaceEditor(QWidget):
             t(
                 "Ce fichier règle la valeur de chaque white skill par surface, distance et style. Un profil partiel est accepté : il est fusionné avec default_skill_priorities.json avant chaque calcul."
             )
+        )
+        for label, combo in (
+            (self.surface_label, self.surface_combo),
+            (self.distance_label, self.distance_combo),
+            (self.style_label, self.style_combo),
+            (self.course_label, self.course_combo),
+        ):
+            label_control(label, combo, self.shared_hint.text())
+        for label, combo in (
+            (self.track_label, self.track_combo),
+            (self.rotation_label, self.rotation_combo),
+            (self.season_label, self.season_combo),
+            (self.weather_label, self.weather_combo),
+            (self.ground_label, self.ground_combo),
+        ):
+            label_control(label, combo, self.advanced.toggle.text())
+        self.course_file_label.setBuddy(self.course_picker.edit)
+        self.course_picker.set_accessible_label(
+            self.course_file_label.text(),
+            self.course_picker.toolTip(),
+        )
+        self.priority_label.setBuddy(self.priority_picker.edit)
+        self.priority_picker.set_accessible_label(
+            self.priority_label.text(),
+            self.priority_picker.toolTip(),
+        )
+        describe_control(
+            self.custom_scoring,
+            self.custom_scoring.text(),
+            self.advanced.toggle.text(),
         )
         self.sync_from_context()
 

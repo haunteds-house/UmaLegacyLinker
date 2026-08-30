@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ui_qt.accessibility import describe_control
 from ui_qt.typography import point_size
 
 
@@ -194,6 +195,11 @@ class CurveEditor(QWidget):
     def set_labels(self, x_label: str, y_label: str, hint: str) -> None:
         self.table.setHorizontalHeaderLabels([x_label, y_label])
         self.hint.setText(hint)
+        name = f"{x_label} · {y_label}"
+        describe_control(self.canvas, name, hint)
+        describe_control(self.table, name, hint)
+        describe_control(self.add_button, self.add_button.text(), name)
+        describe_control(self.remove_button, self.remove_button.text(), name)
 
     def set_value(self, points: list[list[float]], *, x_probability: bool, y_probability: bool) -> None:
         self._loading = True

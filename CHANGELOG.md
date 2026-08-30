@@ -42,6 +42,11 @@ This project uses feature-level semantic versioning. Small internal iterations a
   chip now carries an explicit semantic label instead of relying on hue, and
   keyboard focus is styled for checkboxes, tabs, tables, detail browsers and
   sliders. Dedicated non-Qt tests guard the contrast and labelling contracts.
+- Replaced tooltip-based accessibility-name guessing with explicit bilingual
+  Qt names, descriptions and label buddies for semantic controls, composite
+  path pickers, result tables, diagnostics, weight editors and dense lineage
+  views. Dynamic names now follow language, result family and selected weight;
+  a Windows Qt smoke test verifies the runtime accessibility tree.
 
 ## 1.8.0 - Search workspace redesign and uma.moe retrieval overhaul
 

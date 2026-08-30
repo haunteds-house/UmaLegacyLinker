@@ -35,6 +35,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ui_qt.accessibility import describe_control
 from ui_qt.asset_catalog import race_banner_url, skill_icon_url, trainee_image_url
 from ui_qt.icon_catalog import tinted_pixmap
 from ui_qt.context import AppContext
@@ -1715,6 +1716,7 @@ class GameMetricCard(QFrame):
         self.value.setText(value)
         self.value.setToolTip(f"{label}: {value}")
         self.rank_glyph.set_rank(rank)
+        describe_control(self, label, value)
 
 
 class LineageDialog(QDialog):
@@ -2152,6 +2154,32 @@ class LineageDialog(QDialog):
             )
         )
         self.close_button.setText(t("Fermer"))
+        describe_control(
+            self.online_toggle,
+            self.online_toggle.text(),
+            self.cache_label.text(),
+        )
+        describe_control(
+            self.clear_cache_button,
+            self.clear_cache_button.text(),
+            self.cache_label.text(),
+        )
+        describe_control(
+            self.tabs,
+            self.title_label.text(),
+            self.subtitle_label.text(),
+        )
+        describe_control(
+            self.details,
+            t("Diagnostic"),
+            self.subtitle_label.text(),
+        )
+        if self.trackblazer_toggle is not None:
+            describe_control(
+                self.trackblazer_toggle,
+                self.trackblazer_toggle.text(),
+                self.trackblazer_toggle.toolTip(),
+            )
         self.tree.retranslate()
         if self.calendar is not None:
             self.calendar.retranslate()
@@ -2174,6 +2202,10 @@ class LineageDialog(QDialog):
             .replace("{size}", _human_size(size))
         )
         self.cache_label.setToolTip(str(self.repository.cache_dir))
+        self.cache_label.setAccessibleName(self.context.t("Cache d’images"))
+        self.cache_label.setAccessibleDescription(self.cache_label.text())
+        self.online_toggle.setAccessibleDescription(self.cache_label.text())
+        self.clear_cache_button.setAccessibleDescription(self.cache_label.text())
 
     def _clear_cache(self) -> None:
         answer = QMessageBox.question(

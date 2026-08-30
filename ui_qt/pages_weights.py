@@ -74,6 +74,7 @@ from ui_qt.components import (
     muted_label,
     section_label,
 )
+from ui_qt.accessibility import describe_control, label_control
 from ui_qt.context import AppContext, LineageContextState
 from ui_qt.distribution_chart import DistributionDonut
 from ui_qt.curve_editor import CurveEditor
@@ -1048,6 +1049,23 @@ class WeightsPage(QWidget):
             f"{self.context.t('Valeur active')} · {translated}"
         )
         self.type_badge.setText(translated)
+        controls = {
+            "relative_weight": (self.percent_slider, self.percent_spin),
+            "multiplier": (self.percent_slider, self.percent_spin),
+            "percentage": (self.percent_slider, self.percent_spin),
+            "curve": (self.curve_edit,),
+            "bool": (self.bool_edit,),
+            "integer": (self.integer_edit,),
+            "decimal": (self.decimal_edit,),
+            "enum": (self.enum_edit,),
+            "text": (self.text_edit,),
+            "structured": (self.structured_edit,),
+        }.get(self._editor_kind, ())
+        name = f"{self.editor_title.text()} · {self.current_label.text()}"
+        for control in controls:
+            describe_control(control, name, self.editor_summary.text())
+        if controls:
+            self.current_label.setBuddy(controls[0])
 
     def _configure_editor(
         self, path: tuple[str, ...], value: object, default: object
@@ -1743,6 +1761,25 @@ class WeightsPage(QWidget):
         self.create_priority_button.setText(t("Créer une copie modifiable"))
         self.open_priority_button.setText(t("Ouvrir le fichier"))
         self.reset_priority_button.setText(t("Rétablir le défaut"))
+        describe_control(
+            self.search,
+            self.search.placeholderText(),
+            self.settings_title.text(),
+        )
+        label_control(
+            self.category_filter_label,
+            self.category_combo,
+            self.category_combo.toolTip(),
+        )
+        describe_control(
+            self.tree,
+            self.settings_title.text(),
+            self.hover_hint.text(),
+        )
+        self.priority_picker.set_accessible_label(
+            self.priorities.toggle.text(),
+            self.priority_picker.toolTip(),
+        )
         self._rebuild_rows()
         self._refresh_status()
 

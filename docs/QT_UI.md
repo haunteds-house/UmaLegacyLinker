@@ -43,6 +43,9 @@ The PySide6 interface is the desktop application. It shares the engines, configu
   minimum for dense labels;
 - independent 75–200% lineage and G1-calendar zoom, remembered per view and
   available through visible controls, Ctrl+wheel and Ctrl+0;
+- explicit bilingual accessible names, descriptions and label relationships
+  for configuration controls, composite path pickers, result tables,
+  diagnostics and dense custom views;
 - one local-veteran identity (`Card name · evaluation score`) shared by
   selectors, tables and diagnostics; technical training IDs are hidden by
   default and retained only for tooltips, joins and machine-readable exports;
@@ -56,7 +59,7 @@ The lineage view retains the compact identities, Sparks and skill IDs required f
 
 ## Visual QA
 
-The Windows workflow renders every page, the Search workspace with its context rail expanded, collapsed, focused on each uma.moe search mode and on each result family, the embedded local and remote result panes, and all four lineage variants in French and English at 1120×720, 1366×768 and 1600×900. Its fixtures deliberately include long names, dense White summaries and all aptitude ranks. It fails on clipped button/label text, hidden horizontal overflow or a root rich-text table that collapses into a narrow strip, and currently covers 132 screenshots plus `layout-report.json`. Unit tests also enforce readable text contrast, 3:1 structural and Spark-boundary contrast, non-colour Spark labels, English coverage for visible Qt copy and safe result-pane construction before table sorting emits model callbacks.
+The Windows workflow renders every page, the Search workspace with its context rail expanded, collapsed, focused on each uma.moe search mode and on each result family, the embedded local and remote result panes, and all four lineage variants in French and English at 1120×720, 1366×768 and 1600×900. Its fixtures deliberately include long names, dense White summaries and all aptitude ranks. It fails on clipped button/label text, hidden horizontal overflow or a root rich-text table that collapses into a narrow strip, and currently covers 132 screenshots plus `layout-report.json`. Unit tests also enforce readable text contrast, 3:1 structural and Spark-boundary contrast, non-colour Spark labels, English coverage for visible Qt copy and safe result-pane construction before table sorting emits model callbacks. The Windows runtime matrix additionally checks that semantic names and visible-label relationships remain complete after switching between French and English.
 
 ## Artwork and offline behaviour
 
@@ -89,6 +92,7 @@ The **Windows release** GitHub Actions workflow runs the tests and visual audit,
 | `cli.py` | Headless CLI sharing the same engines |
 | `veteran_identity.py` | canonical local-veteran labels, score formatting and collision handling |
 | `ui_qt/core.py` | GUI-independent configuration and workflow orchestration |
+| `ui_qt/accessibility.py` | shared explicit name, description and visible-label bindings for Qt assistive APIs |
 | `ui_qt/main_window.py` | application shell, navigation, progress and log drawer |
 | `ui_qt/pages_home_data.py` | dashboard and local linking workflow |
 | `ui_qt/pages_search.py` | unified context rail, adaptive toolbar and result families |

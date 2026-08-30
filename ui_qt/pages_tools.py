@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 )
 
 from secret_store import SecretStoreError
+from ui_qt.accessibility import describe_control, label_control
 from ui_qt.components import PageHeader, muted_label, section_label
 from ui_qt.context import AppContext
 
@@ -107,6 +108,29 @@ class ToolsPage(QWidget):
         self.remember_key.setText(t(remember_text))
         self.remember_key.setToolTip(t(remember_tooltip))
         self.save_integration_button.setText(t("Enregistrer l’intégration"))
+        description = self.integration_hint.text()
+        label_control(self.api_base_label, self.api_base, description)
+        label_control(self.api_key_label, self.api_key, description)
+        describe_control(
+            self.show_key,
+            self.show_key.text(),
+            self.api_key_label.text(),
+        )
+        describe_control(
+            self.remember_key,
+            self.remember_key.text(),
+            self.remember_key.toolTip(),
+        )
+        describe_control(
+            self.save_integration_button,
+            self.save_integration_button.text(),
+            description,
+        )
+        describe_control(
+            self.integration_status,
+            t("État"),
+            self.integration_status.text(),
+        )
         self._update_integration_status()
 
     def _toggle_key(self) -> None:
@@ -115,6 +139,11 @@ class ToolsPage(QWidget):
             QLineEdit.EchoMode.Normal if hidden else QLineEdit.EchoMode.Password
         )
         self.show_key.setText(self.context.t("Masquer" if hidden else "Afficher"))
+        describe_control(
+            self.show_key,
+            self.show_key.text(),
+            self.api_key_label.text(),
+        )
 
     def _sync_integration(self) -> None:
         self.api_base.setText(self.context.uma_moe_api_base)
@@ -131,6 +160,7 @@ class ToolsPage(QWidget):
         if saved:
             status = t("Intégration enregistrée") + f" · {status}"
         self.integration_status.setText(status)
+        self.integration_status.setAccessibleDescription(status)
 
     def save_integration(self) -> None:
         try:

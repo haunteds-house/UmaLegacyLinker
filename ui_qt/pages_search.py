@@ -29,6 +29,7 @@ from parent_optimizer import (
     load_track_options,
 )
 from uma_moe import UmaMoeError
+from ui_qt.accessibility import describe_control, label_control
 from ui_qt.components import (
     PageHeader,
     SearchableComboBox,
@@ -418,6 +419,11 @@ class SearchPage(QWidget):
         self.rail_toggle.setToolTip(
             t("Afficher le contexte") if collapsed else t("Masquer le contexte")
         )
+        describe_control(
+            self.rail_toggle,
+            self.rail_toggle.toolTip(),
+            self.context_summary.text(),
+        )
 
     def _initial_refresh(self) -> None:
         self.refresh_options(show_errors=False)
@@ -556,6 +562,7 @@ class SearchPage(QWidget):
         if condition_parts:
             text += " · " + " / ".join(condition_parts)
         self.context_summary.setText(text)
+        self.rail_toggle.setAccessibleDescription(text)
         self._refresh_section_summaries(state, profile)
 
     def _refresh_section_summaries(
@@ -934,6 +941,13 @@ class SearchPage(QWidget):
         self.results_context.setToolTip(
             t("Le contexte a changé depuis ce calcul") if stale else ""
         )
+        self.results_context.setAccessibleDescription(
+            " · ".join(
+                part
+                for part in (self.results_context.text(), self.results_context.toolTip())
+                if part
+            )
+        )
 
     def run_current_family(self) -> None:
         """The one verb of the visible view; also bound to Ctrl+Enter."""
@@ -1162,6 +1176,20 @@ class SearchPage(QWidget):
         self.local_gp_pairs_button.setText(t("GP locaux"))
         self.open_button.setText(t("Sortie"))
         self.stale_badge.setText(t("Obsolète"))
+        objective_description = self.section_objective.toggle.text()
+        label_control(self.ace_label, self.ace_combo, objective_description)
+        label_control(self.target_label, self.target_combo, objective_description)
+        label_control(self.top_label, self.top_spin, objective_description)
+        describe_control(
+            self.refresh_button,
+            self.refresh_button.text(),
+            objective_description,
+        )
+        describe_control(
+            self.results_context,
+            t("Contexte"),
+            self.results_context.text(),
+        )
         self.families.retranslate()
         self._refresh_toolbar()
         self.section_retrieval.retranslate()

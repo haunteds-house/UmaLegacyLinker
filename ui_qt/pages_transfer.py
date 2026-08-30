@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ui_qt.accessibility import describe_control, label_control
 from ui_qt.components import PageHeader, StatusCard, ThemedComboBox, muted_label
 from ui_qt.context import AppContext
 from ui_qt.core import (
@@ -336,6 +337,43 @@ class TransferPage(QWidget):
         index = self.status_combo.findData(selected)
         self.status_combo.setCurrentIndex(index if index >= 0 else 0)
         self.status_combo.blockSignals(False)
+        label_control(
+            self.mode_label,
+            self.mode_combo,
+            self.mode_combo.toolTip(),
+        )
+        label_control(
+            self.filter_label,
+            self.status_combo,
+            self.status_combo.toolTip(),
+        )
+        describe_control(
+            self.upcoming_cm_check,
+            self.upcoming_cm_check.text(),
+            self.upcoming_cm_check.toolTip(),
+        )
+        describe_control(
+            self.upcoming_cm_limit,
+            f"{self.upcoming_cm_check.text()} · {t('CM max.')}",
+            self.upcoming_cm_limit.toolTip(),
+        )
+        for check in (self.team_trials_check, self.generic_profiles_check):
+            describe_control(check, check.text(), check.toolTip())
+        describe_control(
+            self.search,
+            self.search.placeholderText(),
+            t("Transfer Helper"),
+        )
+        describe_control(
+            self.table,
+            f"{t('Transfer Helper')} · {t('Résultats')}",
+            self.table.toolTip(),
+        )
+        describe_control(
+            self.detail,
+            f"{t('Transfer Helper')} · {t('Détail')}",
+            self.detail.toolTip(),
+        )
         self._refresh_cards()
         self.apply_filters()
 

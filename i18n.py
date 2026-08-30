@@ -901,6 +901,7 @@ FRAGMENTS_EN: dict[str, str] = {
     "Données locales": "Local data",
     "Journal": "Log",
     "Journal d’exécution": "Activity log",
+    "Progression de la tâche": "Task progress",
     "Effacer": "Clear",
     "Erreur": "Error",
     "Opération en cours": "Operation in progress",

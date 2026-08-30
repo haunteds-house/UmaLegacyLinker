@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ui_qt.accessibility import describe_control
 from ui_qt.theme import COLORS
 
 
@@ -236,11 +237,21 @@ class StatusCard(QFrame):
         layout.addWidget(self.value_label)
         layout.addWidget(self.detail_label)
         layout.addStretch(1)
+        describe_control(
+            self,
+            " · ".join(part for part in (title, value) if part),
+            detail,
+        )
 
     def set_content(self, title: str, value: str, detail: str, state: str = "neutral") -> None:
         self.title_label.setText(title)
         self.value_label.setText(value)
         self.detail_label.setText(detail)
+        describe_control(
+            self,
+            " · ".join(part for part in (title, value) if part),
+            detail,
+        )
         color = {
             "ok": "#68d3b1",
             "warning": "#f2c166",
@@ -287,6 +298,17 @@ class PathPicker(QWidget):
 
     def set_button_text(self, text: str) -> None:
         self.button.setText(text)
+
+    def set_accessible_label(self, name: str, description: str = "") -> None:
+        """Name the composite picker and both of its interactive children."""
+
+        describe_control(self, name, description)
+        describe_control(self.edit, name, description)
+        describe_control(
+            self.button,
+            f"{self.button.text()} · {name}",
+            description,
+        )
 
     def browse(self) -> None:
         current = Path(self.text()).expanduser() if self.text() else Path.home()
@@ -342,6 +364,7 @@ class CollapsibleSection(QFrame):
 
     def set_title(self, title: str) -> None:
         self.toggle.setText(title)
+        describe_control(self.toggle, title, self.toggle.accessibleDescription())
 
 
 class SummarySection(CollapsibleSection):
@@ -386,6 +409,7 @@ class SummarySection(CollapsibleSection):
 
     def set_summary(self, text: str) -> None:
         self.summary.setText(text)
+        describe_control(self.toggle, self.toggle.text(), text)
 
     def set_modified(
         self, modified: bool, label: str = "", *, warning: bool = False
@@ -407,6 +431,7 @@ class SummarySection(CollapsibleSection):
     def set_reset_text(self, text: str, tooltip: str = "") -> None:
         self.reset_button.setText(text)
         self.reset_button.setToolTip(tooltip or text)
+        describe_control(self.reset_button, text, tooltip or text)
 
 
 def section_label(text: str) -> QLabel:
