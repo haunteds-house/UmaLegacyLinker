@@ -52,6 +52,7 @@ from parent_optimizer import (
     _unique_score,
     _valid_grandparent_for_target_parent,
     _white_generation_support_score,
+    cooperative_checkpoint,
     evaluate_parent_branch,
     evaluate_parent_pair,
     parent_pair_sort_key,
@@ -4481,7 +4482,9 @@ def rank_online_parent_pairs(
     also the engine used by the all-local optimizer.
     """
     log = logger or (lambda _message: None)
-    check = checkpoint or (lambda: None)
+    if checkpoint is not None:
+        checkpoint()
+    check = cooperative_checkpoint(checkpoint)
     master_path = Path(master_path).resolve()
     linked_veterans_path = Path(linked_veterans_path).resolve()
     manual_weights_path = Path(manual_weights_path).resolve()
@@ -4660,6 +4663,7 @@ def rank_online_parent_pairs(
                 config=config,
                 g1_bonus_value=g1_bonus_value,
                 affinity_thresholds=branch_thresholds,
+                checkpoint=check,
             )
             branch_cache[key] = scored
             return scored
@@ -4800,7 +4804,7 @@ def rank_online_parent_pairs(
                 affinity_thresholds=pair_thresholds,
                 g1_objective_races=pair_objective_races,
                 include_g1_schedule=detailed,
-                checkpoint=(check if detailed else None),
+                checkpoint=check,
             )
             row: dict[str, Any] = {
                 "score": float(pair["score"]),
@@ -4860,9 +4864,8 @@ def rank_online_parent_pairs(
         for local_parent in selected_locals:
             local_chara = int(local_parent.get("chara_id") or 0)
             for remote_parent in selected_remotes:
+                check()
                 processed += 1
-                if processed % 32 == 0:
-                    check()
                 remote_chara = int(remote_parent.get("chara_id") or 0)
                 if local_chara <= 0 or remote_chara <= 0 or local_chara == remote_chara:
                     continue

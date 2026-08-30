@@ -21,7 +21,7 @@ def test_tabular_figures_keep_the_application_typeface() -> None:
     source = (PROJECT_DIR / "ui_qt/table_typography.py").read_text(
         encoding="utf-8"
     )
-    assert 'TABULAR_NUMBERS_FEATURE = "tnum"' in source
+    assert 'TABULAR_NUMBERS_FEATURE = QFont.Tag("tnum")' in source
     assert "font.setFeature(TABULAR_NUMBERS_FEATURE, 1)" in source
     assert "widget.setFont(font)" in source
     assert "setFamily(" not in source

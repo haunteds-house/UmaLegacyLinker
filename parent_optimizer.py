@@ -7,6 +7,7 @@ import json
 import math
 import re
 import sqlite3
+import time
 import unicodedata
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -62,6 +63,54 @@ APTITUDE_COLUMNS = {
 }
 
 APTITUDE_LABELS = {1: "G", 2: "F", 3: "E", 4: "D", 5: "C", 6: "B", 7: "A", 8: "S"}
+
+COOPERATIVE_CHECKPOINT_INTERVAL_SECONDS = 0.010
+
+
+def _noop_checkpoint() -> None:
+    pass
+
+
+class CooperativeCheckpoint:
+    """Rate-limit an expensive cooperative yield using elapsed wall time.
+
+    Optimizer callbacks may call ``time.sleep(0)`` to let the Qt event loop
+    acquire the GIL. Calling that callback in every inner iteration would add
+    unnecessary scheduling overhead, while checking only every N candidates
+    gives no latency bound when candidates have very different costs.
+    """
+
+    def __init__(
+        self,
+        callback: Callable[[], None],
+        *,
+        interval_seconds: float = COOPERATIVE_CHECKPOINT_INTERVAL_SECONDS,
+        clock: Callable[[], float] = time.perf_counter,
+    ) -> None:
+        self._callback = callback
+        self._interval_seconds = max(0.0, float(interval_seconds))
+        self._clock = clock
+        self._deadline = self._clock() + self._interval_seconds
+
+    def __call__(self) -> None:
+        if self._clock() < self._deadline:
+            return
+        self._callback()
+        # Measure the next interval after the callback: the cooperative yield
+        # itself may take a measurable amount of time under heavy contention.
+        self._deadline = self._clock() + self._interval_seconds
+
+
+def cooperative_checkpoint(
+    callback: Callable[[], None] | None,
+) -> Callable[[], None]:
+    """Return one shared time-based checkpoint for a scoring call tree."""
+
+    if callback is None:
+        return _noop_checkpoint
+    if isinstance(callback, CooperativeCheckpoint):
+        return callback
+    return CooperativeCheckpoint(callback)
 
 
 def lineage_preview_for_pair(
@@ -1147,6 +1196,7 @@ def _blue_score(
     distance: str,
     config: dict[str, Any],
     inheritance_affinities: dict[str, float] | None = None,
+    checkpoint: Callable[[], None] | None = None,
 ) -> tuple[float, dict[str, Any]]:
     """Score guaranteed Blue Sparks plus expected Scenario-Spark stat value.
 
@@ -1156,6 +1206,8 @@ def _blue_score(
     rate, individual affinity and both Inspiration Events.  Consequently the
     combined Blue score can intentionally exceed 100.
     """
+    check = checkpoint or _noop_checkpoint
+    check()
     stat_weights = (config.get("blue_stat_weights_by_distance") or {}).get(distance) or {}
     quality_by_stars = config.get("blue_star_quality") or {"1": 0.12, "2": 0.78, "3": 1.0}
     influence_by_distance = config.get("blue_score_influence_by_distance") or {
@@ -1187,11 +1239,13 @@ def _blue_score(
     slot_count = max(1, len(members))
     details: list[dict[str, Any]] = []
     for member, _position, role in members:
+        check()
         factors = _factor_list(member, "blue_stat")
         if not factors:
             details.append({"role": role, "name": None, "stars": 0, "quality": 0.0, "relevance": 0.0, "contribution": 0.0})
             continue
         for factor in factors:
+            check()
             stars = int(factor.get("stars") or 0)
             name = str(factor.get("name") or "")
             quality = float(quality_by_stars.get(str(stars), 0.0))
@@ -1208,8 +1262,10 @@ def _blue_score(
             })
     scenario_details: list[dict[str, Any]] = []
     for member, position, role in members:
+        check()
         affinity_value = max(0.0, float(affinities.get(role, 0.0)))
         for factor in _factor_list(member, "scenario"):
+            check()
             stars = int(factor.get("stars") or 0)
             name = str(factor.get("name") or "")
             stat_targets, target_source = _scenario_stat_targets(factor)
@@ -1342,13 +1398,19 @@ def _stars_required_to_start_at_rank(base_rank: int, target_rank: int) -> int:
     return 1 + 3 * (capped_gain - 1)
 
 
-def _poisson_binomial_distribution(probabilities: Iterable[float]) -> list[float]:
+def _poisson_binomial_distribution(
+    probabilities: Iterable[float],
+    checkpoint: Callable[[], None] | None = None,
+) -> list[float]:
     """Exact distribution for independent, non-identical Bernoulli trials."""
+    check = checkpoint or _noop_checkpoint
     distribution = [1.0]
     for raw_probability in probabilities:
+        check()
         probability = max(0.0, min(1.0, float(raw_probability)))
         updated = [0.0] * (len(distribution) + 1)
         for successes, mass in enumerate(distribution):
+            check()
             updated[successes] += mass * (1.0 - probability)
             updated[successes + 1] += mass * probability
         distribution = updated
@@ -1813,7 +1875,10 @@ def _pink_score(
     config: dict[str, Any],
     mode: str = "parent_branch",
     inheritance_affinities: dict[str, float] | None = None,
+    checkpoint: Callable[[], None] | None = None,
 ) -> tuple[float, dict[str, Any]]:
+    check = checkpoint or _noop_checkpoint
+    check()
     targets = {
         "surface": SURFACE_FACTOR_NAMES[surface],
         "distance": DISTANCE_FACTOR_NAMES[distance],
@@ -1844,6 +1909,7 @@ def _pink_score(
     factor_rows: list[dict[str, Any]] = []
 
     for member, position, role in members:
+        check()
         factors = _factor_list(member, "red_aptitude")
         if not factors:
             factor_rows.append({
@@ -1858,6 +1924,7 @@ def _pink_score(
             })
             continue
         for factor in factors:
+            check()
             name = str(factor.get("name") or "")
             stars = int(factor.get("stars") or 0)
             matched_dimension = next((key for key, target in targets.items() if name == target), None)
@@ -1888,12 +1955,15 @@ def _pink_score(
 
     dimensions: dict[str, dict[str, Any]] = {}
     for dimension, work in dimensions_work.items():
+        check()
         base_rank = int(ace["target_aptitudes"][dimension]["rank"])
         total_stars = int(work["total_stars"])
         initial_rank = _initial_aptitude_rank(base_rank, total_stars)
         required_a = max(0, 7 - initial_rank)
         required_s = max(0, 8 - initial_rank)
-        distribution = _poisson_binomial_distribution(work["trial_probabilities"])
+        distribution = _poisson_binomial_distribution(
+            work["trial_probabilities"], checkpoint=check
+        )
         probability_a = _probability_at_least(distribution, required_a)
         probability_s = _probability_at_least(distribution, required_s)
         probability_any = _probability_at_least(distribution, 1)
@@ -2039,6 +2109,7 @@ def _white_score(
     saturation_key: str,
     inheritance_affinities: dict[str, float] | None = None,
     race_skill_map: dict[str, list[str]] | None = None,
+    checkpoint: Callable[[], None] | None = None,
 ) -> tuple[float, dict[str, Any]]:
     """Score useful inherited skills from direct white and Race Sparks.
 
@@ -2047,6 +2118,8 @@ def _white_score(
     are merged into one P(inherited at least once), so Race Sparks need no extra
     arbitrary discount beyond their naturally lower 1/2/3% base rates.
     """
+    check = checkpoint or _noop_checkpoint
+    check()
     white_cfg = config.get("white_inheritance") or {}
     base_rates = white_cfg.get("base_proc_rates") or {"1": 0.03, "2": 0.06, "3": 0.09}
     race_base_rates = white_cfg.get("race_base_proc_rates") or {"1": 0.01, "2": 0.02, "3": 0.03}
@@ -2079,6 +2152,7 @@ def _white_score(
         base_rate: float,
         affinity_value: float,
     ) -> None:
+        check()
         affinity_multiplier = 1.0 + affinity_value / 100.0
         profile_weight = max(0.0, float(weight_lookup(skill_key)))
         probability_per_event = min(per_event_cap, max(0.0, base_rate) * affinity_multiplier)
@@ -2118,8 +2192,10 @@ def _white_score(
         bucket["factors"].append(row)
 
     for member, position, role in members:
+        check()
         affinity_value = max(0.0, float(affinities.get(role, 0.0)))
         for factor in _factor_list(member, "white_skill"):
+            check()
             stars = int(factor.get("stars") or 0)
             name = str(factor.get("name") or "")
             key = slugify(name)
@@ -2136,10 +2212,12 @@ def _white_score(
             )
 
         for factor in _factor_list(member, "white_race"):
+            check()
             stars = int(factor.get("stars") or 0)
             race_name = str(factor.get("name") or "")
             base_rate = max(0.0, float(race_base_rates.get(str(stars), 0.0)))
             for skill_key in granted_by_race.get(race_name, []):
+                check()
                 register_source(
                     role=role,
                     position=position,
@@ -2156,6 +2234,7 @@ def _white_score(
     probability_raw = 0.0
     skill_details: list[dict[str, Any]] = []
     for bucket in grouped.values():
+        check()
         probability_at_least_once = 1.0 - float(bucket["failure_probability"])
         probability_utility = max(
             0.0,
@@ -2212,6 +2291,7 @@ def _race_scenario_score(
     race_skill_map: dict[str, list[str]],
     config: dict[str, Any],
     saturation_key: str,
+    checkpoint: Callable[[], None] | None = None,
 ) -> tuple[float, dict[str, Any]]:
     """Score the small generic stat side of Race Sparks.
 
@@ -2221,6 +2301,8 @@ def _race_scenario_score(
     and output key for export compatibility; Scenario Sparks now contribute to
     :func:`_blue_score` from their actual stat targets and expected proc count.
     """
+    check = checkpoint or _noop_checkpoint
+    check()
     position_weights = config.get("position_transmission") or {}
     star_quality = config.get("star_quality") or {}
     race_config = config.get("race_factor") or {}
@@ -2228,8 +2310,10 @@ def _race_scenario_score(
     raw = 0.0
     details: list[dict[str, Any]] = []
     for member, position, role in members:
+        check()
         position_weight = float(position_weights.get(position, 1.0))
         for factor in _factor_list(member, "white_race"):
+            check()
             stars = int(factor.get("stars") or 0)
             name = str(factor.get("name") or "")
             star_weight = float(star_quality.get(str(stars), 0.0))
@@ -2264,19 +2348,24 @@ def _unique_score(
     members: list[tuple[dict[str, Any], str, str]],
     config: dict[str, Any],
     saturation_key: str,
+    checkpoint: Callable[[], None] | None = None,
 ) -> tuple[float, dict[str, Any]]:
+    check = checkpoint or _noop_checkpoint
+    check()
     position_weights = config.get("position_transmission") or {}
     star_quality = config.get("unique_star_quality") or {"1": 0.82, "2": 0.91, "3": 1.0}
     raw = 0.0
     slot_count = max(1, len(members))
     details: list[dict[str, Any]] = []
     for member, position, role in members:
+        check()
         position_weight = float(position_weights.get(position, 1.0))
         factors = _factor_list(member, "unique")
         if not factors:
             details.append({"role": role, "name": None, "stars": 0, "star_quality": 0.0, "position_weight": position_weight, "contribution": 0.0})
             continue
         for factor in factors:
+            check()
             stars = int(factor.get("stars") or 0)
             quality = float(star_quality.get(str(stars), 0.0))
             contribution = quality * position_weight
@@ -2436,6 +2525,7 @@ def evaluate_parent_branch(
     config: dict[str, Any],
     g1_bonus_value: int | None = None,
     affinity_thresholds: Iterable[Iterable[float]] | None = None,
+    checkpoint: Callable[[], None] | None = None,
 ) -> dict[str, Any]:
     """Evaluate one complete parent branch with the canonical local scorer.
 
@@ -2443,6 +2533,8 @@ def evaluate_parent_branch(
     logic public lets online candidates use exactly the same formula as local
     veterans instead of maintaining a second, subtly different implementation.
     """
+    check = cooperative_checkpoint(checkpoint)
+    check()
     ace_chara = int(ace.get("chara_id") or 0)
     if ace_chara <= 0:
         raise OptimizerError("Ace invalide pour l'évaluation de branche parent.")
@@ -2470,18 +2562,25 @@ def evaluate_parent_branch(
         distance,
         config,
         inheritance_affinities=inheritance_affinities,
+        checkpoint=check,
     )
     pink, pink_detail = _pink_score(
         members, ace, surface, distance, style, config, mode="parent_branch",
         inheritance_affinities=inheritance_affinities,
+        checkpoint=check,
     )
     white, white_detail = _white_score(
         members, weight_lookup, config, "parent_branch",
         inheritance_affinities=inheritance_affinities,
         race_skill_map=race_skills,
+        checkpoint=check,
     )
-    race, race_detail = _race_scenario_score(members, weight_lookup, race_skills, config, "parent_branch")
-    unique, unique_detail = _unique_score(members, config, "parent_branch")
+    race, race_detail = _race_scenario_score(
+        members, weight_lookup, race_skills, config, "parent_branch", checkpoint=check
+    )
+    unique, unique_detail = _unique_score(
+        members, config, "parent_branch", checkpoint=check
+    )
     components = {
         "blue": blue,
         "pink": pink,
@@ -2563,6 +2662,8 @@ def evaluate_parent_pair(
     lineage members. This is the same engine used by the local optimizer and by
     the uma.moe parent search.
     """
+    check = cooperative_checkpoint(checkpoint)
+    check()
     chara_1 = int(parent_1.get("chara_id") or 0)
     chara_2 = int(parent_2.get("chara_id") or 0)
     if chara_1 <= 0 or chara_2 <= 0:
@@ -2583,11 +2684,13 @@ def evaluate_parent_pair(
         resolver, ace, parent_1, surface=surface, distance=distance, style=style,
         weight_lookup=weight_lookup, race_skills=race_skills, config=config,
         g1_bonus_value=resolved_g1_bonus,
+        checkpoint=check,
     )
     right = parent_2_branch or evaluate_parent_branch(
         resolver, ace, parent_2, surface=surface, distance=distance, style=style,
         weight_lookup=weight_lookup, race_skills=race_skills, config=config,
         g1_bonus_value=resolved_g1_bonus,
+        checkpoint=check,
     )
 
     parent_pair_base = resolver.pair(chara_1, chara_2)
@@ -2608,7 +2711,7 @@ def evaluate_parent_pair(
         ),
         bonus_per_link=resolved_g1_bonus,
         include_schedule=include_g1_schedule,
-        checkpoint=checkpoint,
+        checkpoint=check,
     )
     parent_common = list(race_affinity_plan["common_g1_names"])
     parent_pair_g1 = resolved_g1_bonus * len(parent_common)
@@ -2640,18 +2743,25 @@ def evaluate_parent_pair(
         distance,
         config,
         inheritance_affinities=inheritance_affinity_detail["values"],
+        checkpoint=check,
     )
     pink, pink_detail = _pink_score(
         members, ace, surface, distance, style, config, mode="parent_pair",
         inheritance_affinities=inheritance_affinity_detail["values"],
+        checkpoint=check,
     )
     white, white_detail = _white_score(
         members, weight_lookup, config, "parent_pair",
         inheritance_affinities=inheritance_affinity_detail["values"],
         race_skill_map=race_skills,
+        checkpoint=check,
     )
-    race, race_detail = _race_scenario_score(members, weight_lookup, race_skills, config, "parent_pair")
-    unique, unique_detail = _unique_score(members, config, "parent_pair")
+    race, race_detail = _race_scenario_score(
+        members, weight_lookup, race_skills, config, "parent_pair", checkpoint=check
+    )
+    unique, unique_detail = _unique_score(
+        members, config, "parent_pair", checkpoint=check
+    )
     components = {
         "blue": blue,
         "pink": pink,
@@ -2807,7 +2917,9 @@ def optimize_parents(
     checkpoint: Callable[[], None] | None = None,
 ) -> OptimizerResult:
     log = logger or _logger_default
-    check = checkpoint or (lambda: None)
+    if checkpoint is not None:
+        checkpoint()
+    check = cooperative_checkpoint(checkpoint)
     if surface not in SURFACES or distance not in DISTANCES or style not in STYLES:
         raise OptimizerError(f"Profil invalide : {surface}/{distance}/{style}")
     if search_kind not in {"all", "pairs", "branches", "future"}:
@@ -2943,6 +3055,7 @@ def optimize_parents(
                         config=config,
                         g1_bonus_value=g1_bonus_value,
                         affinity_thresholds=branch_affinity_thresholds,
+                        checkpoint=check,
                     )
                 )
                 if index % 50 == 0 or index == len(valid_veterans):
@@ -2960,9 +3073,8 @@ def optimize_parents(
             for left_index, left in enumerate(branch_rows):
                 v1 = left["veteran"]
                 for right in branch_rows[left_index + 1 :]:
+                    check()
                     processed_pairs += 1
-                    if processed_pairs % 32 == 0:
-                        check()
                     v2 = right["veteran"]
                     if int(v1.get("chara_id") or 0) == int(v2.get("chara_id") or 0):
                         continue
@@ -2984,11 +3096,12 @@ def optimize_parents(
                             affinity_thresholds=pair_affinity_thresholds,
                             g1_objective_races=pair_objective_races,
                             include_g1_schedule=False,
+                            checkpoint=check,
                         )
                     )
-                # The Qt worker's logger is also a cooperative cancellation
-                # checkpoint.  Keep the batch coarse enough to avoid flooding
-                # the UI while ensuring the O(n²) search can be interrupted.
+                # Keep progress messages coarse enough to avoid flooding the
+                # UI. The time-based checkpoint above independently handles
+                # GIL yielding and cancellation responsiveness.
                 if (
                     (left_index + 1) % 8 == 0
                     or left_index + 1 == len(branch_rows)
@@ -3052,6 +3165,7 @@ def optimize_parents(
         if evaluate_future:
             log("Évaluation des futurs grands-parents…")
         for future_index, veteran in enumerate(future_candidates, 1):
+            check()
             members = [(veteran, "grandparent", "candidate")]
             candidate_chara = int(veteran.get("chara_id") or 0)
             if future_parent_chara is not None:
@@ -3066,6 +3180,7 @@ def optimize_parents(
                 distance,
                 config,
                 inheritance_affinities={"candidate": float(affinity_raw)},
+                checkpoint=check,
             )
             pink, pink_detail = _future_grandparent_pink_score(
                 members, ace, surface, distance, style, config
@@ -3077,7 +3192,9 @@ def optimize_parents(
             white_generation, white_generation_detail = _white_generation_support_score(
                 production_lineage, weight_lookup, config
             )
-            unique, unique_detail = _unique_score(members, config, "future_grandparent")
+            unique, unique_detail = _unique_score(
+                members, config, "future_grandparent", checkpoint=check
+            )
             future_rows.append(
                 {
                     **_candidate_identity(veteran),
@@ -3119,6 +3236,7 @@ def optimize_parents(
         future_g1_p95 = max(1.0, _quantile((row["g1_count"] for row in future_rows), 0.95))
         future_weights = _mode_weights(config, "future_grandparent")
         for row in future_rows:
+            check()
             affinity_basis = float(row.get("future_branch_base_total") or row["affinity_raw"])
             affinity_score = _affinity_score(affinity_basis, future_affinity_thresholds)
             g1_score = _affinity_score(float(row["g1_count"]), future_g1_thresholds)

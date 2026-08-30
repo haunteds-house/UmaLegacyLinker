@@ -1,6 +1,7 @@
 import unittest
 
 from parent_optimizer import (
+    CooperativeCheckpoint,
     _aptitude_pair_score,
     _blue_score,
     _pink_score,
@@ -184,6 +185,44 @@ def test_parent_pair_engine_scores_all_six_members_and_five_g1_links():
     assert pair["component_details"]["blue"]["slot_count"] == 6
     assert pair["component_details"]["pink"]["slot_count"] == 6
     assert pair["component_details"]["unique"]["slot_count"] == 6
+
+
+def test_parent_pair_checkpoint_is_score_neutral_and_reaches_hot_loops():
+    local = member(
+        2,
+        "Local Parent",
+        ["A", "Z"],
+        add_white(member(4, "Local GP1", ["A"]), "Uma Stan", 3),
+        add_red(member(5, "Local GP2", ["B"]), "Medium", 2),
+    )
+    remote = member(
+        3,
+        "Remote Parent",
+        ["B", "Z"],
+        add_blue(member(6, "Remote GP1", ["C"]), "Power", 3),
+        add_race(member(7, "Remote GP2", ["D"]), "Arima Kinen", 2),
+    )
+    kwargs = {
+        "surface": "turf",
+        "distance": "medium",
+        "style": "pace_chaser",
+        "weight_lookup": lambda key: 1.0 if key == "uma_stan" else 0.0,
+        "race_skills": {"Arima Kinen": ["uma_stan"]},
+        "config": base_config(),
+        "include_g1_schedule": False,
+    }
+
+    expected = evaluate_parent_pair(FakeResolver(), ace(), local, remote, **kwargs)
+    calls: list[None] = []
+    checkpoint = CooperativeCheckpoint(
+        lambda: calls.append(None), interval_seconds=0.0
+    )
+    actual = evaluate_parent_pair(
+        FakeResolver(), ace(), local, remote, checkpoint=checkpoint, **kwargs
+    )
+
+    assert actual == expected
+    assert len(calls) >= 20
 
 
 def test_lightweight_parent_pair_keeps_ranking_and_plan_aliases() -> None:
