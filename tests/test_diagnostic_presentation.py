@@ -69,6 +69,34 @@ class DiagnosticPresentationTests(unittest.TestCase):
                 "best_context_delta": 4.25,
                 "viable_parent_comparisons": 21,
                 "viable_grandparent_comparisons": 14,
+                "worst_context": {
+                    "role": "parent",
+                    "profile": "Turf · mile · Pace",
+                    "delta": 0.5,
+                },
+                "best_context": {
+                    "role": "grandparent",
+                    "profile": "Dirt · medium · Late",
+                    "delta": 4.25,
+                },
+                "context_deltas": [
+                    {
+                        "role": "parent",
+                        "context_key": "permanent:turf:mile:pace_chaser",
+                        "profile": "Turf · mile · Pace",
+                        "candidate_score": 72.0,
+                        "replacement_score": 72.5,
+                        "delta": 0.5,
+                    },
+                    {
+                        "role": "grandparent",
+                        "context_key": "permanent:dirt:medium:late_surger",
+                        "profile": "Dirt · medium · Late",
+                        "candidate_score": 70.0,
+                        "replacement_score": 74.25,
+                        "delta": 4.25,
+                    },
+                ],
             },
             "spark_protection": {
                 "applied": False,
@@ -91,11 +119,61 @@ class DiagnosticPresentationTests(unittest.TestCase):
         self.assertIn("Best observed delta", rendered)
         self.assertIn("+4.250", rendered)
         self.assertIn("Viable parent comparisons", rendered)
+        self.assertIn("Per-context deltas", rendered)
+        self.assertIn("Tightest context", rendered)
+        self.assertIn("Turf · mile · Pace", rendered)
+        self.assertIn("72.000", rendered)
+        self.assertIn("72.500", rendered)
         self.assertIn("GP One × GP Two", rendered)
         self.assertIn("Complete Spark comparison", rendered)
         self.assertIn("Corner Adept", rendered)
         self.assertIn("Protected heritage comparison", rendered)
         self.assertIn("Preserved", rendered)
+
+    def test_collective_transfer_exposes_retained_portfolio_context_deltas(self) -> None:
+        from ui_qt.presentation import transfer_detail_html
+
+        row = {
+            "card_name": "Candidate",
+            "rank_score": 9000,
+            "status": "recommended_transfer",
+            "reason_code": "redundant_in_collection_portfolio",
+            "covered_by_portfolio": [
+                {"card_name": "Keeper", "rank_score": 9500, "sparks": {"all": []}}
+            ],
+            "portfolio_comparison": {
+                "mean_score_lead": 1.75,
+                "worst_context": {
+                    "role": "parent",
+                    "profile": "Turf · long · Pace",
+                    "delta": -0.5,
+                },
+                "best_context": {
+                    "role": "grandparent",
+                    "profile": "Turf · long · Pace",
+                    "delta": 4.0,
+                },
+                "context_deltas": [
+                    {
+                        "role": "parent",
+                        "profile": "Turf · long · Pace",
+                        "candidate_score": 76.0,
+                        "replacement_score": 75.5,
+                        "delta": -0.5,
+                        "retained_by": [
+                            {"card_name": "Keeper", "rank_score": 9500}
+                        ],
+                    }
+                ],
+            },
+        }
+
+        rendered = transfer_detail_html(row, "en")
+
+        self.assertIn("Collective coverage", rendered)
+        self.assertIn("Per-context deltas", rendered)
+        self.assertIn("Keeper · 9 500", rendered)
+        self.assertIn("-0.500", rendered)
 
     def test_canonical_identity_shows_zero_score_without_internal_id(self) -> None:
         from ui_qt.presentation import transfer_detail_html

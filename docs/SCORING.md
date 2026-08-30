@@ -692,6 +692,24 @@ Les costumes alternatifs ne sont jamais regroupés. Une copie redondante sans re
 reçoit **transfert recommandé** et expose la liste des copies conservées qui assurent sa couverture.
 Aucun verdict ne déclenche une action en jeu.
 
+### Écarts par contexte
+
+Le rapport de format 5 conserve, pour chaque contexte viable et pour chacun des deux rôles, le
+score-enveloppe du candidat, le score-enveloppe de la couverture conservée et leur différence
+`couverture - candidat`. Un delta positif favorise donc la couverture ; un delta négatif révèle
+une niche où la copie proposée au transfert reste meilleure.
+
+Pour un **transfert strictement sûr**, toutes les lignes comparent le candidat au même remplaçant
+individuel. Pour un **transfert recommandé**, chaque ligne utilise la meilleure copie du
+portefeuille conservé dans ce contexte : les identités peuvent varier d'une ligne à l'autre et
+l'outil ne présente toujours aucun faux remplaçant universel. Le rapport fournit aussi la moyenne,
+le contexte le plus serré et le contexte le plus favorable. Ces preuves sont calculées après le
+verdict et ne modifient aucun score, seuil, classement ou choix du portefeuille.
+
+Un score-enveloppe est le maximum obtenu sur les variantes d'Ace viables du profil. Les deux
+maximums d'une ligne peuvent donc provenir de variantes d'Ace différentes ; ils mesurent la
+meilleure couverture disponible du contexte, pas un duel imposé entre deux Aces identiques.
+
 ### Plancher de protection des Sparks
 
 Ce garde-fou ne modifie jamais le score principal. Il devient un ensemble de contraintes de

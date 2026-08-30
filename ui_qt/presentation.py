@@ -1546,6 +1546,62 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
         except (TypeError, ValueError):
             return "—"
 
+    def context_delta_label(item: dict[str, Any] | None) -> str:
+        if not item:
+            return "—"
+        label = str(item.get("profile") or item.get("context_key") or "—")
+        role = _t(
+            "Parent" if item.get("role") == "parent" else "Futur grand-parent",
+            language,
+        )
+        return f"{role} · {label} · {signed_number(item.get('delta'))}"
+
+    def context_delta_table(evidence: dict[str, Any]) -> str:
+        rows = []
+        for item in evidence.get("context_deltas") or []:
+            role = _t(
+                "Parent"
+                if item.get("role") == "parent"
+                else "Futur grand-parent",
+                language,
+            )
+            retained_by = list(item.get("retained_by") or [])
+            retained_label = "<br>".join(
+                escape(label)
+                for label in canonical_veteran_labels(
+                    retained_by,
+                    rank_label=_t("Rang", language).casefold(),
+                    blue_label=_t("Bleues", language).casefold(),
+                )
+            )
+            replacement_score = _number(item.get("replacement_score"), 3)
+            if retained_label:
+                replacement_score += f"<br><span class='muted'>{retained_label}</span>"
+            rows.append(
+                "<tr>"
+                f"<td>{escape(role)}</td>"
+                f"<td>{escape(str(item.get('profile') or item.get('context_key') or '—'))}</td>"
+                f"<td align='right'>{_number(item.get('candidate_score'), 3)}</td>"
+                f"<td align='right'>{replacement_score}</td>"
+                f"<td align='right'><b>{signed_number(item.get('delta'))}</b></td>"
+                "</tr>"
+            )
+        if not rows:
+            return ""
+        return (
+            f"<h3>{escape(_t('Écarts par contexte', language))}</h3>"
+            f"<p class='muted'>{escape(_t('Chaque score est la meilleure enveloppe obtenue parmi les Aces viables du profil ; un delta positif favorise la couverture conservée.', language))}</p>"
+            "<table><tr>"
+            f"<td><b>{escape(_t('Rôle', language))}</b></td>"
+            f"<td><b>{escape(_t('Contexte', language))}</b></td>"
+            f"<td><b>{escape(_t('Candidat', language))}</b></td>"
+            f"<td><b>{escape(_t('Couverture', language))}</b></td>"
+            f"<td><b>{escape(_t('Écart', language))}</b></td>"
+            "</tr>"
+            + "".join(rows)
+            + "</table>"
+        )
+
     html = f"""
     <style>
       body {{ color:{PANEL['text']}; font-size:{FONT_SIZE['body']}; line-height:1.45; }}
@@ -1613,6 +1669,14 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
                         signed_number(replacement.get("best_context_delta")),
                     ),
                     (
+                        _t("Contexte le plus serré", language),
+                        context_delta_label(replacement.get("worst_context")),
+                    ),
+                    (
+                        _t("Contexte le plus favorable", language),
+                        context_delta_label(replacement.get("best_context")),
+                    ),
+                    (
                         _t("Comparaisons parent viables", language),
                         int(replacement.get("viable_parent_comparisons") or 0),
                     ),
@@ -1629,6 +1693,7 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
                 ]
             )
             + "</div>"
+            + context_delta_table(replacement)
         )
     coverage = list(row.get("covered_by_portfolio") or [])
     if coverage and not replacement:
@@ -1646,6 +1711,31 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
             )
             + "</div>"
         )
+        portfolio_comparison = row.get("portfolio_comparison") or {}
+        if portfolio_comparison.get("context_deltas"):
+            html += _facts_table(
+                [
+                    (
+                        _t("Avance moyenne", language),
+                        signed_number(
+                            portfolio_comparison.get("mean_score_lead")
+                        ),
+                    ),
+                    (
+                        _t("Contexte le plus serré", language),
+                        context_delta_label(
+                            portfolio_comparison.get("worst_context")
+                        ),
+                    ),
+                    (
+                        _t("Contexte le plus favorable", language),
+                        context_delta_label(
+                            portfolio_comparison.get("best_context")
+                        ),
+                    ),
+                ]
+            )
+            html += context_delta_table(portfolio_comparison)
     required_for = list(row.get("portfolio_required_for") or [])
     if required_for:
         html += (

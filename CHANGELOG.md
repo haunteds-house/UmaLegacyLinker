@@ -36,7 +36,15 @@ This project uses feature-level semantic versioning. Small internal iterations a
   the strict replacement or retained portfolio; protected heritage stays
   visible even when preserved; and all replacement aggregates, stats and
   lineage fields are rendered. The detail pane now honours the documented
-  520 px readability floor. Per-context deltas remain a separate engine lot.
+  520 px readability floor.
+- Added Transfer Helper score deltas for every viable parent and future-GP
+  context. Strict verdicts compare the candidate with their single retained
+  replacement; collective recommendations compare it with the best retained
+  copy independently in each context, so local regressions remain visible
+  without inventing a universal replacement. JSON format 5 carries the full
+  rows and extrema, while CSV, text summaries and the Qt diagnostic expose the
+  corresponding aggregates and tightest/most-favourable profiles. Scoring,
+  thresholds, portfolio selection and verdicts are unchanged.
 - Raised structural and Spark-chip boundaries to the WCAG 2.2 non-text
   contrast floor of 3:1, while keeping text contrast unchanged. Every Spark
   chip now carries an explicit semantic label instead of relying on hue, and

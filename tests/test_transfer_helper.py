@@ -4,6 +4,7 @@ import unittest
 
 from transfer_helper import (
     DominanceAccumulator,
+    ProfileContext,
     _factor_snapshot,
     _role_evidence,
     _select_portfolio,
@@ -108,6 +109,40 @@ class TransferHelperClassificationTests(unittest.TestCase):
         self.assertEqual(records[0]["dominated_by"]["trained_chara_id"], 2)
         self.assertEqual(records[1]["status"], "keep")
 
+    def test_strict_replacement_exports_context_extrema_and_scores(self) -> None:
+        records = [
+            self.record(1, parent_score=70, gp_score=72, parent_percentile=10, gp_percentile=12),
+            self.record(2, parent_score=75, gp_score=77, parent_percentile=5, gp_percentile=6),
+        ]
+        context = ProfileContext(
+            "permanent:turf:mile:pace_chaser",
+            "Permanent · turf/mile/pace_chaser",
+            "turf",
+            "mile",
+            "pace_chaser",
+        )
+        relation = DominanceAccumulator()
+        relation.update_parent(70.0, 75.0, 0.75, context)
+        relation.update_grandparent(72.0, 77.0, 0.75, context)
+
+        classify_transfer_records(
+            records,
+            {(0, 1): relation},
+            elite_utility_floor=0.92,
+            competitive_utility_floor=0.82,
+            competitive_score_floor=67.5,
+            minimum_absolute_floor_ratio=0.80,
+            minimum_competitive_contexts=3,
+            minimum_distinct_profiles=2,
+            dominance_mean_margin=1.0,
+        )
+
+        evidence = records[0]["dominated_by"]
+        self.assertEqual(len(evidence["context_deltas"]), 2)
+        self.assertEqual(evidence["worst_context"]["candidate_score"], 70.0)
+        self.assertEqual(evidence["best_context"]["replacement_score"], 75.0)
+        self.assertEqual(evidence["worst_context_delta"], 5.0)
+
 
     def test_dominance_chain_points_to_final_surviving_copy(self) -> None:
         records = [
@@ -205,11 +240,15 @@ class TransferHelperGlobalViabilityTests(unittest.TestCase):
             competitive_utility_floor=0.82,
             minimum_absolute_floor_ratio=0.80,
             dominance_tolerance=0.25,
+            context=ProfileContext(
+                "dirt", "Dirt · mile", "dirt", "mile", "pace_chaser"
+            ),
         )
         self.assertFalse(parent_viable)
         self.assertFalse(gp_viable)
         self.assertEqual(relations[(0, 1)].combined_count, 0)
         self.assertEqual(relations[(1, 0)].combined_count, 0)
+        self.assertEqual(relations[(0, 1)].context_deltas, [])
 
         # Copy 1 is clearly better in an actually viable Turf niche. Only this
         # context must decide dominance.
@@ -224,6 +263,9 @@ class TransferHelperGlobalViabilityTests(unittest.TestCase):
             competitive_utility_floor=0.82,
             minimum_absolute_floor_ratio=0.80,
             dominance_tolerance=0.25,
+            context=ProfileContext(
+                "turf", "Turf · mile", "turf", "mile", "pace_chaser"
+            ),
         )
         self.assertTrue(parent_viable)
         self.assertTrue(gp_viable)
@@ -232,6 +274,13 @@ class TransferHelperGlobalViabilityTests(unittest.TestCase):
         self.assertEqual(relations[(0, 1)].parent_count, 1)
         self.assertEqual(relations[(0, 1)].grandparent_count, 1)
         self.assertAlmostEqual(relations[(0, 1)].mean_delta, 8.0)
+        self.assertEqual(len(relations[(0, 1)].context_deltas), 2)
+        self.assertEqual(
+            {item["role"] for item in relations[(0, 1)].context_deltas},
+            {"parent", "grandparent"},
+        )
+        self.assertEqual(relations[(0, 1)].context_deltas[0]["profile"], "Turf · mile")
+        self.assertEqual(relations[(0, 1)].context_deltas[0]["delta"], 8.0)
 
     def test_dominance_can_be_proven_in_only_one_viable_role(self) -> None:
         records = [
@@ -409,6 +458,20 @@ class TransferHelperPortfolioTests(unittest.TestCase):
         self.assertEqual(records[1]["status"], "keep")
         self.assertEqual(records[2]["status"], "recommended_transfer")
         self.assertIsNone(records[2]["dominated_by"])
+        self.assertEqual(
+            records[2]["portfolio_comparison"]["comparison_kind"],
+            "retained_portfolio",
+        )
+        self.assertEqual(
+            records[2]["portfolio_comparison"]["context_deltas"][0]["delta"],
+            3.0,
+        )
+        self.assertEqual(
+            records[2]["portfolio_comparison"]["context_deltas"][0][
+                "retained_by"
+            ][0]["trained_chara_id"],
+            2,
+        )
         self.assertEqual(
             {item["trained_chara_id"] for item in records[2]["covered_by_portfolio"]},
             {1, 2},

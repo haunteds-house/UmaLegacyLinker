@@ -5,7 +5,7 @@ import hashlib
 import json
 import math
 from collections import Counter, defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable
@@ -104,8 +104,41 @@ class DominanceAccumulator:
     grandparent_count: int = 0
     minimum_delta: float = math.inf
     maximum_delta: float = -math.inf
+    context_deltas: list[dict[str, Any]] = field(default_factory=list)
 
-    def update_parent(self, loser_score: float, winner_score: float, tolerance: float) -> None:
+    def _record_context_delta(
+        self,
+        role: str,
+        context: ProfileContext | None,
+        loser_score: float,
+        winner_score: float,
+        delta: float,
+    ) -> None:
+        if context is None:
+            return
+        self.context_deltas.append(
+            {
+                "role": role,
+                "context_key": context.key,
+                "profile": context.label,
+                "scope": context.scope,
+                "surface": context.surface,
+                "distance": context.distance,
+                "style": context.style,
+                "course_key": context.course_key,
+                "candidate_score": round(float(loser_score), 6),
+                "replacement_score": round(float(winner_score), 6),
+                "delta": round(float(delta), 6),
+            }
+        )
+
+    def update_parent(
+        self,
+        loser_score: float,
+        winner_score: float,
+        tolerance: float,
+        context: ProfileContext | None = None,
+    ) -> None:
         delta = float(winner_score) - float(loser_score)
         if delta < -float(tolerance):
             self.parent_no_worse = False
@@ -113,8 +146,17 @@ class DominanceAccumulator:
         self.parent_count += 1
         self.minimum_delta = min(self.minimum_delta, delta)
         self.maximum_delta = max(self.maximum_delta, delta)
+        self._record_context_delta(
+            "parent", context, loser_score, winner_score, delta
+        )
 
-    def update_grandparent(self, loser_score: float, winner_score: float, tolerance: float) -> None:
+    def update_grandparent(
+        self,
+        loser_score: float,
+        winner_score: float,
+        tolerance: float,
+        context: ProfileContext | None = None,
+    ) -> None:
         delta = float(winner_score) - float(loser_score)
         if delta < -float(tolerance):
             self.grandparent_no_worse = False
@@ -122,6 +164,9 @@ class DominanceAccumulator:
         self.grandparent_count += 1
         self.minimum_delta = min(self.minimum_delta, delta)
         self.maximum_delta = max(self.maximum_delta, delta)
+        self._record_context_delta(
+            "grandparent", context, loser_score, winner_score, delta
+        )
 
     @property
     def combined_count(self) -> int:
@@ -145,7 +190,64 @@ class DominanceAccumulator:
             "maximum_delta": round(self.maximum_delta, 6) if math.isfinite(self.maximum_delta) else 0.0,
             "evaluated_parent_contexts": self.parent_count,
             "evaluated_grandparent_contexts": self.grandparent_count,
+            "context_deltas": list(self.context_deltas),
         }
+
+
+def _context_delta_summary(
+    context_deltas: Iterable[dict[str, Any]],
+) -> dict[str, Any]:
+    rows = [dict(item) for item in context_deltas]
+    if not rows:
+        return {
+            "context_deltas": [],
+            "worst_context": None,
+            "best_context": None,
+            "mean_score_lead": 0.0,
+            "worst_context_delta": 0.0,
+            "best_context_delta": 0.0,
+            "viable_parent_comparisons": 0,
+            "viable_grandparent_comparisons": 0,
+        }
+    worst = min(rows, key=lambda item: float(item.get("delta") or 0.0))
+    best = max(rows, key=lambda item: float(item.get("delta") or 0.0))
+    return {
+        "context_deltas": rows,
+        "worst_context": dict(worst),
+        "best_context": dict(best),
+        "mean_score_lead": round(
+            sum(float(item.get("delta") or 0.0) for item in rows) / len(rows),
+            4,
+        ),
+        "worst_context_delta": round(float(worst.get("delta") or 0.0), 4),
+        "best_context_delta": round(float(best.get("delta") or 0.0), 4),
+        "viable_parent_comparisons": sum(
+            item.get("role") == "parent" for item in rows
+        ),
+        "viable_grandparent_comparisons": sum(
+            item.get("role") == "grandparent" for item in rows
+        ),
+    }
+
+
+def _dominance_evidence(relation: DominanceAccumulator) -> dict[str, Any]:
+    summary = _context_delta_summary(relation.context_deltas)
+    # Preserve aggregate fields for callers and historical tests that build
+    # accumulators without detailed rows.
+    summary.update(
+        {
+            "mean_score_lead": round(relation.mean_delta, 4),
+            "worst_context_delta": round(relation.minimum_delta, 4)
+            if math.isfinite(relation.minimum_delta)
+            else 0.0,
+            "best_context_delta": round(relation.maximum_delta, 4)
+            if math.isfinite(relation.maximum_delta)
+            else 0.0,
+            "viable_parent_comparisons": relation.parent_count,
+            "viable_grandparent_comparisons": relation.grandparent_count,
+        }
+    )
+    return summary
 
 
 def _logger_default(_message: str) -> None:
@@ -471,6 +573,7 @@ def _update_group_dominance_for_scores(
     competitive_utility_floor: float,
     minimum_absolute_floor_ratio: float,
     dominance_tolerance: float,
+    context: ProfileContext | None = None,
 ) -> tuple[bool, bool]:
     """Update same-costume dominance only in globally viable role contexts.
 
@@ -515,6 +618,7 @@ def _update_group_dominance_for_scores(
                         loser_parent,
                         winner_parent,
                         dominance_tolerance,
+                        context,
                     )
             if grandparent_viable:
                 loser_gp = grandparent_scores.get(loser_index)
@@ -524,6 +628,7 @@ def _update_group_dominance_for_scores(
                         loser_gp,
                         winner_gp,
                         dominance_tolerance,
+                        context,
                     )
     return parent_viable, grandparent_viable
 
@@ -707,11 +812,7 @@ def classify_transfer_records(
                 "grandparent_1": winner.get("grandparent_1"),
                 "grandparent_2": winner.get("grandparent_2"),
                 "sparks": winner.get("sparks") or {},
-                "mean_score_lead": round(relation.mean_delta, 4),
-                "worst_context_delta": round(relation.minimum_delta, 4) if math.isfinite(relation.minimum_delta) else 0.0,
-                "best_context_delta": round(relation.maximum_delta, 4) if math.isfinite(relation.maximum_delta) else 0.0,
-                "viable_parent_comparisons": relation.parent_count,
-                "viable_grandparent_comparisons": relation.grandparent_count,
+                **_dominance_evidence(relation),
             }
             protection = compare_spark_heritage(
                 record.get("_spark_heritage"),
@@ -1172,6 +1273,81 @@ def _strict_retained_replacement(
     return max(candidates, key=lambda item: item[1].mean_delta)
 
 
+def _portfolio_context_evidence(
+    index: int,
+    selected: set[int],
+    records: list[dict[str, Any]],
+    requirements: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    """Compare one redundant copy with the retained portfolio per context."""
+
+    rows: list[dict[str, Any]] = []
+    for requirement in requirements.values():
+        if requirement.get("kind") != "performance":
+            continue
+        role = str(requirement.get("role") or "")
+        context_key = str(requirement.get("context_key") or "")
+        profile_key = f"_{role}_profiles"
+        candidate = next(
+            (
+                profile
+                for profile in records[index].get(profile_key) or []
+                if str(profile.get("context_key") or "") == context_key
+            ),
+            None,
+        )
+        retained = [
+            (selected_index, profile)
+            for selected_index in sorted(selected)
+            for profile in records[selected_index].get(profile_key) or []
+            if str(profile.get("context_key") or "") == context_key
+        ]
+        if candidate is None or not retained:
+            continue
+        replacement_score = max(
+            float(profile.get("score") or 0.0)
+            for _selected_index, profile in retained
+        )
+        retained_best = [
+            selected_index
+            for selected_index, profile in retained
+            if abs(float(profile.get("score") or 0.0) - replacement_score)
+            <= 1e-9
+        ]
+        candidate_score = float(candidate.get("score") or 0.0)
+        rows.append(
+            {
+                "role": role,
+                "context_key": context_key,
+                "profile": candidate.get("profile") or context_key,
+                "scope": candidate.get("scope"),
+                "surface": candidate.get("surface"),
+                "distance": candidate.get("distance"),
+                "style": candidate.get("style"),
+                "course_key": candidate.get("course_key"),
+                "candidate_score": round(candidate_score, 6),
+                "replacement_score": round(replacement_score, 6),
+                "delta": round(replacement_score - candidate_score, 6),
+                "retained_by": [
+                    {
+                        "trained_chara_id": records[selected_index].get(
+                            "trained_chara_id"
+                        ),
+                        "card_name": records[selected_index].get("card_name"),
+                        "uma_name": records[selected_index].get("uma_name"),
+                        "rank": records[selected_index].get("rank"),
+                        "rank_score": records[selected_index].get("rank_score"),
+                    }
+                    for selected_index in retained_best
+                ],
+            }
+        )
+    return {
+        "comparison_kind": "retained_portfolio",
+        **_context_delta_summary(rows),
+    }
+
+
 def classify_portfolio_records(
     records: list[dict[str, Any]],
     groups: dict[str, list[int]],
@@ -1190,6 +1366,16 @@ def classify_portfolio_records(
         for index in group_indices:
             record = records[index]
             record["dominated_by"] = None
+            record["portfolio_comparison"] = (
+                _portfolio_context_evidence(
+                    index,
+                    group_selected,
+                    records,
+                    requirements.get(group_key) or {},
+                )
+                if index not in selected
+                else None
+            )
             record["covered_by_portfolio"] = [
                 {
                     "trained_chara_id": records[selected_index].get("trained_chara_id"),
@@ -1240,11 +1426,7 @@ def classify_portfolio_records(
                     "grandparent_1": replacement.get("grandparent_1"),
                     "grandparent_2": replacement.get("grandparent_2"),
                     "sparks": replacement.get("sparks") or {},
-                    "mean_score_lead": round(relation.mean_delta, 4),
-                    "worst_context_delta": round(relation.minimum_delta, 4),
-                    "best_context_delta": round(relation.maximum_delta, 4),
-                    "viable_parent_comparisons": relation.parent_count,
-                    "viable_grandparent_comparisons": relation.grandparent_count,
+                    **_dominance_evidence(relation),
                 }
             elif group_selected:
                 record["status"] = "recommended_transfer"
@@ -1688,6 +1870,7 @@ def analyze_transfer_candidates(
                     competitive_utility_floor=competitive_utility_floor,
                     minimum_absolute_floor_ratio=minimum_absolute_floor_ratio,
                     dominance_tolerance=dominance_tolerance,
+                    context=context,
                 )
             for veteran_index, record in enumerate(records):
                 parent_score = profile_parent_max[veteran_index]
@@ -1704,6 +1887,9 @@ def analyze_transfer_candidates(
                             "score_gap_to_leader": round(parent_quality.get(veteran_index, {}).get("score_gap_to_leader", 0.0), 6),
                             "leader_score": round(parent_quality.get(veteran_index, {}).get("leader_score", 0.0), 6),
                             "course_key": context.course_key,
+                            "scope": context.scope,
+                            "surface": context.surface,
+                            "distance": context.distance,
                             "style": context.style,
                         }
                     )
@@ -1723,6 +1909,9 @@ def analyze_transfer_candidates(
                             "score_gap_to_leader": round(gp_quality.get(veteran_index, {}).get("score_gap_to_leader", 0.0), 6),
                             "leader_score": round(gp_quality.get(veteran_index, {}).get("leader_score", 0.0), 6),
                             "course_key": context.course_key,
+                            "scope": context.scope,
+                            "surface": context.surface,
+                            "distance": context.distance,
                             "style": context.style,
                         }
                     )
@@ -1894,7 +2083,7 @@ def analyze_transfer_candidates(
     # the selected dominator already carries the useful evidence.
     payload = {
         "metadata": {
-            "format_version": 4,
+            "format_version": 5,
             "generated_at_utc": generated_at,
             "purpose": "Selective helper for identifying redundant local veterans before transferring them in game.",
             "source_master": {"filename": master.name, "sha256": _sha256(master)},
@@ -1934,6 +2123,7 @@ def analyze_transfer_candidates(
                 "Keep means the copy is required by the minimum same-costume collection portfolio to stay within the configured regret in every competitive niche or to preserve a protected inheritance asset.",
                 "Strictly safe transfer requires one retained same-costume/same-Unique replacement that is not worse in any viable profile envelope, remains at least as good for G1 pair support, clears the average lead, and individually preserves protected Spark heritage.",
                 "Recommended transfer means the copy is redundant at collection level. Its coverage may come from several retained veterans, so the report deliberately does not invent a single replacement.",
+                "Every transfer verdict includes role-by-role profile-envelope deltas: against the strict replacement when one exists, otherwise against the best retained portfolio copy in each competitive context.",
                 "Grandparent scores use an optimistic constant affinity ceiling so a character-specific compatibility niche is not discarded merely because no target was selected.",
                 "Alternate costumes are never treated as interchangeable, even when they share the same base character.",
                 "Protected Spark heritage is covered collectively by the retained portfolio; direct 2-star White Sparks require the configured high contextual value before they become mandatory assets.",
@@ -1952,6 +2142,8 @@ def analyze_transfer_candidates(
     csv_rows = []
     for record in records:
         dominated_by = record.get("dominated_by") or {}
+        portfolio_comparison = record.get("portfolio_comparison") or {}
+        comparison = dominated_by or portfolio_comparison
         protection = record.get("spark_protection") or {}
         protection_deficits = list(protection.get("deficits") or [])
         deficit_labels = []
@@ -2002,10 +2194,23 @@ def analyze_transfer_candidates(
                 "dominated_by_display_name": (
                     canonical_veteran_label(dominated_by) if dominated_by else ""
                 ),
-                "mean_score_lead": dominated_by.get("mean_score_lead"),
-                "worst_context_delta": dominated_by.get("worst_context_delta"),
-                "viable_parent_comparisons": dominated_by.get("viable_parent_comparisons"),
-                "viable_grandparent_comparisons": dominated_by.get("viable_grandparent_comparisons"),
+                "comparison_kind": (
+                    "strict_replacement"
+                    if dominated_by
+                    else portfolio_comparison.get("comparison_kind")
+                ),
+                "mean_score_lead": comparison.get("mean_score_lead"),
+                "worst_context_delta": comparison.get("worst_context_delta"),
+                "best_context_delta": comparison.get("best_context_delta"),
+                "worst_context": (
+                    (comparison.get("worst_context") or {}).get("profile")
+                ),
+                "best_context": (
+                    (comparison.get("best_context") or {}).get("profile")
+                ),
+                "context_delta_count": len(comparison.get("context_deltas") or []),
+                "viable_parent_comparisons": comparison.get("viable_parent_comparisons"),
+                "viable_grandparent_comparisons": comparison.get("viable_grandparent_comparisons"),
                 "spark_protection_floor": protection.get("verdict_floor"),
                 "spark_protection_reasons": ",".join(
                     str(reason) for reason in protection.get("reason_codes") or []
@@ -2067,8 +2272,13 @@ def analyze_transfer_candidates(
             "dominated_by_id",
             "dominated_by",
             "dominated_by_display_name",
+            "comparison_kind",
             "mean_score_lead",
             "worst_context_delta",
+            "best_context_delta",
+            "worst_context",
+            "best_context",
+            "context_delta_count",
             "viable_parent_comparisons",
             "viable_grandparent_comparisons",
             "spark_protection_floor",
@@ -2105,12 +2315,17 @@ def analyze_transfer_candidates(
     for record in safe_records:
         replacement = record.get("dominated_by") or {}
         if replacement:
+            worst = replacement.get("worst_context") or {}
             summary_lines.append(
                 f"- STRICT {canonical_veteran_label(record)} -> "
                 f"{canonical_veteran_label(replacement)} "
-                f"(mean lead {replacement.get('mean_score_lead')})"
+                f"(mean lead {replacement.get('mean_score_lead')}; "
+                f"tightest {worst.get('profile') or 'n/a'} "
+                f"{worst.get('delta') if worst else 'n/a'})"
             )
         else:
+            comparison = record.get("portfolio_comparison") or {}
+            worst = comparison.get("worst_context") or {}
             coverage = ", ".join(
                 canonical_veteran_labels(
                     record.get("covered_by_portfolio") or []
@@ -2118,7 +2333,8 @@ def analyze_transfer_candidates(
             )
             summary_lines.append(
                 f"- RECOMMENDED {canonical_veteran_label(record)} — "
-                f"portfolio: {coverage}"
+                f"portfolio: {coverage}; tightest {worst.get('profile') or 'n/a'} "
+                f"{worst.get('delta') if worst else 'n/a'}"
             )
     protected_records = [
         record

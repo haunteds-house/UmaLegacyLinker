@@ -51,8 +51,9 @@ The PySide6 interface is the desktop application. It shares the engines, configu
   default and retained only for tooltips, joins and machine-readable exports;
 - a Transfer Helper diagnostic with explicit parent/future-GP evidence counts,
   complete veteran-versus-retained Spark comparison, successful and failed
-  heritage protections, and full strict-replacement aggregates in a pane kept
-  at the documented 520 px readability floor;
+  heritage protections, full strict-replacement aggregates and a role-by-role
+  table of candidate-versus-retained score deltas for strict and collective
+  verdicts, in a pane kept at the documented 520 px readability floor;
 - a fixed opposing-parent context and offline local GP-pair ranking in the uma.moe search.
 
 The lineage view retains the compact identities, Sparks and skill IDs required for rendering, then displays the White full-run probability already emitted by the scoring engine for its configured Inspiration Events. G1 planning likewise renders the engine's pair comparison: a race carried by both selected legacies is worth two future `+3` links, while a one-sided race is worth one. In future-GP mode, the engine also emits the target parent's Independent Training aptitude profile, base/effective win chances and binary cutoff result; the UI only presents those values. The solver maximises obtainable affinity with one race per turn, applies the documented penalties from the third consecutive race onward, then minimises risky streaks; fixed target-character objectives constrain the standard variant, while Trackblazer switches to a precomputed objective-free variant.
