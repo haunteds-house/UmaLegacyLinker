@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from error_guidance import SECRET_STORAGE_GUIDANCE, actionable_error
 from secret_store import SecretStoreError
 from ui_qt.accessibility import describe_control, label_control
 from ui_qt.components import PageHeader, muted_label, section_label
@@ -170,10 +171,15 @@ class ToolsPage(QWidget):
                 remember_api_key=self.remember_key.isChecked(),
             )
         except (OSError, SecretStoreError) as exc:
+            message = actionable_error(
+                f"La clé n’a pas pu être mémorisée.\n\n{exc}",
+                action=SECRET_STORAGE_GUIDANCE,
+                translate=self.context.t,
+            )
             QMessageBox.warning(
                 self,
                 self.context.t("Clé API"),
-                self.context.t("La clé n’a pas pu être mémorisée.") + f"\n\n{exc}",
+                message,
             )
             return
         self._update_integration_status(saved=True)

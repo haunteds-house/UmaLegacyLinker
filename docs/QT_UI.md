@@ -41,6 +41,8 @@ The PySide6 interface is the desktop application. It shares the engines, configu
 - a two-pane scoring-profile editor with search, 51 gameplay subcategories, plain-language help for every setting, hover summaries and visible draft/default states;
 - unambiguous probability, threshold, multiplier and 100%-budget controls, including live donut charts for all nine genuinely normalised scoring groups;
 - live shared White Skill priority-file management across Search and Weights;
+- actionable error dialogs that preserve the technical diagnostic and add one
+  concrete recovery step, while full worker tracebacks remain in the log;
 - live French/English switching;
 - cooperative cancellation of long-running tasks from the status bar;
 - vendored, theme-tinted SVG icons for primary navigation, the Search context-rail

@@ -66,6 +66,11 @@ This project uses feature-level semantic versioning. Small internal iterations a
   persisted header menu. Mixed `top x%` rank labels now sort by their underlying
   numeric percentile instead of lexicographically. The i18n release check also
   rejects orphaned exact and fragment entries and exits non-zero on any issue.
+- Made every backend error actionable at the UI and CLI boundaries. Precise
+  engine diagnostics and Qt tracebacks remain available, while the visible
+  message now adds one recovery step tailored to network/API, linked-data,
+  file, configuration or empty-search failures. Messages that already tell the
+  user what to do are left unchanged.
 - Raised structural and Spark-chip boundaries to the WCAG 2.2 non-text
   contrast floor of 3:1, while keeping text contrast unchanged. Every Spark
   chip now carries an explicit semantic label instead of relying on hue, and

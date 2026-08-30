@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from error_guidance import actionable_error
 from ui_qt.components import PageHeader, PathPicker, StatusCard, muted_label, section_label
 from ui_qt.context import AppContext
 from ui_qt.core import (
@@ -565,4 +566,8 @@ class DataPage(QWidget):
             output.mkdir(parents=True, exist_ok=True)
             open_path(output)
         except OSError as exc:
-            QMessageBox.critical(self, self.context.t("Erreur"), str(exc))
+            QMessageBox.critical(
+                self,
+                self.context.t("Erreur"),
+                actionable_error(exc, translate=self.context.t),
+            )

@@ -32,6 +32,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from error_guidance import actionable_error
 from i18n import scoring_label, translate_text
 
 # `scoring_label` is a flat leaf-name lookup shared with course_conditions,
@@ -550,7 +551,11 @@ class WeightsPage(QWidget):
                 default_scoring_path(), user_scoring_overrides_path()
             )
         except (OSError, ScoringConfigError) as exc:
-            QMessageBox.warning(self, self.context.t("Profil de pondération invalide"), self.context.t(str(exc)))
+            QMessageBox.warning(
+                self,
+                self.context.t("Profil de pondération invalide"),
+                actionable_error(exc, translate=self.context.t),
+            )
             self.default = read_json_object(default_scoring_path())
             self.current = copy.deepcopy(self.default)
         self.saved_current = copy.deepcopy(self.current)
@@ -1476,7 +1481,7 @@ class WeightsPage(QWidget):
                 QMessageBox.warning(
                     self,
                     self.context.t("Valeur refusée"),
-                    self.context.t(str(exc)),
+                    actionable_error(exc, translate=self.context.t),
                 )
             return False
         self.current = candidate
@@ -1573,7 +1578,11 @@ class WeightsPage(QWidget):
             overrides = build_overrides(self.default, self.current)
             write_json_object(user_scoring_overrides_path(), overrides)
         except (OSError, ScoringConfigError) as exc:
-            QMessageBox.warning(self, self.context.t("Profil de pondération invalide"), self.context.t(str(exc)))
+            QMessageBox.warning(
+                self,
+                self.context.t("Profil de pondération invalide"),
+                actionable_error(exc, translate=self.context.t),
+            )
             return
         self.saved_current = copy.deepcopy(self.current)
         self.active_check.blockSignals(True)
@@ -1600,7 +1609,11 @@ class WeightsPage(QWidget):
                 self.active_check.blockSignals(True)
                 self.active_check.setChecked(False)
                 self.active_check.blockSignals(False)
-                QMessageBox.warning(self, self.context.t("Profil de pondération invalide"), self.context.t(str(exc)))
+                QMessageBox.warning(
+                    self,
+                    self.context.t("Profil de pondération invalide"),
+                    actionable_error(exc, translate=self.context.t),
+                )
                 return
         self.context.update_lineage(use_custom_scoring=active)
         if committed_pending:
@@ -1638,7 +1651,11 @@ class WeightsPage(QWidget):
             except ScoringConfigError:
                 validate_scoring_config(candidate)
         except ScoringConfigError as exc:
-            QMessageBox.warning(self, self.context.t("Import impossible"), self.context.t(str(exc)))
+            QMessageBox.warning(
+                self,
+                self.context.t("Import impossible"),
+                actionable_error(exc, translate=self.context.t),
+            )
             return
         self.current = copy.deepcopy(candidate)
         self._rebuild_rows()
@@ -1662,7 +1679,11 @@ class WeightsPage(QWidget):
         try:
             write_json_object(filename, self.current)
         except (OSError, ScoringConfigError) as exc:
-            QMessageBox.warning(self, self.context.t("Export impossible"), self.context.t(str(exc)))
+            QMessageBox.warning(
+                self,
+                self.context.t("Export impossible"),
+                actionable_error(exc, translate=self.context.t),
+            )
             return
 
     def _priority_changed(self, value: str) -> None:
@@ -1709,7 +1730,11 @@ class WeightsPage(QWidget):
             self.priority_picker.set_text(str(destination))
             self._priority_changed(str(destination))
         except OSError as exc:
-            QMessageBox.critical(self, self.context.t("Erreur"), str(exc))
+            QMessageBox.critical(
+                self,
+                self.context.t("Erreur"),
+                actionable_error(exc, translate=self.context.t),
+            )
 
     def open_priority(self) -> None:
         path = Path(self.priority_picker.text()).expanduser() if self.priority_picker.text() else default_skill_priorities_path()

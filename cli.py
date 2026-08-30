@@ -13,6 +13,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
+from error_guidance import actionable_error
 from legacy_linker import LinkerError, link_veterans
 from manual_weights import generate_manual_skill_weights
 from parent_optimizer import OptimizerError, optimize_parents
@@ -217,7 +218,7 @@ def run_cli(args: argparse.Namespace) -> int:
             logger=lambda message: print(message, flush=True),
         )
     except (LinkerError, OptimizerError, TransferHelperError, OSError, ValueError, json.JSONDecodeError, sqlite3.Error) as exc:  # type: ignore[name-defined]
-        print(f"Erreur : {exc}", file=sys.stderr)
+        print(f"Erreur : {actionable_error(exc)}", file=sys.stderr)
         return 1
     print(f"JSON : {result.json_path}")
     print(f"CSV : {result.csv_path}")

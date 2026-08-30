@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from error_guidance import actionable_error
 from ui_qt.accessibility import describe_control, label_control
 from ui_qt.components import PageHeader, StatusCard, ThemedComboBox, muted_label
 from ui_qt.context import AppContext
@@ -678,7 +679,11 @@ class TransferPage(QWidget):
             self._set_result_state(STATE_LOADED)
         except (OSError, json.JSONDecodeError, ValueError) as exc:
             if show_errors:
-                QMessageBox.information(self, self.context.t("Dernier rapport"), self.context.t(str(exc)))
+                QMessageBox.information(
+                    self,
+                    self.context.t("Dernier rapport"),
+                    actionable_error(exc, translate=self.context.t),
+                )
 
     def set_busy(self, busy: bool) -> None:
         self._busy = busy
@@ -693,4 +698,8 @@ class TransferPage(QWidget):
             output.mkdir(parents=True, exist_ok=True)
             open_path(output)
         except OSError as exc:
-            QMessageBox.critical(self, self.context.t("Erreur"), str(exc))
+            QMessageBox.critical(
+                self,
+                self.context.t("Erreur"),
+                actionable_error(exc, translate=self.context.t),
+            )

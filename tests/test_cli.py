@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import io
 import tempfile
 import unittest
 from argparse import Namespace
+from contextlib import redirect_stderr
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -128,6 +130,25 @@ class CliWorkflowTests(unittest.TestCase):
             self.assertTrue((output / "active_skill_priorities.json").is_file())
             self.assertTrue((output / "active_parent_scoring.json").is_file())
             analyze.assert_called_once()
+
+    def test_backend_failure_keeps_diagnostic_and_adds_cli_recovery(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            args = self._args(Path(temp))
+            stderr = io.StringIO()
+            with (
+                patch.object(
+                    cli,
+                    "link_veterans",
+                    side_effect=cli.LinkerError("MDB introuvable : master.mdb"),
+                ),
+                redirect_stderr(stderr),
+            ):
+                self.assertEqual(cli.run_cli(args), 1)
+
+        rendered = stderr.getvalue()
+        self.assertIn("Erreur : MDB introuvable : master.mdb", rendered)
+        self.assertIn("Que faire :", rendered)
+        self.assertIn("relie les données, puis relance", rendered)
 
 
 if __name__ == "__main__":

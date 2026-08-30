@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from error_guidance import actionable_error
 from lineage_planner import (
     LineagePlannerError,
     build_lineage_planner_export,
@@ -746,7 +747,7 @@ class OnlineResultsPane(QWidget):
             QMessageBox.critical(
                 self,
                 self.context.t("Erreur d’export"),
-                self.context.t(str(exc)),
+                actionable_error(exc, translate=self.context.t),
             )
             return
         QMessageBox.information(
@@ -774,7 +775,7 @@ class OnlineResultsPane(QWidget):
             QMessageBox.critical(
                 self,
                 self.context.t("Erreur d’export"),
-                self.context.t(str(exc)),
+                actionable_error(exc, translate=self.context.t),
             )
             return
         QApplication.clipboard().setText(

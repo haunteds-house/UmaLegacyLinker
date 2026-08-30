@@ -39,6 +39,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from error_guidance import actionable_error
 from parent_optimizer import (
     DISTANCE_FACTOR_NAMES,
     STYLE_FACTOR_NAMES,
@@ -678,7 +679,7 @@ class OnlineModeSection(SummarySection):
                 QMessageBox.warning(
                     self,
                     self.context.t("Parent opposé (contexte)"),
-                    self.context.t(str(exc)),
+                    actionable_error(exc, translate=self.context.t),
                 )
         self._refresh_opposing_options()
 

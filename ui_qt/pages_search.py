@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from error_guidance import actionable_error
 from lineage_planner import LineagePlannerError, write_lineage_planner_export
 from parent_optimizer import (
     OptimizerError,
@@ -471,7 +472,7 @@ class SearchPage(QWidget):
                 QMessageBox.warning(
                     self,
                     self.context.t("Configuration incomplète"),
-                    self.context.t(str(exc)),
+                    actionable_error(exc, translate=self.context.t),
                 )
             self._refresh_source_badges()
             return
@@ -698,7 +699,7 @@ class SearchPage(QWidget):
             QMessageBox.warning(
                 self,
                 self.context.t("Configuration incomplète"),
-                self.context.t(str(exc)),
+                actionable_error(exc, translate=self.context.t),
             )
             return
         labels = {
@@ -828,7 +829,7 @@ class SearchPage(QWidget):
             QMessageBox.warning(
                 self,
                 self.context.t("Configuration incomplète"),
-                self.context.t(str(exc)),
+                actionable_error(exc, translate=self.context.t),
             )
             return
         self.context.store.update(
@@ -1030,7 +1031,7 @@ class SearchPage(QWidget):
                 QMessageBox.warning(
                     self,
                     self.context.t("Dernier résultat"),
-                    self.context.t(str(exc)),
+                    actionable_error(exc, translate=self.context.t),
                 )
             return
         if family in ONLINE_FAMILIES:
@@ -1129,7 +1130,7 @@ class SearchPage(QWidget):
             QMessageBox.critical(
                 self,
                 self.context.t("Erreur d’export"),
-                self.context.t(str(exc)),
+                actionable_error(exc, translate=self.context.t),
             )
             return
         QMessageBox.information(
@@ -1161,7 +1162,11 @@ class SearchPage(QWidget):
             output.mkdir(parents=True, exist_ok=True)
             open_path(output)
         except OSError as exc:
-            QMessageBox.critical(self, self.context.t("Erreur"), str(exc))
+            QMessageBox.critical(
+                self,
+                self.context.t("Erreur"),
+                actionable_error(exc, translate=self.context.t),
+            )
 
     def retranslate(self) -> None:
         t = self.context.t

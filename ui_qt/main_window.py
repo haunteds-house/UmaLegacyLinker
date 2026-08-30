@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from error_guidance import actionable_error
 from i18n import LANGUAGE_LABELS
 from ui_qt.accessibility import describe_control, label_control
 from ui_qt.components import ThemedComboBox
@@ -395,8 +396,13 @@ class MainWindow(QMainWindow):
         try:
             callback(result)
         except Exception as exc:
-            self.append_log(f"Erreur d’affichage : {exc}")
-            QMessageBox.critical(self, self.context.t("Erreur"), str(exc))
+            raw_message = f"Erreur d’affichage : {exc}"
+            self.append_log(raw_message)
+            QMessageBox.critical(
+                self,
+                self.context.t("Erreur"),
+                actionable_error(raw_message, translate=self.context.t),
+            )
 
     @Slot(str, str)
     def _task_error(self, message: str, trace: str) -> None:
@@ -406,7 +412,7 @@ class MainWindow(QMainWindow):
         QMessageBox.critical(
             self,
             self.context.t("L’opération a échoué"),
-            self.context.t(message),
+            actionable_error(message, translate=self.context.t),
         )
 
     def _task_finished(self, worker: FunctionWorker) -> None:
