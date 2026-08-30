@@ -7,6 +7,12 @@ from i18n import profile_label, translate_text
 from ui_qt.lineage_nodes import build_result_lineage_nodes
 from ui_qt.theme import RANK_BADGE_COLORS, SPARK_COLORS
 from ui_qt.typography import TYPE_SCALE_PT, css_point_size
+from veteran_identity import (
+    canonical_veteran_label,
+    canonical_veteran_labels,
+    format_rank_score,
+    veteran_name,
+)
 
 
 COMPONENT_LABELS = {
@@ -95,30 +101,20 @@ def _percent(value: object, digits: int = 1) -> str:
 
 
 def _identity_name(identity: dict[str, Any] | None) -> str:
-    identity = identity or {}
-    return str(identity.get("card_name") or identity.get("uma_name") or "—")
+    return veteran_name(identity)
 
 
 def _identity_meta(identity: dict[str, Any] | None) -> str:
-    """Identifiants d'une entrée, gardés hors du titre pour qu'il reste lisible.
-
-    Les candidats distants portent une clé uma.moe très longue : on ne conserve
-    que le score Uma, l'identifiant complet restant disponible via le Friend ID.
-    """
+    """Return optional score metadata; technical IDs stay out of the surface."""
     identity = identity or {}
-    trained = identity.get("trained_chara_id")
     rank_score = identity.get("rank_score")
-    metadata = []
-    if trained is not None and str(trained).isdigit():
-        metadata.append(f"#{trained}")
-    if rank_score:
-        metadata.append(str(rank_score))
-    return " / ".join(metadata)
+    if rank_score is None or rank_score == "":
+        return ""
+    return format_rank_score(rank_score)
 
 
 def _identity(identity: dict[str, Any] | None) -> str:
-    metadata = _identity_meta(identity)
-    return _identity_name(identity) + (f" · {metadata}" if metadata else "")
+    return canonical_veteran_label(identity)
 
 
 def profile_summary(profile: dict[str, Any] | None, language: str) -> str:
@@ -1394,7 +1390,7 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
     <h2>{escape(title)}</h2>
     <div class='muted'>{escape(reason)}</div>
     {_facts_table([
-        (_t('Score Uma', language), str(row.get('rank_score') or '—')),
+        (_t('Score Uma', language), format_rank_score(row.get('rank_score'))),
         (_t('Verrouillé en jeu', language), _t('Oui', language) if row.get('is_locked') else _t('Non', language)),
         (_t('Mémo', language), str(row.get('memo') or '—')),
         (_t('Copies comparables', language), int(row.get('same_card_copy_count') or 0)),
@@ -1418,12 +1414,17 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
         )
     coverage = list(row.get("covered_by_portfolio") or [])
     if coverage and not replacement:
+        coverage_labels = canonical_veteran_labels(
+            coverage,
+            rank_label=_t("Rang", language).casefold(),
+            blue_label=_t("Bleues", language).casefold(),
+        )
         html += (
             f"<h3>{escape(_t('Couverture collective', language))}</h3>"
             "<div class='replacement'>"
             + "<br>".join(
-                f"<b>{escape(_identity(item))}</b>"
-                for item in coverage
+                f"<b>{escape(label)}</b>"
+                for label in coverage_labels
             )
             + "</div>"
         )

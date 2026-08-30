@@ -25,6 +25,11 @@ This project uses feature-level semantic versioning. Small internal iterations a
   testing now follows transformed canvas coordinates, fractional Windows DPI
   scaling is preserved explicitly, and race banners remain capped at their
   native bitmap resolution at every zoom level.
+- Standardised local-veteran identity as `Card name · evaluation score` in
+  selectors, ranking tables, diagnostics and Transfer Helper exports. Internal
+  training IDs remain available as technical keys and table tooltips, but are
+  hidden by default and no longer promoted as search terms. Portfolio coverage
+  now carries the score, rank and Spark summary needed to render that identity.
 
 ## 1.8.0 - Search workspace redesign and uma.moe retrieval overhaul
 

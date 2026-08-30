@@ -26,7 +26,7 @@ import copy
 from pathlib import Path
 from typing import Any, Iterable
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -597,6 +597,11 @@ class OnlineModeSection(SummarySection):
         self.fixed_combo.clear()
         for option in self._local_options:
             self.fixed_combo.addItem(option.display_name, option.trained_chara_id)
+            self.fixed_combo.setItemData(
+                self.fixed_combo.count() - 1,
+                option.technical_tooltip,
+                Qt.ItemDataRole.ToolTipRole,
+            )
         index = self.fixed_combo.findData(selected)
         self.fixed_combo.setCurrentIndex(
             index if index >= 0 else (0 if self.fixed_combo.count() else -1)
@@ -677,6 +682,11 @@ class OnlineModeSection(SummarySection):
             self.opposing_combo.addItem(
                 f"{self.context.t('Local')} — {option.display_name}",
                 f"local:{option.trained_chara_id}",
+            )
+            self.opposing_combo.setItemData(
+                self.opposing_combo.count() - 1,
+                option.technical_tooltip,
+                Qt.ItemDataRole.ToolTipRole,
             )
         for index, member in enumerate(self._external_opposing):
             self.opposing_combo.addItem(

@@ -69,6 +69,9 @@ Verdicts are:
 
 The detail pane and JSON/CSV reports expose the retained coverage, portfolio reasons, lock/memo
 metadata, exact strict replacement when one exists and the permanent/dynamic context split.
+Local copies use the same `Card name · evaluation score` identity in selectors, tables and
+reports. The internal training ID remains in machine-readable exports and UI tooltips for joins,
+but is not used as the primary name or as a user-facing search criterion.
 
 The tool never edits the collection and never transfers or deletes anything automatically. An
 optional exhaustive audit restores all four styles and unfiltered Ace variants for occasional

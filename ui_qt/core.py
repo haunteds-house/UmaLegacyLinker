@@ -49,6 +49,10 @@ from uma_moe import (
     rank_online_grandparent_pairs,
     rank_online_parent_pairs,
 )
+from veteran_identity import (
+    canonical_veteran_label,
+    technical_veteran_tooltip,
+)
 
 
 APP_NAME = "Uma Legacy Linker"
@@ -358,8 +362,11 @@ class VeteranOption:
 
     @property
     def display_name(self) -> str:
-        score = f"{self.rank_score:,}".replace(",", " ") if self.rank_score else "?"
-        return f"{self.uma_name} — {self.card_name} — {score} — #{self.trained_chara_id}"
+        return canonical_veteran_label(self.__dict__)
+
+    @property
+    def technical_tooltip(self) -> str:
+        return technical_veteran_tooltip(self.__dict__)
 
 
 def validate_link_request(request: LinkRequest) -> None:

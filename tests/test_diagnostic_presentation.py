@@ -7,6 +7,22 @@ from ui_qt.presentation import online_detail_html, result_detail_html
 
 
 class DiagnosticPresentationTests(unittest.TestCase):
+    def test_canonical_identity_shows_zero_score_without_internal_id(self) -> None:
+        from ui_qt.presentation import transfer_detail_html
+
+        rendered = transfer_detail_html(
+            {
+                "card_name": "Tach-nology",
+                "rank_score": 0,
+                "trained_chara_id": 918273,
+                "status": "keep",
+            },
+            "fr",
+        )
+
+        self.assertIn("Tach-nology · 0", rendered)
+        self.assertNotIn("#918273", rendered)
+
     def test_future_gp_shows_per_skill_generation_gains_and_affinity_context(self) -> None:
         row = {
             "score": 73.2,

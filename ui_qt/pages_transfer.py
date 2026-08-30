@@ -35,6 +35,11 @@ from ui_qt.core import (
 )
 from ui_qt.models import Column, ResultTableModel, nested
 from ui_qt.presentation import transfer_detail_html
+from veteran_identity import (
+    canonical_veteran_label,
+    canonical_veteran_labels,
+    technical_veteran_tooltip,
+)
 
 
 RIGHT = Qt.AlignmentFlag.AlignRight
@@ -178,11 +183,41 @@ class TransferPage(QWidget):
             "keep": t("Conserver"),
             "protected": t("Protégé"),
         }
+
+        def coverage_label(row: dict[str, Any]) -> str:
+            replacement = row.get("dominated_by") or {}
+            if replacement:
+                return canonical_veteran_label(replacement)
+            coverage = list(row.get("covered_by_portfolio") or [])
+            return ", ".join(
+                canonical_veteran_labels(
+                    coverage,
+                    rank_label=t("Rang").casefold(),
+                    blue_label=t("Bleues").casefold(),
+                )
+            ) or "—"
+
+        def coverage_tooltip(row: dict[str, Any]) -> str:
+            replacement = row.get("dominated_by") or {}
+            if replacement:
+                return technical_veteran_tooltip(replacement)
+            return ", ".join(
+                tooltip
+                for tooltip in (
+                    technical_veteran_tooltip(item)
+                    for item in row.get("covered_by_portfolio") or []
+                )
+                if tooltip
+            )
+
         return [
             Column(t("Verdict"), lambda row: labels.get(str(row.get("status")), row.get("status") or "—")),
-            Column(t("Vétéran"), lambda row: row.get("card_name") or row.get("uma_name") or "—"),
-            Column(t("ID"), nested("trained_chara_id"), RIGHT),
-            Column(t("Score Uma"), nested("rank_score"), RIGHT),
+            Column(
+                t("Vétéran"),
+                canonical_veteran_label,
+                sort_getter=nested("rank_score"),
+                tooltip_getter=technical_veteran_tooltip,
+            ),
             Column(t("Copies"), nested("same_card_copy_count"), RIGHT),
             Column(t("Meilleur parent"), nested("best_parent_score"), RIGHT),
             Column(t("Rang parent"), lambda row: f"top {float(row.get('best_parent_percentile') or 100):.1f}%", RIGHT),
@@ -190,17 +225,12 @@ class TransferPage(QWidget):
             Column(t("Rang GP"), lambda row: f"top {float(row.get('best_grandparent_percentile') or 100):.1f}%", RIGHT),
             Column(
                 t("Couverture / remplaçant"),
-                lambda row: (
-                    (row.get("dominated_by") or {}).get("card_name")
-                    or ", ".join(
-                        str(item.get("trained_chara_id"))
-                        for item in row.get("covered_by_portfolio") or []
-                    )
-                    or "—"
-                ),
+                coverage_label,
+                tooltip_getter=coverage_tooltip,
             ),
             Column(t("Avance moy."), lambda row: (row.get("dominated_by") or {}).get("mean_score_lead", "—"), RIGHT),
             Column(t("Référencé par"), nested("referenced_by_local_veterans"), RIGHT),
+            Column(t("ID technique"), nested("trained_chara_id"), RIGHT),
         ]
 
     def _configure_header(self) -> None:
@@ -208,9 +238,11 @@ class TransferPage(QWidget):
         header.setMinimumSectionSize(62)
         for index in range(self.model.columnCount()):
             header.setSectionResizeMode(index, QHeaderView.ResizeMode.ResizeToContents)
-        for index in (1, 9):
+        for index in (1, 7):
             if index < self.model.columnCount():
                 header.setSectionResizeMode(index, QHeaderView.ResizeMode.Stretch)
+        if self.model.columnCount() > 10:
+            self.table.setColumnHidden(10, True)
 
     def retranslate(self) -> None:
         t = self.context.t
@@ -238,7 +270,7 @@ class TransferPage(QWidget):
         self.load_button.setText(t("Charger le dernier rapport"))
         self.open_button.setText(t("Ouvrir la sortie"))
         self.filter_label.setText(t("Afficher"))
-        self.search.setPlaceholderText(t("Rechercher un nom, un ID ou un remplaçant…"))
+        self.search.setPlaceholderText(t("Rechercher un nom, un score ou un remplaçant…"))
         self.mode_combo.setToolTip(
             t("Le mode rapide repère les redondances ; seul l’audit exhaustif peut conclure à un transfert strictement sûr.")
         )
@@ -340,12 +372,15 @@ class TransferPage(QWidget):
             if status is not None and record.get("status") != status:
                 continue
             replacement = record.get("dominated_by") or {}
+            coverage = record.get("covered_by_portfolio") or []
             haystack = " ".join(
                 str(value or "")
                 for value in (
                     record.get("card_name"), record.get("uma_name"),
-                    record.get("trained_chara_id"), replacement.get("card_name"),
-                    replacement.get("trained_chara_id"),
+                    record.get("rank_score"), replacement.get("card_name"),
+                    replacement.get("uma_name"), replacement.get("rank_score"),
+                    *(item.get("card_name") for item in coverage),
+                    *(item.get("rank_score") for item in coverage),
                 )
             ).casefold()
             if query and query not in haystack:

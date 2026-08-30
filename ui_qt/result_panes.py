@@ -48,6 +48,7 @@ from ui_qt.presentation import (
     online_detail_html,
     result_detail_html,
 )
+from veteran_identity import canonical_veteran_label, technical_veteran_tooltip
 
 RIGHT = Qt.AlignmentFlag.AlignRight
 
@@ -136,8 +137,20 @@ class ResultPane(QWidget):
             return [
                 rank,
                 score,
-                Column(t("Parent 1"), nested("parent_1", "card_name")),
-                Column(t("Parent 2"), nested("parent_2", "card_name")),
+                Column(
+                    t("Parent 1"),
+                    lambda row: canonical_veteran_label(row.get("parent_1")),
+                    tooltip_getter=lambda row: technical_veteran_tooltip(
+                        row.get("parent_1")
+                    ),
+                ),
+                Column(
+                    t("Parent 2"),
+                    lambda row: canonical_veteran_label(row.get("parent_2")),
+                    tooltip_getter=lambda row: technical_veteran_tooltip(
+                        row.get("parent_2")
+                    ),
+                ),
                 Column(t("Distance"), lambda row: distance_status(row, self.context.language)),
                 Column("P(S) %", lambda row: 100 * float((row.get("distance_s_summary") or {}).get("probability_reach_s") or 0), RIGHT),
                 Column(t("Affinité"), nested("affinity", "total"), RIGHT),
@@ -148,7 +161,11 @@ class ResultPane(QWidget):
             return [
                 rank,
                 score,
-                Column(t("Parent"), nested("card_name")),
+                Column(
+                    t("Parent"),
+                    canonical_veteran_label,
+                    tooltip_getter=technical_veteran_tooltip,
+                ),
                 Column(t("Grand-parent 1"), nested("grandparent_1")),
                 Column(t("Grand-parent 2"), nested("grandparent_2")),
                 Column(t("Distance"), lambda row: distance_status(row, self.context.language)),
@@ -158,13 +175,17 @@ class ResultPane(QWidget):
         return [
             rank,
             score,
-            Column(t("Candidat"), nested("card_name")),
-            Column(t("ID entraînement"), nested("trained_chara_id"), RIGHT),
+            Column(
+                t("Candidat"),
+                canonical_veteran_label,
+                tooltip_getter=technical_veteran_tooltip,
+            ),
             Column(t("Contribution affinité"), nested("affinity_raw"), RIGHT),
             Column(t("G1"), nested("g1_count"), RIGHT),
             Column(t("Whites"), nested("components", "white_skill"), RIGHT),
             Column(t("Bleues"), nested("components", "blue"), RIGHT),
             Column(t("Roses"), nested("components", "pink"), RIGHT),
+            Column(t("ID technique"), nested("trained_chara_id"), RIGHT),
         ]
 
     def _configure_header(self) -> None:
@@ -178,6 +199,7 @@ class ResultPane(QWidget):
             header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         else:
             header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+            self.table.setColumnHidden(8, True)
 
     def set_rows(
         self,

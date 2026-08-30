@@ -43,6 +43,9 @@ The PySide6 interface is the desktop application. It shares the engines, configu
   minimum for dense labels;
 - independent 75–200% lineage and G1-calendar zoom, remembered per view and
   available through visible controls, Ctrl+wheel and Ctrl+0;
+- one local-veteran identity (`Card name · evaluation score`) shared by
+  selectors, tables and diagnostics; technical training IDs are hidden by
+  default and retained only for tooltips, joins and machine-readable exports;
 - a fixed opposing-parent context and offline local GP-pair ranking in the uma.moe search.
 
 The lineage view retains the compact identities, Sparks and skill IDs required for rendering, then displays the White full-run probability already emitted by the scoring engine for its configured Inspiration Events. G1 planning likewise renders the engine's pair comparison: a race carried by both selected legacies is worth two future `+3` links, while a one-sided race is worth one. In future-GP mode, the engine also emits the target parent's Independent Training aptitude profile, base/effective win chances and binary cutoff result; the UI only presents those values. The solver maximises obtainable affinity with one race per turn, applies the documented penalties from the third consecutive race onward, then minimises risky streaks; fixed target-character objectives constrain the standard variant, while Trackblazer switches to a precomputed objective-free variant.
@@ -80,6 +83,7 @@ The **Windows release** GitHub Actions workflow runs the tests and visual audit,
 | --- | --- |
 | `qt_app.py` | Qt entry point |
 | `cli.py` | Headless CLI sharing the same engines |
+| `veteran_identity.py` | canonical local-veteran labels, score formatting and collision handling |
 | `ui_qt/core.py` | GUI-independent configuration and workflow orchestration |
 | `ui_qt/main_window.py` | application shell, navigation, progress and log drawer |
 | `ui_qt/pages_home_data.py` | dashboard and local linking workflow |

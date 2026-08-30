@@ -386,6 +386,10 @@ class TransferHelperPortfolioTests(unittest.TestCase):
             {item["trained_chara_id"] for item in records[2]["covered_by_portfolio"]},
             {1, 2},
         )
+        self.assertEqual(
+            {item["rank_score"] for item in records[2]["covered_by_portfolio"]},
+            {5500, 8000},
+        )
 
     def test_fast_scope_keeps_a_strict_candidate_as_a_recommendation(self) -> None:
         records = [

@@ -14,6 +14,8 @@ class Column:
     title: str
     getter: Getter
     alignment: Qt.AlignmentFlag = Qt.AlignmentFlag.AlignLeft
+    sort_getter: Getter | None = None
+    tooltip_getter: Getter | None = None
 
 
 def nested(*keys: str, default: Any = "—") -> Getter:
@@ -61,6 +63,8 @@ class ResultTableModel(QAbstractTableModel):
         if role == Qt.ItemDataRole.TextAlignmentRole:
             return int(column.alignment | Qt.AlignmentFlag.AlignVCenter)
         if role == Qt.ItemDataRole.ToolTipRole:
+            if column.tooltip_getter is not None:
+                return column.tooltip_getter(row)
             return row.get("_tooltip")
         if role == self.RawValueRole:
             return value
@@ -90,7 +94,8 @@ class ResultTableModel(QAbstractTableModel):
     def sort(self, column: int, order=Qt.SortOrder.AscendingOrder) -> None:
         if not 0 <= column < len(self._columns):
             return
-        getter = self._columns[column].getter
+        model_column = self._columns[column]
+        getter = model_column.sort_getter or model_column.getter
         self.layoutAboutToBeChanged.emit()
         self._rows.sort(
             key=lambda row: self._sort_value(getter(row)),

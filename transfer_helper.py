@@ -11,6 +11,10 @@ from pathlib import Path
 from typing import Any, Callable, Iterable
 
 from output_history import write_json_with_history
+from veteran_identity import (
+    canonical_veteran_label,
+    canonical_veteran_labels,
+)
 
 from course_presets import ordered_course_presets
 from parent_optimizer import (
@@ -1184,6 +1188,10 @@ def classify_portfolio_records(
                 {
                     "trained_chara_id": records[selected_index].get("trained_chara_id"),
                     "card_name": records[selected_index].get("card_name"),
+                    "uma_name": records[selected_index].get("uma_name"),
+                    "rank": records[selected_index].get("rank"),
+                    "rank_score": records[selected_index].get("rank_score"),
+                    "sparks": records[selected_index].get("sparks") or {},
                     "manual_protection_reasons": records[selected_index].get(
                         "manual_protection_reasons"
                     ) or [],
@@ -1388,6 +1396,7 @@ def analyze_transfer_candidates(
                 reference_counts[local_id] += 1
         record = {
             **_candidate_identity(veteran),
+            "display_name": canonical_veteran_label(veteran),
             "is_locked": bool(veteran.get("is_locked")),
             "is_saved": bool(veteran.get("is_saved")),
             "icon_type": int(veteran.get("icon_type") or 0),
@@ -1960,6 +1969,7 @@ def analyze_transfer_candidates(
                 "card_id": record.get("card_id"),
                 "uma_name": record.get("uma_name"),
                 "card_name": record.get("card_name"),
+                "display_name": canonical_veteran_label(record),
                 "rank": record.get("rank"),
                 "rank_score": record.get("rank_score"),
                 "speed": (record.get("stats") or {}).get("speed"),
@@ -1983,6 +1993,9 @@ def analyze_transfer_candidates(
                 "grandparent_distinct_profiles": ((record.get("grandparent_evidence") or {}).get("competitive_distinct_profile_count")),
                 "dominated_by_id": dominated_by.get("trained_chara_id"),
                 "dominated_by": dominated_by.get("card_name"),
+                "dominated_by_display_name": (
+                    canonical_veteran_label(dominated_by) if dominated_by else ""
+                ),
                 "mean_score_lead": dominated_by.get("mean_score_lead"),
                 "worst_context_delta": dominated_by.get("worst_context_delta"),
                 "viable_parent_comparisons": dominated_by.get("viable_parent_comparisons"),
@@ -2003,6 +2016,11 @@ def analyze_transfer_candidates(
                     for item in record.get("covered_by_portfolio") or []
                     if item.get("trained_chara_id") is not None
                 ),
+                "portfolio_coverage": "; ".join(
+                    canonical_veteran_labels(
+                        record.get("covered_by_portfolio") or []
+                    )
+                ),
             }
         )
     _write_csv(
@@ -2018,6 +2036,7 @@ def analyze_transfer_candidates(
             "card_id",
             "uma_name",
             "card_name",
+            "display_name",
             "rank",
             "rank_score",
             "speed",
@@ -2041,6 +2060,7 @@ def analyze_transfer_candidates(
             "grandparent_distinct_profiles",
             "dominated_by_id",
             "dominated_by",
+            "dominated_by_display_name",
             "mean_score_lead",
             "worst_context_delta",
             "viable_parent_comparisons",
@@ -2050,6 +2070,7 @@ def analyze_transfer_candidates(
             "spark_protection_deficits",
             "portfolio_required_for",
             "portfolio_coverage_ids",
+            "portfolio_coverage",
         ],
     )
 
@@ -2079,18 +2100,19 @@ def analyze_transfer_candidates(
         replacement = record.get("dominated_by") or {}
         if replacement:
             summary_lines.append(
-                f"- STRICT {record.get('card_name')} [{record.get('trained_chara_id')}] -> "
-                f"{replacement.get('card_name')} [{replacement.get('trained_chara_id')}] "
+                f"- STRICT {canonical_veteran_label(record)} -> "
+                f"{canonical_veteran_label(replacement)} "
                 f"(mean lead {replacement.get('mean_score_lead')})"
             )
         else:
             coverage = ", ".join(
-                f"{item.get('trained_chara_id')}"
-                for item in record.get("covered_by_portfolio") or []
+                canonical_veteran_labels(
+                    record.get("covered_by_portfolio") or []
+                )
             )
             summary_lines.append(
-                f"- RECOMMENDED {record.get('card_name')} "
-                f"[{record.get('trained_chara_id')}] — portfolio: {coverage}"
+                f"- RECOMMENDED {canonical_veteran_label(record)} — "
+                f"portfolio: {coverage}"
             )
     protected_records = [
         record
@@ -2121,8 +2143,8 @@ def analyze_transfer_candidates(
                 )
             )
         summary_lines.append(
-            f"- {record.get('card_name')} [{record.get('trained_chara_id')}] -> "
-            f"{replacement.get('card_name')} [{replacement.get('trained_chara_id')}]: "
+            f"- {canonical_veteran_label(record)} -> "
+            f"{canonical_veteran_label(replacement)}: "
             f"{protection.get('verdict_floor')} "
             f"({', '.join(protection.get('reason_codes') or [])}); "
             f"deficits: {', '.join(labels)}"
@@ -2140,13 +2162,13 @@ def analyze_transfer_candidates(
         if not replacement:
             continue
         log(
-            f"Transfert strictement sûr détaillé : {record.get('card_name')} "
-            f"[#{record.get('trained_chara_id')}] — Sparks : "
+            f"Transfert strictement sûr détaillé : {canonical_veteran_label(record)} "
+            f"— Sparks : "
             f"{((record.get('sparks') or {}).get('summary') or 'aucune')}"
         )
         log(
-            f"Remplaçant vérifié : {replacement.get('card_name')} "
-            f"[#{replacement.get('trained_chara_id')}] — Sparks : "
+            f"Remplaçant vérifié : {canonical_veteran_label(replacement)} "
+            f"— Sparks : "
             f"{((replacement.get('sparks') or {}).get('summary') or 'aucune')} — "
             f"avance moyenne {float(replacement.get('mean_score_lead') or 0):+.3f}"
         )
@@ -2164,10 +2186,9 @@ def analyze_transfer_candidates(
             for deficit in protection.get("deficits") or []
         ]
         log(
-            f"Plancher de protection Spark : {record.get('card_name')} "
-            f"[#{record.get('trained_chara_id')}] reste "
+            f"Plancher de protection Spark : {canonical_veteran_label(record)} reste "
             f"{protection.get('verdict_floor')} face à "
-            f"{replacement.get('card_name')} [#{replacement.get('trained_chara_id')}] — "
+            f"{canonical_veteran_label(replacement)} — "
             f"déficits : {', '.join(deficit_names)}"
         )
 
