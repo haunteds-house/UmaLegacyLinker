@@ -61,6 +61,11 @@ This project uses feature-level semantic versioning. Small internal iterations a
   uma.moe result tables, and the numeric curve editor. Columns now keep every
   digit on the same advance for vertical comparison without replacing the
   application typeface with a monospace font or changing stored values.
+- Reduced the default Transfer Helper table to its eight operational columns;
+  grandparent rank, reference count and technical ID remain available from the
+  persisted header menu. Mixed `top x%` rank labels now sort by their underlying
+  numeric percentile instead of lexicographically. The i18n release check also
+  rejects orphaned exact and fragment entries and exits non-zero on any issue.
 - Raised structural and Spark-chip boundaries to the WCAG 2.2 non-text
   contrast floor of 3:1, while keeping text contrast unchanged. Every Spark
   chip now carries an explicit semantic label instead of relying on hue, and

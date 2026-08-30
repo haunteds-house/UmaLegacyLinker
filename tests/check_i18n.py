@@ -9,7 +9,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from i18n import translate_text, SCORING_LABELS_FR, SCORING_LABELS_EN  # noqa: E402
+from i18n import (  # noqa: E402
+    EXACT_EN,
+    FRAGMENTS_EN,
+    SCORING_LABELS_EN,
+    SCORING_LABELS_FR,
+    translate_text,
+)
 
 FRENCH_MARKERS = re.compile(
     r"[àâäéèêëîïôöùûüçœÀÂÉÈÊËÎÏÔÖÙÛÜÇŒ]|«|»"
@@ -42,6 +48,23 @@ def fstring_template(node: ast.JoinedStr) -> str:
         else:
             parts.append("7")  # jeton neutre pour les interpolations
     return "".join(parts)
+
+
+def string_templates(node: ast.AST) -> set[str]:
+    """Expand the possible literal shapes of one dynamic string expression."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return {node.value}
+    if isinstance(node, ast.JoinedStr):
+        return {fstring_template(node)}
+    if isinstance(node, ast.IfExp):
+        return string_templates(node.body) | string_templates(node.orelse)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        return {
+            left + right
+            for left in string_templates(node.left)
+            for right in string_templates(node.right)
+        }
+    return {"7"}
 
 
 class Collector(ast.NodeVisitor):
@@ -185,6 +208,36 @@ def check_module(path: Path, contexts_filter: set[str] | None = None) -> list[tu
     return problems
 
 
+def orphaned_translation_keys() -> dict[str, list[str]]:
+    """Return translations absent from every production Python literal.
+
+    Runtime-generated messages are translated through fragments whose literal
+    chunks still occur in their f-string or concatenation source. Tests and
+    documentation intentionally do not keep a retired UI translation alive.
+    """
+    paths = [
+        *(path for path in ROOT.glob("*.py") if path.name != "i18n.py"),
+        *(ROOT / "ui_qt").glob("*.py"),
+    ]
+    literals: list[str] = []
+    for path in paths:
+        tree = ast.parse(path.read_text(encoding="utf-8-sig"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                literals.append(node.value)
+            elif isinstance(node, (ast.JoinedStr, ast.IfExp, ast.BinOp)):
+                literals.extend(string_templates(node))
+
+    return {
+        "exact": sorted(key for key in EXACT_EN if key not in literals),
+        "fragment": sorted(
+            key
+            for key in FRAGMENTS_EN
+            if not any(key in literal for literal in literals)
+        ),
+    }
+
+
 def main() -> None:
     total = 0
     # cli.py : tout ; couche Qt : tout (voir plus bas) ; moteurs : logger/raise
@@ -218,7 +271,13 @@ def main() -> None:
     for key in missing:
         total += 1
         print(f"[scoring_label] clé sans EN : {key!r} -> FR {SCORING_LABELS_FR[key]!r}")
-    print(f"\n{total} chaîne(s) sans traduction complète")
+    for family, keys in orphaned_translation_keys().items():
+        for key in keys:
+            total += 1
+            print(f"[orphan:{family}] {key!r}")
+    print(f"\n{total} problème(s) i18n")
+    if total:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

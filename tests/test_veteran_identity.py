@@ -74,7 +74,7 @@ def test_collisions_use_rank_then_blue_stars_instead_of_ids() -> None:
 def test_internal_ids_are_hidden_and_absent_from_transfer_search() -> None:
     transfer_source = Path("ui_qt/pages_transfer.py").read_text(encoding="utf-8")
     result_source = Path("ui_qt/result_panes.py").read_text(encoding="utf-8")
-    assert "default_hidden=(10,)" in transfer_source
+    assert "default_hidden=(6, 9, 10)" in transfer_source
     assert 'default_hidden=(8,) if self.kind == "future" else ()' in result_source
     filter_source = transfer_source[
         transfer_source.index("def apply_filters") : transfer_source.index(

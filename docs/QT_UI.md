@@ -36,7 +36,8 @@ The PySide6 interface is the desktop application. It shares the engines, configu
 - Transfer Helper with visible Fast/Exhaustive (slow), upcoming-CM, Team Trials and generic-profile
   controls, portfolio verdict/search filters, lock and memo protection, and embedded portfolio or
   strict-replacement diagnostics, plus explicit empty/running/current/loaded/stale report state and
-  a visible generation timestamp;
+  a visible generation timestamp; secondary rank/reference/technical columns
+  start hidden but remain available from the persisted header menu;
 - a two-pane scoring-profile editor with search, 51 gameplay subcategories, plain-language help for every setting, hover summaries and visible draft/default states;
 - unambiguous probability, threshold, multiplier and 100%-budget controls, including live donut charts for all nine genuinely normalised scoring groups;
 - live shared White Skill priority-file management across Search and Weights;

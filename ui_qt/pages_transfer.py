@@ -35,7 +35,7 @@ from ui_qt.core import (
     open_path,
     run_transfer_analysis,
 )
-from ui_qt.models import Column, ResultTableModel, nested
+from ui_qt.models import Column, ResultTableModel, nested, number
 from ui_qt.presentation import transfer_detail_html
 from ui_qt.table_typography import enable_tabular_numbers
 from ui_qt.view_state import bind_splitter_state, bind_table_view_state
@@ -201,7 +201,7 @@ class TransferPage(QWidget):
             self.table,
             self.context.store,
             "ui_table_transfer",
-            default_hidden=(10,),
+            default_hidden=(6, 9, 10),
         )
         root.addWidget(self.splitter, 1)
 
@@ -228,6 +228,10 @@ class TransferPage(QWidget):
 
     def _columns(self) -> list[Column]:
         t = self.context.t
+        parent_percentile = number("best_parent_percentile", default=100.0)
+        grandparent_percentile = number(
+            "best_grandparent_percentile", default=100.0
+        )
         labels = {
             "safe_transfer": t("Transfert strictement sûr"),
             "recommended_transfer": t("Transfert recommandé"),
@@ -272,9 +276,19 @@ class TransferPage(QWidget):
             ),
             Column(t("Copies"), nested("same_card_copy_count"), RIGHT),
             Column(t("Meilleur parent"), nested("best_parent_score"), RIGHT),
-            Column(t("Rang parent"), lambda row: f"top {float(row.get('best_parent_percentile') or 100):.1f}%", RIGHT),
+            Column(
+                t("Rang parent"),
+                lambda row: f"top {parent_percentile(row):.1f}%",
+                RIGHT,
+                sort_getter=parent_percentile,
+            ),
             Column(t("Meilleur GP"), nested("best_grandparent_score"), RIGHT),
-            Column(t("Rang GP"), lambda row: f"top {float(row.get('best_grandparent_percentile') or 100):.1f}%", RIGHT),
+            Column(
+                t("Rang GP"),
+                lambda row: f"top {grandparent_percentile(row):.1f}%",
+                RIGHT,
+                sort_getter=grandparent_percentile,
+            ),
             Column(
                 t("Couverture / remplaçant"),
                 coverage_label,

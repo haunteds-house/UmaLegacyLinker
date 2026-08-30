@@ -30,6 +30,19 @@ def nested(*keys: str, default: Any = "—") -> Getter:
     return read
 
 
+def number(*keys: str, default: float = 0.0) -> Getter:
+    """Read a nested value as a numeric sort key with a stable fallback."""
+    read = nested(*keys, default=default)
+
+    def read_number(row: dict[str, Any]) -> float:
+        try:
+            return float(read(row))
+        except (TypeError, ValueError):
+            return float(default)
+
+    return read_number
+
+
 class ResultTableModel(QAbstractTableModel):
     RawValueRole = Qt.ItemDataRole.UserRole + 1
     RowRole = Qt.ItemDataRole.UserRole + 2

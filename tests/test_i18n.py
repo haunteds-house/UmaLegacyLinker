@@ -15,8 +15,10 @@ from i18n import (
 class I18nTests(unittest.TestCase):
     def test_api_key_persistence_labels_are_translated(self) -> None:
         self.assertEqual(
-            translate_text("Mémoriser la clé sur ce PC", "en"),
-            "Remember the key on this PC",
+            translate_text(
+                "Mémoriser la clé sur ce PC — chiffrée par Windows", "en"
+            ),
+            "Remember the key on this PC — encrypted by Windows",
         )
         self.assertEqual(
             translate_text(
@@ -42,24 +44,21 @@ class I18nTests(unittest.TestCase):
             "it is not encrypted.",
         )
 
-    def test_uma_moe_filter_labels_are_translated(self) -> None:
+    def test_current_transfer_labels_are_translated(self) -> None:
         self.assertEqual(
-            translate_text("Filtres de recherche uma.moe", "en"),
-            "uma.moe search filters",
+            translate_text("Couverture / remplaçant", "en"),
+            "Coverage / replacement",
         )
-        self.assertEqual(translate_text("Surface cible", "en"), "Target surface")
-        self.assertEqual(translate_text("Étoiles blue", "en"), "Blue stars")
-        self.assertEqual(
-            translate_text("Parent opposé prévu (optionnel)", "en"),
-            "Planned opposing parent (optional)",
-        )
+        self.assertEqual(translate_text("Rang parent", "en"), "Parent rank")
+        self.assertEqual(translate_text("Rang GP", "en"), "GP rank")
+        self.assertEqual(translate_text("ID technique", "en"), "Technical ID")
 
     def test_language_labels_round_trip(self) -> None:
         self.assertEqual(language_from_label(language_label("fr")), "fr")
         self.assertEqual(language_from_label(language_label("en")), "en")
 
     def test_core_ui_translation(self) -> None:
-        self.assertEqual(translate_text("Liaison & catalogue", "en"), "Link & Catalogue")
+        self.assertEqual(translate_text("Données locales", "en"), "Local data")
         self.assertEqual(translate_text("Prêt", "en"), "Ready")
         self.assertEqual(translate_text("Prêt", "fr"), "Prêt")
 
@@ -81,8 +80,12 @@ class I18nTests(unittest.TestCase):
                 self.assertEqual(translate_text(source, "en"), expected)
 
     def test_formatted_status_translation(self) -> None:
-        source = "Terminé — 42 vétérans liés."
-        self.assertEqual(translate_text(source, "en"), "Complete — 42 veterans linked.")
+        self.assertEqual(
+            translate_text(
+                "Impossible d’invalider le cache de liaison : manifest.json", "en"
+            ),
+            "Unable to invalidate the link cache: manifest.json",
+        )
 
     def test_transfer_helper_runtime_log_translation(self) -> None:
         source = "Évaluation de 42 vétérans dans 32 contextes de profil/catégorie…"
@@ -111,11 +114,12 @@ class I18nTests(unittest.TestCase):
             "Verified replacement: Bob [#2]",
         )
 
-
     def test_polish_runtime_strings_are_translated(self) -> None:
         self.assertEqual(
-            translate_text("Friend ID copié : 123456789", "en"),
-            "Friend ID copied: 123456789",
+            translate_text(
+                "Liaison déjà à jour : réutilisation des artefacts existants.", "en"
+            ),
+            "Link data already up to date: reusing existing artifacts.",
         )
         self.assertEqual(
             translate_text(
@@ -127,69 +131,60 @@ class I18nTests(unittest.TestCase):
     def test_remaining_runtime_scoring_fragments_are_translated(self) -> None:
         samples = {
             "uma.moe : page 1, objectif 2000 candidats…": "uma.moe: page 1, target 2000 candidates…",
-            "- aptitude naturelle : B → départ : -": "- natural aptitude: B → start: -",
-            "- facteurs : 0★ / 0 porteur(s)": "- Sparks: 0★ / 0 carrier(s)",
             "Liaison : 25/125": "Linking: 25/125",
-            "Friend ID copié dans le presse-papiers": "Friend ID copied to clipboard",
+            "Comparaison exhaustive : 7 locaux × 7 distants (jusqu’à 49 paires avant exclusions).": (
+                "Exhaustive comparison: 7 local × 7 remote "
+                "(up to 49 pairs before exclusions)."
+            ),
         }
         for source, expected in samples.items():
             with self.subTest(source=source):
                 self.assertEqual(translate_text(source, "en"), expected)
 
-    def test_optimizer_detail_panel_is_fully_translated(self) -> None:
-        source = """Vertes / uniques
-Roses — détail brut
-Blues — pertinence selon la distance :
-Style — optimisation secondaire :
-Surface — optimisation secondaire :
-- dont parents directs : 1
-- procs requis pour A : 0 | pour S : 1
-Distance S — contrainte de la paire finale :
-- statut : Prête pour S (palier 4)
-Calcul du score global :
-Affinité moderne — diagnostic global :"""
-        expected = """Green / Unique Sparks
-Pink Sparks — raw detail
-Blue Sparks — relevance by distance:
-Running style — secondary optimisation:
-Surface — secondary optimisation:
-- including direct parents: 1
-- procs required for A: 0 | for S: 1
-Distance S — final-pair constraint:
-- status: Ready for S (tier 4)
-Overall score calculation:
-Modern affinity — global diagnostic:"""
-        self.assertEqual(translate_text(source, "en"), expected)
+    def test_current_transfer_and_cache_messages_are_fully_translated(self) -> None:
+        samples = {
+            "ID technique": "Technical ID",
+            "Reliaison complète demandée : le cache est ignoré.": (
+                "Full relink requested: ignoring the cache."
+            ),
+            "Remplaçant vérifié : Bob [#2]": "Verified replacement: Bob [#2]",
+        }
+        for source, expected in samples.items():
+            with self.subTest(source=source):
+                self.assertEqual(translate_text(source, "en"), expected)
 
     def test_weight_examples_are_human_readable_in_english(self) -> None:
         source = (
-            "• Blues → stat favorisée par distance : augmenter Stamina pour Long "
-            "favorise les lignées Stamina en Long."
+            "Chaque poids reste indépendant. La roue montre seulement la part "
+            "effective obtenue après normalisation du groupe."
         )
         translated = translate_text(source, "en")
-        self.assertIn("Blue Sparks", translated)
-        self.assertIn("Stamina lineages", translated)
-        self.assertNotIn("blue_stat_weights_by_distance", translated)
+        self.assertEqual(
+            translated,
+            "Each weight remains independent. The wheel only shows the effective "
+            "share after the group is normalised.",
+        )
+        self.assertNotIn("normalised_group", translated)
 
     def test_fragment_translation_does_not_retranslate_english_output(self) -> None:
         translated = translate_text(
-            "Contribution du candidat = triple(Ace, parent cible, candidat) : 12",
+            "Comparaison exhaustive : 7 locaux × 7 distants "
+            "(jusqu’à 49 paires avant exclusions).",
             "en",
         )
         self.assertEqual(
             translated,
-            "Candidate contribution = triple(Ace, target parent, candidate): 12",
+            "Exhaustive comparison: 7 local × 7 remote "
+            "(up to 49 pairs before exclusions).",
         )
-        self.assertNotIn("Candidatee", translated)
+        self.assertNotIn("remotee", translated)
 
-    def test_user_facing_terminology_avoids_card(self) -> None:
-        translated = translate_text(
-            "Un transfert n'est marqué comme sûr que si un autre exemplaire de la même carte et de la même unique n'est moins bon dans aucune niche globalement viable, y compris pour le support G1 en paire.",
-            "en",
+    def test_current_transfer_terminology_is_translated(self) -> None:
+        self.assertEqual(translate_text("ID technique", "en"), "Technical ID")
+        self.assertEqual(
+            translate_text("Couverture / remplaçant", "en"),
+            "Coverage / replacement",
         )
-        self.assertIn("costume variant", translated)
-        self.assertNotIn("same card", translated.casefold())
-        self.assertEqual(translate_text("Costume / card", "en"), "Costume / variant")
 
     def test_profile_values_remain_canonical(self) -> None:
         label = profile_label("style", "pace_chaser", "en")
