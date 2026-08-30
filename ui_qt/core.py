@@ -30,7 +30,6 @@ from scoring_config import (
     validate_skill_priorities_config,
     write_json_object,
 )
-from simulator_weights import SimulatorWeightResult, generate_simulator_weights
 from skill_catalog import SkillCatalogResult, generate_skill_catalogs
 from transfer_helper import (
     TransferHelperError,
@@ -346,14 +345,6 @@ class ExtractLinkResult:
 class CatalogRequest:
     master_path: Path
     output_dir: Path
-
-
-@dataclass(frozen=True)
-class SimulatorImportRequest:
-    master_path: Path
-    batch_path: Path
-    output_dir: Path
-    course_overrides_path: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -1196,34 +1187,4 @@ def run_catalog(
     progress(20, "Génération du catalogue skills…")
     result = generate_skill_catalogs(request.master_path, request.output_dir, logger)
     progress(100, "Catalogue généré.")
-    return result
-
-
-def run_simulator_import(
-    request: SimulatorImportRequest,
-    *,
-    logger: LogCallback,
-    progress: ProgressCallback,
-) -> SimulatorWeightResult:
-    if not request.master_path.is_file():
-        raise LinkerError("Sélectionne un master.mdb valide.")
-    if not request.batch_path.is_file():
-        raise LinkerError("Sélectionne un batch Umalator JSON valide.")
-    if request.course_overrides_path is not None and not request.course_overrides_path.is_file():
-        raise LinkerError("Sélectionne un fichier d'overrides de course valide.")
-    request.output_dir.mkdir(parents=True, exist_ok=True)
-    progress(18, "Actualisation du catalogue depuis le MDB…")
-    catalog = generate_skill_catalogs(request.master_path, request.output_dir, logger)
-    progress(58, "Normalisation des résultats Umalator…")
-    adjustments = resource_base_dir() / "default_manual_adjustments.json"
-    result = generate_simulator_weights(
-        request.batch_path,
-        catalog.skills_path,
-        catalog.weights_template_path,
-        request.output_dir,
-        manual_adjustments_path=(adjustments if adjustments.is_file() else None),
-        course_overrides_path=request.course_overrides_path,
-        logger=logger,
-    )
-    progress(100, "Import Umalator terminé.")
     return result

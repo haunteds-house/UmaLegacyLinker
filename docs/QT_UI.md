@@ -32,8 +32,7 @@ The PySide6 interface is the desktop application. It shares the engines, configu
   strict-replacement diagnostics;
 - a two-pane scoring-profile editor with search, 51 gameplay subcategories, plain-language help for every setting, hover summaries and visible draft/default states;
 - unambiguous probability, threshold, multiplier and 100%-budget controls, including live donut charts for all nine genuinely normalised scoring groups;
-- live shared White Skill priority-file management across Search and Weights,
-  plus the diagnostic Umalator importer under Settings;
+- live shared White Skill priority-file management across Search and Weights;
 - live French/English switching;
 - cooperative cancellation of long-running tasks from the status bar;
 - vendored, theme-tinted SVG icons for primary navigation, the Search context-rail
@@ -87,7 +86,7 @@ The **Windows release** GitHub Actions workflow runs the tests and visual audit,
 | `ui_qt/pages_online.py` | reusable uma.moe result explorer and costume-filter dialog |
 | `ui_qt/pages_transfer.py` | Transfer Helper analysis and diagnostics |
 | `ui_qt/pages_weights.py` | scoring and White Skill priority editor |
-| `ui_qt/pages_tools.py` | Settings: uma.moe integration and diagnostic Umalator import |
+| `ui_qt/pages_tools.py` | Settings: uma.moe integration |
 | `ui_qt/models.py` | sortable Qt table model |
 | `ui_qt/presentation.py` | safe HTML diagnostics rendering |
 | `ui_qt/asset_catalog.py` | validated GameTora trainee, support, skill and race-banner asset URLs |

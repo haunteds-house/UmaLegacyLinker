@@ -9,6 +9,11 @@ This project uses feature-level semantic versioning. Small internal iterations a
   theme-tinted Lucide SVGs. Those glyphs depended on the host's font-fallback
   chain and could render as an unrelated character (observed as a bare "j") when
   the active UI font lacked them.
+- Removed the Umalator v2 batch importer from the desktop Settings page. The
+  scoring engine has not used Umalator since V9 (manual White Skill priorities
+  drive ranking instead); the CLI diagnostic path (`--umalator-batch`) and the
+  underlying `simulator_weights` engine are unaffected. The Settings page now
+  covers uma.moe integration only.
 
 ## 1.8.0 - Search workspace redesign and uma.moe retrieval overhaul
 

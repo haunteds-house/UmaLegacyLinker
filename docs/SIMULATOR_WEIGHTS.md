@@ -1,6 +1,6 @@
 > **Legacy.** Depuis la V9, le classement n'utilise plus Umalator ; ce pipeline
-> reste disponible uniquement pour le diagnostic dans « Outils et diagnostics »
-> et via `--umalator-batch`.
+> reste disponible uniquement pour le diagnostic en CLI via `--umalator-batch`
+> (voir `cli.py`). L'import n'est plus exposé dans l'application desktop.
 
 # Poids Umalator, corrections manuelles et tracés exacts
 
