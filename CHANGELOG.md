@@ -30,6 +30,13 @@ This project uses feature-level semantic versioning. Small internal iterations a
   training IDs remain available as technical keys and table tooltips, but are
   hidden by default and no longer promoted as search terms. Portfolio coverage
   now carries the score, rank and Spark summary needed to render that identity.
+- Rebuilt the Transfer Helper detail as a verifiable decision record: parent
+  and future-grandparent verdict evidence now includes competitive/evaluated
+  contexts, distinct profiles and elite counts; every Spark is compared against
+  the strict replacement or retained portfolio; protected heritage stays
+  visible even when preserved; and all replacement aggregates, stats and
+  lineage fields are rendered. The detail pane now honours the documented
+  520 px readability floor. Per-context deltas remain a separate engine lot.
 
 ## 1.8.0 - Search workspace redesign and uma.moe retrieval overhaul
 

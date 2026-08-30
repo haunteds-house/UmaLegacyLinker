@@ -68,7 +68,10 @@ Verdicts are:
 - **Review** — incomplete or insufficiently modelled coverage requiring manual inspection.
 
 The detail pane and JSON/CSV reports expose the retained coverage, portfolio reasons, lock/memo
-metadata, exact strict replacement when one exists and the permanent/dynamic context split.
+metadata, exact strict replacement when one exists and the permanent/dynamic context split. Each
+verdict shows its competitive, evaluated, distinct-profile and elite counts. Transfer candidates
+also receive a complete Spark comparison against the strict replacement or every retained cover,
+including strategic heritage that was preserved successfully rather than only failed protections.
 Local copies use the same `Card name · evaluation score` identity in selectors, tables and
 reports. The internal training ID remains in machine-readable exports and UI tooltips for joins,
 but is not used as the primary name or as a user-facing search criterion.

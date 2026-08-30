@@ -1371,6 +1371,182 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
             )
         return "".join(rows) or f"<tr><td colspan='3'>{escape(_t('Aucun', language))}</td></tr>"
 
+    def evidence_reading(evidence: dict[str, Any]) -> str:
+        if evidence.get("elite") or evidence.get("repeated"):
+            return _t("Compétitif", language)
+        if int(evidence.get("competitive_context_count") or 0) > 0:
+            return _t("Niche étroite", language)
+        return _t("Aucun rôle compétitif", language)
+
+    def evidence_row(role: str, evidence: dict[str, Any]) -> str:
+        competitive = int(evidence.get("competitive_context_count") or 0)
+        evaluated = int(evidence.get("evaluated_context_count") or 0)
+        distinct = int(evidence.get("competitive_distinct_profile_count") or 0)
+        distinct_evaluated = int(
+            evidence.get("evaluated_distinct_profile_count") or 0
+        )
+        elite = int(evidence.get("elite_context_count") or 0)
+        competitive_text = (
+            f"{competitive} / {evaluated}" if evaluated else str(competitive)
+        )
+        distinct_text = (
+            f"{distinct} / {distinct_evaluated}"
+            if distinct_evaluated
+            else str(distinct)
+        )
+        return (
+            "<tr>"
+            f"<td><b>{escape(role)}</b></td>"
+            f"<td align='right'>{competitive_text}</td>"
+            f"<td align='right'>{distinct_text}</td>"
+            f"<td align='right'>{elite}</td>"
+            f"<td>{escape(evidence_reading(evidence))}</td>"
+            "</tr>"
+        )
+
+    spark_type_labels = {
+        "blue_stat": "Bleue",
+        "red_aptitude": "Rose",
+        "white_skill": "White",
+        "white_race": "Course",
+        "race": "Course",
+        "scenario": "Scénario",
+        "unique": "Unique",
+    }
+    spark_type_order = {
+        "blue_stat": 0,
+        "red_aptitude": 1,
+        "white_skill": 2,
+        "white_race": 3,
+        "race": 3,
+        "scenario": 4,
+        "unique": 5,
+    }
+
+    def snapshot(identity: dict[str, Any]) -> dict[tuple[str, str], int]:
+        result: dict[tuple[str, str], int] = {}
+        for factor in (identity.get("sparks") or {}).get("all") or []:
+            if not isinstance(factor, dict):
+                continue
+            factor_type = str(factor.get("type") or "unknown")
+            name = str(factor.get("name") or "").strip()
+            if not name:
+                continue
+            key = (factor_type, name)
+            result[key] = result.get(key, 0) + int(factor.get("stars") or 0)
+        return result
+
+    def spark_comparison(
+        candidate: dict[str, Any],
+        retained: list[dict[str, Any]],
+    ) -> str:
+        retained_snapshots_available = all(
+            isinstance(item.get("sparks"), dict)
+            and isinstance((item.get("sparks") or {}).get("all"), list)
+            for item in retained
+        )
+        if retained and not retained_snapshots_available:
+            return (
+                f"<p class='muted'>{escape(_t('Les Sparks des copies conservées sont absentes de cet ancien rapport ; relance l’analyse pour obtenir la comparaison.', language))}</p>"
+            )
+        candidate_sparks = snapshot(candidate)
+        retained_sparks = [snapshot(item) for item in retained]
+        retained_labels = canonical_veteran_labels(
+            retained,
+            rank_label=_t("Rang", language).casefold(),
+            blue_label=_t("Bleues", language).casefold(),
+        )
+        keys = set(candidate_sparks)
+        for item in retained_sparks:
+            keys.update(item)
+        ordered = sorted(
+            keys,
+            key=lambda key: (
+                spark_type_order.get(key[0], 99),
+                key[1].casefold(),
+            ),
+        )
+        if not ordered:
+            return f"<p class='muted'>{escape(_t('Aucune Spark disponible dans le rapport.', language))}</p>"
+        rows = []
+        for factor_type, name in ordered:
+            candidate_stars = candidate_sparks.get((factor_type, name))
+            retained_values = [
+                (label, values.get((factor_type, name)))
+                for label, values in zip(retained_labels, retained_sparks)
+                if values.get((factor_type, name)) is not None
+            ]
+            retained_text = (
+                f"{int(retained_values[0][1] or 0)}★"
+                if len(retained) == 1 and retained_values
+                else "<br>".join(
+                    f"{int(stars or 0)}★ · {escape(label)}"
+                    for label, stars in retained_values
+                )
+                if retained_values
+                else escape(_t("Absente", language))
+            )
+            candidate_text = (
+                f"{int(candidate_stars)}★"
+                if candidate_stars is not None
+                else escape(_t("Absente", language))
+            )
+            type_label = _t(
+                spark_type_labels.get(factor_type, factor_type or "Spark"),
+                language,
+            )
+            rows.append(
+                "<tr>"
+                f"<td><span class='muted'>{escape(type_label)}</span><br>"
+                f"<b>{escape(name)}</b></td>"
+                f"<td align='right'>{candidate_text}</td>"
+                f"<td>{retained_text}</td>"
+                "</tr>"
+            )
+        retained_heading = (
+            _t("Remplaçant", language)
+            if len(retained) == 1
+            else _t("Couverture conservée", language)
+        )
+        return (
+            "<table><tr>"
+            f"<td><b>{escape(_t('Spark', language))}</b></td>"
+            f"<td><b>{escape(_t('Vétéran', language))}</b></td>"
+            f"<td><b>{escape(retained_heading)}</b></td>"
+            "</tr>"
+            + "".join(rows)
+            + "</table>"
+        )
+
+    def stats_summary(identity: dict[str, Any]) -> str:
+        stats = identity.get("stats") or {}
+        fields = (
+            ("Vitesse", "speed"),
+            ("Endurance", "stamina"),
+            ("Puissance", "power"),
+            ("Cran", "guts"),
+            ("Intelligence", "wiz"),
+        )
+        values = [
+            f"{_t(label, language)} {int(stats.get(key) or 0)}"
+            for label, key in fields
+            if stats.get(key) is not None
+        ]
+        return " · ".join(values) or "—"
+
+    def lineage_summary(identity: dict[str, Any]) -> str:
+        grandparents = [
+            str(identity.get(key) or "").strip()
+            for key in ("grandparent_1", "grandparent_2")
+        ]
+        return " × ".join(value for value in grandparents if value) or "—"
+
+    def signed_number(value: object, digits: int = 3) -> str:
+        try:
+            return f"{float(value):+.{digits}f}"
+        except (TypeError, ValueError):
+            return "—"
+
     html = f"""
     <style>
       body {{ color:{PANEL['text']}; font-size:{FONT_SIZE['body']}; line-height:1.45; }}
@@ -1404,13 +1580,56 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
         ),
     ])}
     """
+    parent_evidence = row.get("parent_evidence") or {}
+    grandparent_evidence = row.get("grandparent_evidence") or {}
+    html += (
+        f"<h3>{escape(_t('Preuves du verdict', language))}</h3>"
+        "<table><tr>"
+        f"<td><b>{escape(_t('Rôle', language))}</b></td>"
+        f"<td><b>{escape(_t('Contextes compétitifs', language))}</b></td>"
+        f"<td><b>{escape(_t('Profils distincts', language))}</b></td>"
+        f"<td><b>{escape(_t('Contextes élite', language))}</b></td>"
+        f"<td><b>{escape(_t('Lecture', language))}</b></td>"
+        "</tr>"
+        + evidence_row(_t("Parent", language), parent_evidence)
+        + evidence_row(_t("Futur grand-parent", language), grandparent_evidence)
+        + "</table>"
+    )
     if replacement:
         html += (
             f"<h3>{escape(_t('Remplaçant retenu', language))}</h3><div class='replacement'>"
             f"<b>{escape(_identity(replacement))}</b><br>"
-            f"{escape(_t('Avance moyenne', language))}: +{_number(replacement.get('mean_score_lead'), 3)} · "
-            f"{escape(_t('Pire écart observé', language))}: {_number(replacement.get('worst_context_delta'), 3)}"
-            "</div>"
+            + _facts_table(
+                [
+                    (
+                        _t("Avance moyenne", language),
+                        signed_number(replacement.get("mean_score_lead")),
+                    ),
+                    (
+                        _t("Pire écart observé", language),
+                        signed_number(replacement.get("worst_context_delta")),
+                    ),
+                    (
+                        _t("Meilleur écart observé", language),
+                        signed_number(replacement.get("best_context_delta")),
+                    ),
+                    (
+                        _t("Comparaisons parent viables", language),
+                        int(replacement.get("viable_parent_comparisons") or 0),
+                    ),
+                    (
+                        _t("Comparaisons grand-parent viables", language),
+                        int(
+                            replacement.get("viable_grandparent_comparisons")
+                            or 0
+                        ),
+                    ),
+                    (_t("Rang en jeu", language), replacement.get("rank") or "—"),
+                    (_t("Stats", language), stats_summary(replacement)),
+                    (_t("Lignée", language), lineage_summary(replacement)),
+                ]
+            )
+            + "</div>"
         )
     coverage = list(row.get("covered_by_portfolio") or [])
     if coverage and not replacement:
@@ -1439,7 +1658,81 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
             )
             + "</table>"
         )
+    retained = [replacement] if replacement else coverage
+    if retained:
+        html += (
+            f"<h3>{escape(_t('Comparaison complète des Sparks', language))}</h3>"
+            f"<p class='muted'>{escape(_t('Toutes les Sparks du vétéran sont comparées au remplaçant ou aux copies conservées ; ce tableau reste visible même quand le transfert est recommandé.', language))}</p>"
+            + spark_comparison(row, retained)
+        )
     protection = row.get("spark_protection") or {}
+
+    def heritage_metrics(item: dict[str, Any]) -> str:
+        if not item.get("present"):
+            return _t("Absente", language)
+        values = [
+            _t("{count} porteur(s)", language).replace(
+                "{count}", str(int(item.get("carrier_count") or 0))
+            ),
+            f"{int(item.get('total_stars') or 0)}★",
+            f"P={_percent(item.get('neutral_probability'), 1)}",
+        ]
+        if item.get("direct"):
+            values.append(
+                _t("directe {stars}★", language).replace(
+                    "{stars}", str(int(item.get("direct_total_stars") or 0))
+                )
+            )
+        generation_count = int(
+            item.get("white_generation_carrier_count") or 0
+        )
+        if generation_count:
+            values.append(
+                _t("génération ×{count}", language).replace(
+                    "{count}", str(generation_count)
+                )
+            )
+        support_count = item.get("direct_support_hint_card_count")
+        if isinstance(support_count, int) and not isinstance(support_count, bool):
+            values.append(
+                _t("{count} support(s) avec hint direct", language).replace(
+                    "{count}", str(support_count)
+                )
+            )
+        return " · ".join(values)
+
+    protected_skill_rows = []
+    protected_comparisons = list(protection.get("protected_skills") or [])
+    if not protected_comparisons:
+        protected_comparisons = [
+            deficit
+            for deficit in protection.get("deficits") or []
+            if deficit.get("kind") == "skill"
+        ]
+    for comparison in protected_comparisons:
+        preserved = bool(comparison.get("preserved_by_replacement"))
+        protected_skill_rows.append(
+            "<tr>"
+            f"<td><b>{escape(str(comparison.get('name') or comparison.get('catalog_key') or '—'))}</b></td>"
+            f"<td>{escape(heritage_metrics(comparison.get('candidate') or {}))}</td>"
+            f"<td>{escape(heritage_metrics(comparison.get('replacement') or {}))}</td>"
+            f"<td>{escape(_t('Préservée' if preserved else 'Non préservée', language))}</td>"
+            "</tr>"
+        )
+    if protected_skill_rows:
+        html += (
+            f"<h3>{escape(_t('Patrimoine protégé comparé', language))}</h3>"
+            f"<p class='muted'>{escape(_t('Les protections stratégiques restent détaillées même lorsqu’elles sont correctement couvertes.', language))}</p>"
+            "<table><tr>"
+            f"<td><b>{escape(_t('Spark concernée', language))}</b></td>"
+            f"<td><b>{escape(_t('Vétéran', language))}</b></td>"
+            f"<td><b>{escape(_t('Remplaçant', language))}</b></td>"
+            f"<td><b>{escape(_t('État', language))}</b></td>"
+            "</tr>"
+            + "".join(protected_skill_rows)
+            + "</table>"
+        )
+
     if protection.get("applied"):
         reason_labels = {
             "protected_repeated_white_spark": "White répétée",
@@ -1449,41 +1742,6 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
             "protected_package_not_preserved_by_replacement": "Package non préservé",
         }
 
-        def heritage_metrics(item: dict[str, Any]) -> str:
-            if not item.get("present"):
-                return _t("Absente", language)
-            values = [
-                _t("{count} porteur(s)", language).replace(
-                    "{count}", str(int(item.get("carrier_count") or 0))
-                ),
-                f"{int(item.get('total_stars') or 0)}★",
-                f"P={_percent(item.get('neutral_probability'), 1)}",
-            ]
-            if item.get("direct"):
-                values.append(
-                    _t("directe {stars}★", language).replace(
-                        "{stars}", str(int(item.get("direct_total_stars") or 0))
-                    )
-                )
-            generation_count = int(
-                item.get("white_generation_carrier_count") or 0
-            )
-            if generation_count:
-                values.append(
-                    _t("génération ×{count}", language).replace(
-                        "{count}", str(generation_count)
-                    )
-                )
-            support_count = item.get("direct_support_hint_card_count")
-            if isinstance(support_count, int) and not isinstance(support_count, bool):
-                values.append(
-                    _t("{count} support(s) avec hint direct", language).replace(
-                        "{count}", str(support_count)
-                    )
-                )
-            return " · ".join(values)
-
-        skill_rows = []
         package_rows = []
         package_labels = {
             "general_backliner": _t("Noyau polyvalent des backliners", language),
@@ -1493,13 +1751,6 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
         }
         for deficit in protection.get("deficits") or []:
             if deficit.get("kind") == "skill":
-                skill_rows.append(
-                    "<tr>"
-                    f"<td><b>{escape(str(deficit.get('name') or deficit.get('catalog_key') or '—'))}</b></td>"
-                    f"<td>{escape(heritage_metrics(deficit.get('candidate') or {}))}</td>"
-                    f"<td>{escape(heritage_metrics(deficit.get('replacement') or {}))}</td>"
-                    "</tr>"
-                )
                 continue
             missing = [
                 str(key).replace("_", " ").title()
@@ -1545,17 +1796,6 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
             f"<br><span class='muted'>{escape(' · '.join(labels))}</span>"
             "</div>"
         )
-        if skill_rows:
-            html += (
-                f"<h3>{escape(_t('Sparks non préservées', language))}</h3>"
-                "<table><tr>"
-                f"<td><b>{escape(_t('Spark concernée', language))}</b></td>"
-                f"<td><b>{escape(_t('Vétéran', language))}</b></td>"
-                f"<td><b>{escape(_t('Remplaçant', language))}</b></td>"
-                "</tr>"
-                + "".join(skill_rows)
-                + "</table>"
-            )
         if package_rows:
             html += (
                 f"<h3>{escape(_t('Packages non préservés', language))}</h3>"

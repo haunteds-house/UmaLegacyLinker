@@ -610,6 +610,10 @@ def _role_evidence(
         str(profile.get("course_key") or profile.get("context_key") or "")
         for profile in competitive
     }
+    evaluated_profiles = {
+        str(profile.get("course_key") or profile.get("context_key") or "")
+        for profile in profiles
+    }
     repeated = (
         len(competitive) >= minimum_competitive_contexts
         and len(distinct_profiles) >= minimum_distinct_profiles
@@ -620,6 +624,8 @@ def _role_evidence(
         "competitive_context_count": len(competitive),
         "competitive_distinct_profile_count": len(distinct_profiles),
         "elite_context_count": len(elite),
+        "evaluated_context_count": len(profiles),
+        "evaluated_distinct_profile_count": len(evaluated_profiles),
     }
 
 

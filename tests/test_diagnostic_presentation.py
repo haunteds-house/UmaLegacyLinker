@@ -7,6 +7,96 @@ from ui_qt.presentation import online_detail_html, result_detail_html
 
 
 class DiagnosticPresentationTests(unittest.TestCase):
+    def test_transfer_diagnostic_exposes_verdict_and_replacement_evidence(self) -> None:
+        from ui_qt.presentation import transfer_detail_html
+
+        protected = {
+            "present": True,
+            "carrier_count": 2,
+            "total_stars": 5,
+            "neutral_probability": 0.267,
+        }
+        row = {
+            "card_name": "Candidate",
+            "rank_score": 9000,
+            "status": "safe_transfer",
+            "reason_code": "strictly_dominated_same_card",
+            "sparks": {
+                "all": [
+                    {"type": "blue_stat", "name": "Speed", "stars": 3},
+                    {"type": "white_skill", "name": "Nimble Navigator", "stars": 2},
+                ]
+            },
+            "parent_evidence": {
+                "elite": True,
+                "repeated": True,
+                "competitive_context_count": 7,
+                "competitive_distinct_profile_count": 3,
+                "elite_context_count": 2,
+                "evaluated_context_count": 21,
+                "evaluated_distinct_profile_count": 7,
+            },
+            "grandparent_evidence": {
+                "elite": False,
+                "repeated": False,
+                "competitive_context_count": 1,
+                "competitive_distinct_profile_count": 1,
+                "elite_context_count": 0,
+                "evaluated_context_count": 21,
+                "evaluated_distinct_profile_count": 7,
+            },
+            "dominated_by": {
+                "card_name": "Replacement",
+                "rank_score": 10000,
+                "rank": "UG5",
+                "stats": {
+                    "speed": 1200,
+                    "stamina": 800,
+                    "power": 1000,
+                    "guts": 600,
+                    "wiz": 900,
+                },
+                "grandparent_1": "GP One",
+                "grandparent_2": "GP Two",
+                "sparks": {
+                    "all": [
+                        {"type": "blue_stat", "name": "Speed", "stars": 2},
+                        {"type": "white_skill", "name": "Corner Adept", "stars": 3},
+                    ]
+                },
+                "mean_score_lead": 2.5,
+                "worst_context_delta": 0.5,
+                "best_context_delta": 4.25,
+                "viable_parent_comparisons": 21,
+                "viable_grandparent_comparisons": 14,
+            },
+            "spark_protection": {
+                "applied": False,
+                "protected_skills": [
+                    {
+                        "name": "Nimble Navigator",
+                        "candidate": protected,
+                        "replacement": protected,
+                        "preserved_by_replacement": True,
+                    }
+                ],
+            },
+        }
+
+        rendered = transfer_detail_html(row, "en")
+
+        self.assertIn("Verdict evidence", rendered)
+        self.assertIn("7 / 21", rendered)
+        self.assertIn("3 / 7", rendered)
+        self.assertIn("Best observed delta", rendered)
+        self.assertIn("+4.250", rendered)
+        self.assertIn("Viable parent comparisons", rendered)
+        self.assertIn("GP One × GP Two", rendered)
+        self.assertIn("Complete Spark comparison", rendered)
+        self.assertIn("Corner Adept", rendered)
+        self.assertIn("Protected heritage comparison", rendered)
+        self.assertIn("Preserved", rendered)
+
     def test_canonical_identity_shows_zero_score_without_internal_id(self) -> None:
         from ui_qt.presentation import transfer_detail_html
 

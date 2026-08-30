@@ -5,12 +5,39 @@ import unittest
 from transfer_helper import (
     DominanceAccumulator,
     _factor_snapshot,
+    _role_evidence,
     _select_portfolio,
     _update_group_dominance_for_scores,
     classify_portfolio_records,
     classify_transfer_records,
     comparison_group_key,
 )
+
+
+def test_role_evidence_keeps_verdict_denominators() -> None:
+    profiles = [
+        {
+            "score": 80.0 if index < 2 else 70.0,
+            "utility": 0.95 if index < 2 else 0.85,
+            "course_key": f"course_{index % 3}",
+        }
+        for index in range(6)
+    ]
+    evidence = _role_evidence(
+        profiles,
+        elite_utility_floor=0.92,
+        competitive_utility_floor=0.82,
+        competitive_score_floor=67.5,
+        minimum_absolute_floor_ratio=0.8,
+        minimum_competitive_contexts=3,
+        minimum_distinct_profiles=2,
+    )
+
+    assert evidence["competitive_context_count"] == 6
+    assert evidence["competitive_distinct_profile_count"] == 3
+    assert evidence["elite_context_count"] == 2
+    assert evidence["evaluated_context_count"] == 6
+    assert evidence["evaluated_distinct_profile_count"] == 3
 
 
 class TransferHelperClassificationTests(unittest.TestCase):

@@ -72,6 +72,10 @@ class TransferGuidanceTests(unittest.TestCase):
             with self.subTest(source=source):
                 self.assertNotEqual(translate_text(source, "en"), source)
 
+    def test_transfer_detail_has_the_documented_readable_width(self) -> None:
+        self.assertIn("self.detail.setMinimumWidth(520)", self.source)
+        self.assertIn("splitter.setSizes([700, 560])", self.source)
+
 
 class FinalPolishSourceTests(unittest.TestCase):
     def test_main_window_constructs_pages_lazily_and_owns_shortcuts(self) -> None:
