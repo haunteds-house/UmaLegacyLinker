@@ -1252,7 +1252,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.application.processEvents()
             self.assertTrue(search.import_button.isVisible())
             self.assertTrue(search.local_gp_pairs_button.isVisible())
-            self.assertEqual(search.import_button.text(), "Reclasser un JSON…")
+            self.assertEqual(search.import_button.text(), "Reclasser JSON…")
             self.assertIn("sans appel à l’API", search.import_button.toolTip())
 
             local_profile = {
@@ -1593,7 +1593,9 @@ class QtRuntimeSmokeTests(unittest.TestCase):
         self.assertFalse(isValid(widget))
 
     def test_layout_audit_uses_qt_control_content_rects(self) -> None:
-        from PySide6.QtWidgets import QLabel, QPushButton
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QIcon, QPixmap
+        from PySide6.QtWidgets import QLabel, QPushButton, QToolButton
 
         from ui_qt.layout_audit import _button_text_width, _text_overflow
         from ui_qt.theme import application_stylesheet
@@ -1608,6 +1610,15 @@ class QtRuntimeSmokeTests(unittest.TestCase):
         button = QPushButton("Exactly fitted button")
         button.resize(320, button.sizeHint().height())
         button.show()
+
+        icon_only = QToolButton()
+        pixmap = QPixmap(16, 16)
+        pixmap.fill(Qt.GlobalColor.white)
+        icon_only.setIcon(QIcon(pixmap))
+        icon_only.setText("Accessible text that is intentionally not painted")
+        icon_only.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        icon_only.resize(24, 24)
+        icon_only.show()
         self.application.processEvents()
         label_chrome_width = label.width() - label.contentsRect().width()
         label_text_width = label.fontMetrics().horizontalAdvance(label.text())
@@ -1619,13 +1630,17 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
         self.assertFalse(_text_overflow(label))
         self.assertFalse(_text_overflow(button))
+        self.assertFalse(_text_overflow(icon_only))
 
         label.resize(label.width() - 1, label.height())
         button.resize(button.width() - 1, button.height())
         self.assertTrue(_text_overflow(label))
         self.assertTrue(_text_overflow(button))
+        icon_only.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.assertTrue(_text_overflow(icon_only))
         label.close()
         button.close()
+        icon_only.close()
 
     def test_narrow_layouts_fit_the_audited_content_width(self) -> None:
         from ui_qt.context import AppContext
@@ -1653,9 +1668,9 @@ class QtRuntimeSmokeTests(unittest.TestCase):
                         _text_overflow(window._pages["data"].extractor_label)
                     )
 
-                    weights = window._pages["weights"]
                     window.show_page("weights")
                     self.application.processEvents()
+                    weights = window._pages["weights"]
                     self.assertFalse(_text_overflow(weights.changed_only))
                     self.assertFalse(_text_overflow(weights.show_advanced))
 
@@ -1670,8 +1685,9 @@ class QtRuntimeSmokeTests(unittest.TestCase):
                         f"{language}/search: {issues}",
                     )
 
-                    transfer = window._pages["transfer"]
                     window.show_page("transfer")
+                    self.application.processEvents()
+                    transfer = window._pages["transfer"]
                     for width in (1120, 1366):
                         window.resize(width, 720 if width == 1120 else 768)
                         self.application.processEvents()

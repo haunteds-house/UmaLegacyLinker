@@ -4,6 +4,12 @@ This project uses feature-level semantic versioning. Small internal iterations a
 
 ## Unreleased
 
+- Restored the complete Windows release quality gate after the UI audit stack:
+  semantic Spark labels are reflected in the rich-text contracts, all current
+  expert labels have explicit English coverage, lazy pages are constructed
+  before narrow-layout assertions, icon-only tool buttons no longer generate
+  false text-overflow failures, and the JSON re-ranking action fits beside the
+  expanded Search context rail.
 - Added explicit side-by-side comparison without changing any stored score or
   verdict. Search can compare any two candidates from its active result family;
   Search and Transfer Helper can compare stable identities across the current

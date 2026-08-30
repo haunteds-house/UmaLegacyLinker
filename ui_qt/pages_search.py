@@ -1471,7 +1471,7 @@ class SearchPage(QWidget):
         self.compare_button.setToolTip(
             t("Compare côte à côte deux candidats du résultat affiché.")
         )
-        self.import_button.setText(t("Reclasser un JSON…"))
+        self.import_button.setText(t("Reclasser JSON…"))
         self.import_button.setToolTip(
             t(
                 "Reclasse une réponse JSON uma.moe déjà téléchargée avec les réglages actuels, sans appel à l’API."

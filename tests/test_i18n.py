@@ -64,7 +64,7 @@ class I18nTests(unittest.TestCase):
 
     def test_audited_command_labels_are_translated(self) -> None:
         samples = {
-            "Reclasser un JSON…": "Re-rank a JSON file…",
+            "Reclasser JSON…": "Re-rank JSON…",
             "Reclasse une réponse JSON uma.moe déjà téléchargée avec les réglages actuels, sans appel à l’API.": "Re-ranks an already downloaded uma.moe JSON response using the current settings, without calling the API.",
             "Exporter le profil…": "Export profile…",
             "Rétablir tout": "Restore all",

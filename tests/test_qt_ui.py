@@ -533,10 +533,13 @@ class QtUiCoreTests(unittest.TestCase):
         self.assertIn("Medium", rendered)
         self.assertIn("Pace Chaser", rendered)
         self.assertIn("<b>9★</b>", rendered)
-        self.assertIn(">Speed</td>", rendered)
+        self.assertIn("[Stat]</span>&nbsp;Speed</td>", rendered)
         self.assertIn(">×3</td>", rendered)
         self.assertIn("Corner Adept", rendered)
-        self.assertEqual(rendered.count(">Corner Adept</td>"), 1)
+        self.assertEqual(
+            rendered.count("[White]</span>&nbsp;Corner Adept</td>"),
+            1,
+        )
         self.assertIn("<b>4★</b>", rendered)
         # 1 - (1 - 0.2298) × (1 - 0.1565) = 0.3503 : probabilité qu'au moins un
         # des deux porteurs de la branche fasse procer la skill sur la run.
@@ -729,7 +732,7 @@ class QtUiCoreTests(unittest.TestCase):
         rendered = online_detail_html(row, "parent", "en")
         self.assertIn("Spark summary by parent", rendered)
         self.assertIn("<b>9★</b>", rendered)
-        self.assertIn(">Stamina</td>", rendered)
+        self.assertIn("[Stat]</span>&nbsp;Stamina</td>", rendered)
         self.assertIn(">×3</td>", rendered)
         self.assertIn("present on the direct parent", rendered)
 
@@ -737,7 +740,6 @@ class QtUiCoreTests(unittest.TestCase):
         sources = (
             "Vue d’ensemble",
             "Données locales",
-            "Résultats intégrés",
             "Calcul du score global",
             "Sélectionne une ligne pour afficher le diagnostic.",
             "Recherche locale et uma.moe",
@@ -1278,7 +1280,7 @@ class QtUiCoreTests(unittest.TestCase):
             "Transfer Helper", "Score", "Trainer", "Surface", "Distance", "Distance S",
             "Whites", "ID", "Copies", "Minimum pink", "Parent", "Parent 1", "Parent 2", "Local",
             "G1", "Points", "Aptitude", "Sparks", "Export", "Verdict", "base",
-            "Support",
+            "Support", "Spark", "Stats",
             "Fichier introuvable", "Profil par défaut actif", "Profil personnalisé actif",
         }
         missing: list[str] = []

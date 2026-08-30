@@ -120,7 +120,7 @@ EXACT_EN: dict[str, str] = {
     "Valeur active": "Active value",
     "Valeur par défaut": "Default value",
     "Importer…": "Import…",
-    "Reclasser un JSON…": "Re-rank a JSON file…",
+    "Reclasser JSON…": "Re-rank JSON…",
     "Reclasse une réponse JSON uma.moe déjà téléchargée avec les réglages actuels, sans appel à l’API.": "Re-ranks an already downloaded uma.moe JSON response using the current settings, without calling the API.",
     "Rétablir tout": "Restore all",
     "Exporter…": "Export…",
@@ -1541,6 +1541,8 @@ FRAGMENTS_EN.update({
     "Classement JSON invalide : ": "Invalid ranking JSON: ",
     "Type de recherche locale invalide": "Invalid local search type",
     "Portefeuille impossible à couvrir pour ": "Unable to cover portfolio for ",
+    " · courbe de P(S)": " · P(S) curve",
+    " · score des départs A/B": " · A/B starting-rank score",
 })
 
 _FRAGMENTS_EN_PATTERN = re.compile(
@@ -1555,6 +1557,8 @@ EXACT_EN.update({
     "Erreur IPC backend invalide.": "Invalid backend IPC error message.",
     "Type de recherche locale invalide.": "Invalid local search type.",
     "Recherche de lignées": "Lineage Search",
+    "Parents distants": "Remote parents",
+    "Grands-parents distants": "Remote grandparents",
     "Configure les intégrations stables et retrouve les outils techniques secondaires.": "Configure stable integrations and access secondary technical tools.",
     "Intégration uma.moe": "uma.moe integration",
     "L’URL et la clé sont utilisées par toutes les recherches distantes. Elles ne modifient jamais les pondérations du score.": "The URL and key are used by every remote search. They never change scoring weights.",

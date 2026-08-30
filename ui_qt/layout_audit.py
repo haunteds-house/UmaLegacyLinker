@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QStyle,
     QStyleOptionButton,
     QTextBrowser,
+    QToolButton,
     QWidget,
 )
 
@@ -103,6 +104,16 @@ def _text_overflow(widget: QWidget) -> bool:
         required = widget.fontMetrics().horizontalAdvance(text)
         return required > widget.contentsRect().width()
     if isinstance(widget, QAbstractButton):
+        if (
+            isinstance(widget, QToolButton)
+            and widget.toolButtonStyle()
+            == Qt.ToolButtonStyle.ToolButtonIconOnly
+            and not widget.icon().isNull()
+        ):
+            # Qt keeps a text label for accessibility and tooltips even when
+            # an icon-only tool button never paints it. Measuring that hidden
+            # label produces a false overflow on every audited viewport.
+            return False
         text = _plain_button_text(widget.text())
         if not text or "\n" in text:
             return False

@@ -32,6 +32,7 @@ WHITELIST_EQUAL = {
     "Turf", "Dirt", "Sprint", "Mile", "Medium", "Long", "Front Runner", "Pace Chaser",
     "Late Surger", "End Closer", "uma.moe", "Transfer Helper", "UmaLegacyLinker",
     "Trainer", "Score", "Distance", "Style", "Whites", "Blues", "Uniques", "Pinks",
+    "Spark", "Stats",
     "data.json", "master.mdb", "—", "-", "#", "%", "…", "P(S)", "P(A+)", "Surface P(A+)",
 }
 
