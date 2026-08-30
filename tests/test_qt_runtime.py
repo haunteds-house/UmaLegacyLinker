@@ -1707,6 +1707,8 @@ class QtRuntimeSmokeTests(unittest.TestCase):
                 _dispose_widget(window, self.application)
 
     def test_lineage_dialog_renders_complete_pair_without_network(self) -> None:
+        from PySide6.QtCore import Qt
+
         from ui_qt.context import AppContext
         from ui_qt.core import SettingsStore
         from ui_qt.lineage_view import LineageDialog
@@ -1788,6 +1790,10 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             dialog.resize(1120, 720)
             dialog.show()
             self.application.processEvents()
+            self.assertTrue(
+                dialog.windowFlags() & Qt.WindowType.WindowMaximizeButtonHint
+            )
+            self.assertTrue(dialog.tree_scroll.widgetResizable())
             self.assertFalse(dialog.online_toggle.isChecked())
             self.assertEqual(len(dialog.tree.nodes), 7)
             self.assertEqual(dialog.tabs.count(), 2)
@@ -1799,8 +1805,36 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.assertAlmostEqual(white["proc_probability_over_run"], 0.246576)
             self.assertTrue(white["is_score_priority"])
             self.assertIn("Inspiration Events", dialog.spark_legend.text())
+            dialog.resize(1800, 900)
             dialog.tree.set_zoom(MIN_ZOOM)
             self.application.processEvents()
+            self.assertGreater(
+                dialog.tree._logical_canvas_width(),
+                float(dialog.tree.BASE_WIDTH),
+            )
+            wide_rects = dialog.tree._layout_rects()
+            self.assertGreaterEqual(wide_rects["p1"].width(), 800.0)
+            self.assertGreaterEqual(wide_rects["p1-1"].width(), 450.0)
+            self.assertLessEqual(
+                wide_rects["p2-2"].right() - wide_rects["p1-1"].left(),
+                dialog.tree.MAX_LAYOUT_WIDTH,
+            )
+            self.assertAlmostEqual(
+                wide_rects["p1"].center().x(),
+                (
+                    wide_rects["p1-1"].center().x()
+                    + wide_rects["p1-2"].center().x()
+                )
+                / 2.0,
+            )
+            self.assertAlmostEqual(
+                wide_rects["p2"].center().x(),
+                (
+                    wide_rects["p2-1"].center().x()
+                    + wide_rects["p2-2"].center().x()
+                )
+                / 2.0,
+            )
             self.assertTrue(dialog.tree._spark_rects)
             spark_rects = [rect for rect, _position, _factor in dialog.tree._spark_rects]
             self.assertTrue(

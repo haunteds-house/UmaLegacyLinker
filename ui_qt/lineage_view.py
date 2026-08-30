@@ -228,6 +228,7 @@ class LineageTree(ZoomableCanvas):
     """Scrollable top-down lineage diagram with rich Spark cards."""
 
     BASE_WIDTH = 1560
+    MAX_LAYOUT_WIDTH = 2320.0
 
     def __init__(
         self,
@@ -257,7 +258,11 @@ class LineageTree(ZoomableCanvas):
         self._height_timer.setSingleShot(True)
         self._height_timer.timeout.connect(self._apply_scheduled_height)
         self.setMouseTracking(True)
-        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        # Keep a minimum logical canvas width for small windows, but let the
+        # tree consume any extra viewport width. This is especially valuable
+        # at 75-90 % zoom: wider cards wrap their Spark chips onto fewer rows
+        # instead of leaving large empty gutters around a narrow fixed canvas.
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._apply_zoom_geometry()
         self.repository.image_ready.connect(self._image_ready)
         self.repository.image_failed.connect(self._image_failed)
@@ -271,7 +276,14 @@ class LineageTree(ZoomableCanvas):
         )
 
     def _apply_zoom_geometry(self) -> None:
-        self.setFixedSize(self.sizeHint())
+        self.setMinimumWidth(scaled_dimension(self.BASE_WIDTH, self._zoom))
+        self.setFixedHeight(scaled_dimension(self._logical_height, self._zoom))
+
+    def _logical_canvas_width(self) -> float:
+        # QScrollArea may stretch the widget beyond its sizeHint. Painting is
+        # performed in logical coordinates after painter.scale(zoom), so map
+        # the actual rendered width back to that coordinate system.
+        return max(float(self.BASE_WIDTH), float(self.width()) / self._zoom)
 
     def retranslate(self) -> None:
         t = self.context.t
@@ -418,7 +430,14 @@ class LineageTree(ZoomableCanvas):
             self.updateGeometry()
 
     def _layout_rects(self) -> dict[str, QRectF]:
-        width = float(self.BASE_WIDTH)
+        canvas_width = self._logical_canvas_width()
+        # Use most of a maximized viewport instead of collapsing back to the
+        # legacy 1560 px tree, while still capping the lineage on very wide
+        # monitors. At 75 % zoom on a 1920 px-wide window this gives the tree
+        # about 1740 rendered pixels: enough room for wider cards without the
+        # extreme branch separation produced by an uncapped full-width layout.
+        width = min(canvas_width, self.MAX_LAYOUT_WIDTH)
+        origin_x = (canvas_width - width) / 2.0
         margin = 42.0
         direct_positions = (
             ("p1",)
@@ -431,41 +450,90 @@ class LineageTree(ZoomableCanvas):
             for position in (f"{direct}-1", f"{direct}-2")
         )
 
-        target = QRectF((width - 470.0) / 2.0, 42.0, 470.0, self._card_height("target", 470.0))
+        target = QRectF(
+            origin_x + (width - 470.0) / 2.0,
+            42.0,
+            470.0,
+            self._card_height("target", 470.0),
+        )
         parent_y = target.bottom() + 94.0
-        parent_width = 760.0 if len(direct_positions) == 1 else 600.0
-        parent_gap = 86.0
-        parent_heights = [self._card_height(position, parent_width) for position in direct_positions]
-        parent_height = max(parent_heights, default=180.0)
-        pair_width = parent_width * len(direct_positions) + parent_gap * (len(direct_positions) - 1)
-        parent_x = (width - pair_width) / 2.0
-
         rects: dict[str, QRectF] = {"target": target}
-        for index, position in enumerate(direct_positions):
-            rects[position] = QRectF(
-                parent_x + index * (parent_width + parent_gap),
-                parent_y,
-                parent_width,
-                parent_height,
-            )
 
-        gp_y = parent_y + parent_height + 98.0
-        gp_gap = 28.0 if len(gp_positions) == 2 else 22.0
-        gp_width = min(
-            520.0,
-            (width - 2 * margin - max(0, len(gp_positions) - 1) * gp_gap)
-            / max(1, len(gp_positions)),
-        )
-        gp_group_width = gp_width * len(gp_positions) + gp_gap * (len(gp_positions) - 1)
-        gp_x = (width - gp_group_width) / 2.0
-        gp_height = max(
-            (self._card_height(position, gp_width) for position in gp_positions),
-            default=180.0,
-        )
-        for index, position in enumerate(gp_positions):
-            rects[position] = QRectF(
-                gp_x + index * (gp_width + gp_gap), gp_y, gp_width, gp_height
+        if len(direct_positions) == 2:
+            # Build two explicit branch columns. The parent is centered over
+            # its own two grandparents, so widening the viewport cannot pull
+            # the generations out of alignment.
+            branch_gap = 34.0
+            inner_left = origin_x + margin
+            inner_width = width - 2.0 * margin
+            branch_width = (inner_width - branch_gap) / 2.0
+            parent_width = min(860.0, max(620.0, branch_width * 0.84))
+            parent_heights = [
+                self._card_height(position, parent_width)
+                for position in direct_positions
+            ]
+            parent_height = max(parent_heights, default=180.0)
+            branch_lefts = (
+                inner_left,
+                inner_left + branch_width + branch_gap,
             )
+            for position, branch_left in zip(direct_positions, branch_lefts):
+                rects[position] = QRectF(
+                    branch_left + (branch_width - parent_width) / 2.0,
+                    parent_y,
+                    parent_width,
+                    parent_height,
+                )
+
+            gp_y = parent_y + parent_height + 98.0
+            gp_gap = 22.0
+            gp_width = min(500.0, (branch_width - gp_gap) / 2.0)
+            gp_height = max(
+                (self._card_height(position, gp_width) for position in gp_positions),
+                default=180.0,
+            )
+            for branch_index, direct in enumerate(direct_positions):
+                branch_left = branch_lefts[branch_index]
+                gp_pair_width = gp_width * 2.0 + gp_gap
+                gp_pair_left = branch_left + (branch_width - gp_pair_width) / 2.0
+                for child_index, position in enumerate((f"{direct}-1", f"{direct}-2")):
+                    rects[position] = QRectF(
+                        gp_pair_left + child_index * (gp_width + gp_gap),
+                        gp_y,
+                        gp_width,
+                        gp_height,
+                    )
+        else:
+            parent_width = min(900.0, width - 2.0 * margin)
+            parent_height = max(
+                (self._card_height(position, parent_width) for position in direct_positions),
+                default=180.0,
+            )
+            for position in direct_positions:
+                rects[position] = QRectF(
+                    origin_x + (width - parent_width) / 2.0,
+                    parent_y,
+                    parent_width,
+                    parent_height,
+                )
+
+            gp_y = parent_y + parent_height + 98.0
+            gp_gap = 28.0
+            gp_width = min(
+                520.0,
+                (width - 2.0 * margin - max(0, len(gp_positions) - 1) * gp_gap)
+                / max(1, len(gp_positions)),
+            )
+            gp_group_width = gp_width * len(gp_positions) + gp_gap * (len(gp_positions) - 1)
+            gp_x = origin_x + (width - gp_group_width) / 2.0
+            gp_height = max(
+                (self._card_height(position, gp_width) for position in gp_positions),
+                default=180.0,
+            )
+            for index, position in enumerate(gp_positions):
+                rects[position] = QRectF(
+                    gp_x + index * (gp_width + gp_gap), gp_y, gp_width, gp_height
+                )
 
         great_positions = tuple(
             position
@@ -477,12 +545,12 @@ class LineageTree(ZoomableCanvas):
         if great_present:
             great_gap = 10.0
             great_width = (
-                width - 2 * margin - max(0, len(great_positions) - 1) * great_gap
+                width - 2.0 * margin - max(0, len(great_positions) - 1) * great_gap
             ) / max(1, len(great_positions))
             great_y = gp_y + gp_height + 78.0
             for index, position in enumerate(great_positions):
                 rects[position] = QRectF(
-                    margin + index * (great_width + great_gap),
+                    origin_x + margin + index * (great_width + great_gap),
                     great_y,
                     great_width,
                     self._card_height(position, great_width),
@@ -567,7 +635,7 @@ class LineageTree(ZoomableCanvas):
         painter.setFont(font)
         painter.setPen(QColor("#72849d"))
         painter.drawText(
-            QRectF(0.0, y, float(self.BASE_WIDTH), 22.0),
+            QRectF(0.0, y, self._logical_canvas_width(), 22.0),
             Qt.AlignmentFlag.AlignCenter,
             text.upper(),
         )
@@ -1741,6 +1809,10 @@ class LineageDialog(QDialog):
         self.mode = mode
         self.repository = image_repository(context)
         self.setModal(True)
+        # Keep native window-manager maximize support enabled. On Windows this
+        # also makes Aero Snap (dragging the title bar to the top edge) behave
+        # like a regular resizable application window.
+        self.setWindowFlag(Qt.WindowType.WindowMaximizeButtonHint, True)
         self.setMinimumSize(980, 650)
         self.resize(1600, 930)
 
@@ -1795,7 +1867,9 @@ class LineageDialog(QDialog):
         visual_header.addWidget(self.tree_zoom_control)
         visual_layout.addLayout(visual_header)
         scroll = QScrollArea()
-        scroll.setWidgetResizable(False)
+        # The tree keeps a zoom-scaled minimum width but expands when the
+        # dialog has spare horizontal room, reducing vertical Spark wrapping.
+        scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
         self.tree = LineageTree(
@@ -1811,6 +1885,7 @@ class LineageDialog(QDialog):
             lambda value: self._persist_zoom(LINEAGE_ZOOM_KEY, value)
         )
         scroll.setWidget(self.tree)
+        self.tree_scroll = scroll
         visual_layout.addWidget(scroll, 1)
         self.attribution = QLabel()
         self.attribution.setObjectName("muted")
