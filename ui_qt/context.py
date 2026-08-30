@@ -374,6 +374,28 @@ class AppContext(QObject):
         canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False)
         return hashlib.sha1(canonical.encode("utf-8")).hexdigest()
 
+    def transfer_fingerprint(self, scope: dict[str, object]) -> str:
+        """Digest the inputs that can change a Transfer Helper report."""
+
+        state = self.lineage_state().normalized()
+        payload = {
+            "scope": {
+                str(key): scope[key]
+                for key in sorted(scope)
+            },
+            "master": self._file_signature(self.master_path),
+            "data": self._file_signature(self.veterans_json_path),
+            "courses": self._file_signature(self.course_overrides_path),
+            "skills": self._file_signature(state.skill_priorities_path),
+            "scoring": self._file_signature(
+                user_scoring_overrides_path()
+                if state.use_custom_scoring
+                else None
+            ),
+        }
+        canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False)
+        return hashlib.sha1(canonical.encode("utf-8")).hexdigest()
+
     def update_online_options(self, values: dict[str, object]) -> None:
         """Persist a uma.moe search-option edit and notify every consumer.
 

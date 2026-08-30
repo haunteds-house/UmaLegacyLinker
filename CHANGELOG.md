@@ -45,6 +45,14 @@ This project uses feature-level semantic versioning. Small internal iterations a
   rows and extrema, while CSV, text summaries and the Qt diagnostic expose the
   corresponding aggregates and tightest/most-favourable profiles. Scoring,
   thresholds, portfolio selection and verdicts are unchanged.
+- Extended freshness and display-state handling beyond the Search result tabs.
+  Transfer Helper now labels reports as empty, running, current, loaded or
+  stale, shows their generation time and invalidates them when an effective
+  scope, data or scoring input changes. Expert disclosure sections, active
+  result family, detail visibility, splitter positions, table sorting, column
+  order/width and optional columns are restored across sessions; result-table
+  headers expose a right-click column chooser. Display preferences use their
+  own `ui_*` keys and do not alter scoring configuration.
 - Raised structural and Spark-chip boundaries to the WCAG 2.2 non-text
   contrast floor of 3:1, while keeping text contrast unchanged. Every Spark
   chip now carries an explicit semantic label instead of relying on hue, and

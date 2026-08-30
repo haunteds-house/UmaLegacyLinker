@@ -245,6 +245,13 @@ Five tabs, ordered by frequency, first selected by default (NN/g):
   reopens from the remembered preference once there is room. Rail sections
   also lay out in one column when hosted, so their own minimum fits.
 
+The rail preference is not the only display state retained: each section's
+expanded state, the active result family, each detail toggle, splitter geometry
+and table-header layout use separate `ui_*` store keys. Header state covers
+sorting, widths, order and optional-column visibility; a right-click menu on
+the header makes the latter explicit. These preferences never enter result
+fingerprints or scoring configuration.
+
 ## Staleness model: per-family input fingerprints
 
 A global "context revision counter" would mark local results stale when only

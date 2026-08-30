@@ -55,6 +55,77 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             )
             window.close()
 
+    def test_transfer_report_becomes_stale_when_scope_changes(self) -> None:
+        from ui_qt.context import AppContext
+        from ui_qt.core import SettingsStore
+        from ui_qt.layout_audit import _dispose_widget
+        from ui_qt.pages_transfer import STATE_LOADED, STATE_STALE, TransferPage
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            output = root / "output"
+            output.mkdir()
+            (output / "transfer_helper_report.json").write_text(
+                json.dumps(
+                    {
+                        "metadata": {
+                            "generated_at_utc": "2026-08-29T08:15:00+00:00"
+                        },
+                        "records": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            store = SettingsStore(root / "config.json")
+            store.update({"output_dir": str(output)})
+            page = TransferPage(AppContext(store))
+
+            self.assertEqual(page._result_state, STATE_LOADED)
+            self.assertTrue(page.generated_at.text())
+            page.team_trials_check.setChecked(
+                not page.team_trials_check.isChecked()
+            )
+            self.application.processEvents()
+            self.assertEqual(page._result_state, STATE_STALE)
+            _dispose_widget(page, self.application)
+
+    def test_table_header_state_restores_hidden_order_and_sort(self) -> None:
+        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QTableView
+
+        from ui_qt.core import SettingsStore
+        from ui_qt.models import Column, ResultTableModel
+        from ui_qt.view_state import bind_table_view_state
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store = SettingsStore(Path(temp_dir) / "config.json")
+            columns = [
+                Column("A", lambda row: row.get("a")),
+                Column("B", lambda row: row.get("b")),
+                Column("C", lambda row: row.get("c")),
+            ]
+            first = QTableView()
+            first.setModel(ResultTableModel([], columns))
+            first.setSortingEnabled(True)
+            save = bind_table_view_state(first, store, "ui_table_test")
+            first.setColumnHidden(2, True)
+            first.horizontalHeader().moveSection(0, 1)
+            first.sortByColumn(1, Qt.SortOrder.DescendingOrder)
+            save()
+
+            second = QTableView()
+            second.setModel(ResultTableModel([], columns))
+            second.setSortingEnabled(True)
+            bind_table_view_state(second, store, "ui_table_test")
+
+            self.assertTrue(second.isColumnHidden(2))
+            self.assertEqual(second.horizontalHeader().visualIndex(0), 1)
+            self.assertEqual(second.horizontalHeader().sortIndicatorSection(), 1)
+            self.assertEqual(
+                second.horizontalHeader().sortIndicatorOrder(),
+                Qt.SortOrder.DescendingOrder,
+            )
+
     def test_data_hierarchy_and_transfer_help_are_exposed_at_runtime(self) -> None:
         from ui_qt.context import AppContext
         from ui_qt.core import SettingsStore

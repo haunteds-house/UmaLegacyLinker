@@ -12,6 +12,9 @@ The PySide6 interface is the desktop application. It shares the engines, configu
 - course presets and static race conditions, edited in place rather than in a modal editor;
 - one Search workspace with a persistent Ace, target-parent, race, course and scoring context, held in a collapsible context rail beside a full-height result area;
 - rail sections whose headers keep stating their effective values, modified state and reset action, so a collapsed section never hides the settings a calculation will use;
+- persisted expert display state: rail-section expansion, active result family,
+  detail visibility, splitter positions, result sorting, column order/width and
+  optional-column visibility;
 - clearly separated local and uma.moe source cards feeding one shared result area;
 - independent background actions for final pairs, parent branches and future grandparents, so a local request computes only the requested result family;
 - sortable final-pair, parent-branch and future-grandparent tables;
@@ -29,7 +32,8 @@ The PySide6 interface is the desktop application. It shares the engines, configu
 - stable uma.moe API URL/key configuration under Settings, separate from scoring weights and per-search filters;
 - Transfer Helper with visible Fast/Exhaustive (slow), upcoming-CM, Team Trials and generic-profile
   controls, portfolio verdict/search filters, lock and memo protection, and embedded portfolio or
-  strict-replacement diagnostics;
+  strict-replacement diagnostics, plus explicit empty/running/current/loaded/stale report state and
+  a visible generation timestamp;
 - a two-pane scoring-profile editor with search, 51 gameplay subcategories, plain-language help for every setting, hover summaries and visible draft/default states;
 - unambiguous probability, threshold, multiplier and 100%-budget controls, including live donut charts for all nine genuinely normalised scoring groups;
 - live shared White Skill priority-file management across Search and Weights;
@@ -112,6 +116,7 @@ The **Windows release** GitHub Actions workflow runs the tests and visual audit,
 | `ui_qt/icons/` | vendored Lucide SVG sources (see [`THIRD_PARTY.md`](THIRD_PARTY.md)) |
 | `ui_qt/typography.py` | shared named point-size scale for QSS, painted views and rich text |
 | `ui_qt/zoom.py` | shared canvas zoom bounds, stepping, formatting and persistence keys |
+| `ui_qt/view_state.py` | versioned Qt splitter/header/disclosure persistence and column chooser |
 | `ui_qt/image_assets.py` | asynchronous loading, allowlist and persistent disk cache |
 | `ui_qt/lineage_nodes.py` | compatibility layer for current and older pair, branch and grandparent-result schemas |
 | `ui_qt/lineage_view.py` | top-down lineage inspector, G1 planning calendar, rich Spark cards and artwork controls |

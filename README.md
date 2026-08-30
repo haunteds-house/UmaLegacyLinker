@@ -77,6 +77,11 @@ recommendations name the best retained copy per row rather than inventing one un
 replacement. Transfer candidates also receive a complete Spark comparison against the strict
 replacement or every retained cover, including strategic heritage that was preserved successfully
 rather than only failed protections.
+
+The displayed Transfer Helper report carries an explicit freshness state and generation time. A
+change to its analysis scope, collection, MDB, course data or active scoring inputs marks the
+existing result stale until it is rerun. Table sorting, visible columns, column order, split-pane
+positions, detail visibility and expert-section expansion are remembered between sessions.
 Local copies use the same `Card name · evaluation score` identity in selectors, tables and
 reports. The internal training ID remains in machine-readable exports and UI tooltips for joins,
 but is not used as the primary name or as a user-facing search criterion.

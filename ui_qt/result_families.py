@@ -218,13 +218,21 @@ class ResultFamilyTabs(QWidget):
         layout.addWidget(self.stack, 1)
 
         self.bar.currentChanged.connect(self._tab_changed)
-        self.bar.setCurrentIndex(0)
+        stored_family = self.context.store.get("ui_search_active_family", PAIRS)
+        self.bar.setCurrentIndex(
+            FAMILY_ORDER.index(stored_family)
+            if stored_family in FAMILY_ORDER
+            else 0
+        )
         self.retranslate()
 
     def _tab_changed(self, index: int) -> None:
         if 0 <= index < len(FAMILY_ORDER):
             self.stack.setCurrentIndex(index)
             self.bar.setAccessibleDescription(self.bar.tabToolTip(index))
+            self.context.store.update(
+                {"ui_search_active_family": FAMILY_ORDER[index]}
+            )
             self.current_changed.emit(FAMILY_ORDER[index])
 
     def current_family(self) -> str:

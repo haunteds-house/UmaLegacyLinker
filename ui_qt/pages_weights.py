@@ -85,6 +85,7 @@ from ui_qt.core import (
     user_scoring_overrides_path,
     user_skill_priorities_path,
 )
+from ui_qt.view_state import bind_collapsible_state, bind_splitter_state
 from ui_qt.weight_controls import (
     CATEGORY_SOURCES,
     is_percentage_setting,
@@ -195,7 +196,7 @@ class WeightsPage(QWidget):
         active_layout.addWidget(self.save_button)
         root.addWidget(active)
 
-        splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.splitter = QSplitter(Qt.Orientation.Horizontal)
 
         navigation = QFrame()
         navigation.setObjectName("weightsNavigationPanel")
@@ -453,12 +454,17 @@ class WeightsPage(QWidget):
         editor_layout.addWidget(self.save_hint)
         editor_layout.addStretch(1)
         editor_scroll.setWidget(editor)
-        splitter.addWidget(navigation)
-        splitter.addWidget(editor_scroll)
-        splitter.setStretchFactor(0, 2)
-        splitter.setStretchFactor(1, 3)
-        splitter.setSizes([390, 620])
-        root.addWidget(splitter, 1)
+        self.splitter.addWidget(navigation)
+        self.splitter.addWidget(editor_scroll)
+        self.splitter.setStretchFactor(0, 2)
+        self.splitter.setStretchFactor(1, 3)
+        bind_splitter_state(
+            self.splitter,
+            self.context.store,
+            "ui_splitter_weights",
+            [390, 620],
+        )
+        root.addWidget(self.splitter, 1)
 
         self.priorities = CollapsibleSection("")
         self.priority_status = muted_label("")
@@ -483,6 +489,11 @@ class WeightsPage(QWidget):
         priority_actions.addWidget(self.open_priority_button)
         priority_actions.addWidget(self.reset_priority_button)
         self.priorities.content_layout.addLayout(priority_actions)
+        bind_collapsible_state(
+            self.priorities,
+            self.context.store,
+            "ui_section_weights_priorities",
+        )
         root.addWidget(self.priorities)
 
         self.search.textChanged.connect(self.apply_filter)

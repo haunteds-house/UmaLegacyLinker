@@ -74,7 +74,20 @@ class TransferGuidanceTests(unittest.TestCase):
 
     def test_transfer_detail_has_the_documented_readable_width(self) -> None:
         self.assertIn("self.detail.setMinimumWidth(520)", self.source)
-        self.assertIn("splitter.setSizes([700, 560])", self.source)
+        self.assertIn('"ui_splitter_transfer"', self.source)
+        self.assertIn("[700, 560]", self.source)
+
+    def test_transfer_report_freshness_is_explicit(self) -> None:
+        for state in (
+            "STATE_EMPTY",
+            "STATE_RUNNING",
+            "STATE_READY",
+            "STATE_STALE",
+            "STATE_LOADED",
+        ):
+            self.assertIn(state, self.source)
+        self.assertIn("transfer_fingerprint", self.source)
+        self.assertIn("generated_at_utc", self.source)
 
 
 class FinalPolishSourceTests(unittest.TestCase):

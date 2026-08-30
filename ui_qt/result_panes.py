@@ -49,6 +49,7 @@ from ui_qt.presentation import (
     online_detail_html,
     result_detail_html,
 )
+from ui_qt.view_state import bind_splitter_state, bind_table_view_state
 from veteran_identity import canonical_veteran_label, technical_veteran_tooltip
 
 RIGHT = Qt.AlignmentFlag.AlignRight
@@ -85,6 +86,7 @@ class ResultPane(QWidget):
         self.context = context
         self.profile: dict[str, Any] = {}
         self.lineage_root: dict[str, Any] | None = None
+        self._header_configured = False
         root = QVBoxLayout(self)
         root.setContentsMargins(8, 8, 8, 8)
         root.setSpacing(7)
@@ -97,7 +99,7 @@ class ResultPane(QWidget):
         root.addLayout(head)
         self._pending_head = head
 
-        splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.splitter = QSplitter(Qt.Orientation.Horizontal)
         self.table = QTableView()
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -115,15 +117,36 @@ class ResultPane(QWidget):
         self.table.sortByColumn(0, Qt.SortOrder.AscendingOrder)
         self.table.horizontalHeader().setStretchLastSection(False)
         self.table.horizontalHeader().setMinimumSectionSize(58)
-        splitter.addWidget(self.table)
-        splitter.addWidget(self.detail)
-        splitter.setChildrenCollapsible(False)
-        splitter.setStretchFactor(0, 5)
-        _install_detail_toggle(self, splitter)
+        self.splitter.addWidget(self.table)
+        self.splitter.addWidget(self.detail)
+        self.splitter.setChildrenCollapsible(False)
+        self.splitter.setStretchFactor(0, 5)
+        _install_detail_toggle(self, self.splitter)
         self._pending_head.addWidget(self.detail_toggle)
-        splitter.setStretchFactor(1, 4)
-        splitter.setSizes([700, 560])
-        root.addWidget(splitter, 1)
+        self.splitter.setStretchFactor(1, 4)
+        self._configure_header()
+        bind_splitter_state(
+            self.splitter,
+            self.context.store,
+            f"ui_splitter_search_{self.kind}",
+            [700, 560],
+        )
+        bind_table_view_state(
+            self.table,
+            self.context.store,
+            f"ui_table_search_{self.kind}",
+            default_hidden=(8,) if self.kind == "future" else (),
+        )
+        detail_key = f"ui_detail_hidden_search_{self.kind}"
+        self.detail_toggle.setChecked(
+            self.context.store.get(detail_key, "0") == "1"
+        )
+        self.detail_toggle.toggled.connect(
+            lambda hidden: self.context.store.update(
+                {detail_key: "1" if hidden else "0"}
+            )
+        )
+        root.addWidget(self.splitter, 1)
         self.table.selectionModel().selectionChanged.connect(self._selection_changed)
         self.table.doubleClicked.connect(self._double_clicked)
         self.lineage_button.clicked.connect(self.open_lineage)
@@ -190,9 +213,12 @@ class ResultPane(QWidget):
         ]
 
     def _configure_header(self) -> None:
+        if self._header_configured:
+            return
         header = self.table.horizontalHeader()
         for index in range(self.model.columnCount()):
-            header.setSectionResizeMode(index, QHeaderView.ResizeMode.ResizeToContents)
+            header.setSectionResizeMode(index, QHeaderView.ResizeMode.Interactive)
+        self.table.resizeColumnsToContents()
         if self.kind == "pair":
             header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
             header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
@@ -200,7 +226,7 @@ class ResultPane(QWidget):
             header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         else:
             header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
-            self.table.setColumnHidden(8, True)
+        self._header_configured = True
 
     def set_rows(
         self,
@@ -340,6 +366,9 @@ class ResultPane(QWidget):
             self.lineage_button.text(),
             result_name,
         )
+        self.table.horizontalHeader().setToolTip(
+            t("Clic droit pour choisir les colonnes affichées ; largeur, ordre et tri sont mémorisés.")
+        )
         self._update_lineage_button()
 
 
@@ -414,14 +443,22 @@ class CardFilterDialog(QDialog):
 
 
 class OnlineResultsPane(QWidget):
-    def __init__(self, context: AppContext, parent=None):
+    def __init__(
+        self,
+        context: AppContext,
+        parent=None,
+        *,
+        view_key: str = "online",
+    ):
         super().__init__(parent)
         self.context = context
+        self.view_key = view_key
         self.mode = "parent"
         self.profile: dict[str, Any] = {}
         self.metadata: dict[str, Any] = {}
         self.ace: dict[str, Any] | None = None
         self.lineage_root: dict[str, Any] | None = None
+        self._header_configured = False
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(7)
@@ -443,7 +480,7 @@ class OnlineResultsPane(QWidget):
         root.addLayout(head)
         self._pending_head = head
 
-        splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.splitter = QSplitter(Qt.Orientation.Horizontal)
         self.table = QTableView()
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -451,20 +488,40 @@ class OnlineResultsPane(QWidget):
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.verticalHeader().setVisible(False)
         self.table.setShowGrid(False)
-        self.model = ResultTableModel([], [])
+        self.model = ResultTableModel([], self._columns())
         self.table.setModel(self.model)
         self.table.setSortingEnabled(True)
         self.detail = QTextBrowser()
         self.detail.setMinimumWidth(520)
-        splitter.addWidget(self.table)
-        splitter.addWidget(self.detail)
-        splitter.setChildrenCollapsible(False)
-        splitter.setStretchFactor(0, 5)
-        _install_detail_toggle(self, splitter)
+        self.splitter.addWidget(self.table)
+        self.splitter.addWidget(self.detail)
+        self.splitter.setChildrenCollapsible(False)
+        self.splitter.setStretchFactor(0, 5)
+        _install_detail_toggle(self, self.splitter)
         self._pending_head.addWidget(self.detail_toggle)
-        splitter.setStretchFactor(1, 4)
-        splitter.setSizes([700, 560])
-        root.addWidget(splitter, 1)
+        self.splitter.setStretchFactor(1, 4)
+        self._configure_header()
+        bind_splitter_state(
+            self.splitter,
+            self.context.store,
+            f"ui_splitter_search_{self.view_key}",
+            [700, 560],
+        )
+        bind_table_view_state(
+            self.table,
+            self.context.store,
+            f"ui_table_search_{self.view_key}",
+        )
+        detail_key = f"ui_detail_hidden_search_{self.view_key}"
+        self.detail_toggle.setChecked(
+            self.context.store.get(detail_key, "0") == "1"
+        )
+        self.detail_toggle.toggled.connect(
+            lambda hidden: self.context.store.update(
+                {detail_key: "1" if hidden else "0"}
+            )
+        )
+        root.addWidget(self.splitter, 1)
         self.table.selectionModel().selectionChanged.connect(self._selection_changed)
         self.table.doubleClicked.connect(self._double_clicked)
         self.copy_button.clicked.connect(self.copy_friend_id)
@@ -508,13 +565,17 @@ class OnlineResultsPane(QWidget):
         ]
 
     def _configure_header(self) -> None:
+        if self._header_configured:
+            return
         header = self.table.horizontalHeader()
         header.setMinimumSectionSize(58)
         for index in range(self.model.columnCount()):
-            header.setSectionResizeMode(index, QHeaderView.ResizeMode.ResizeToContents)
+            header.setSectionResizeMode(index, QHeaderView.ResizeMode.Interactive)
+        self.table.resizeColumnsToContents()
         for index in (2, 3):
             if index < self.model.columnCount():
                 header.setSectionResizeMode(index, QHeaderView.ResizeMode.Stretch)
+        self._header_configured = True
 
     def set_result(self, result: object, profile: dict[str, Any]) -> None:
         self.mode = "parent" if isinstance(result, OnlineParentSearchResult) else "grandparent"
@@ -553,8 +614,12 @@ class OnlineResultsPane(QWidget):
             ranked.append(copy)
         self.model.set_columns(self._columns())
         self.model.set_rows(ranked)
-        self._configure_header()
-        self.table.sortByColumn(0, Qt.SortOrder.AscendingOrder)
+        sort_column = self.table.horizontalHeader().sortIndicatorSection()
+        if sort_column >= 0:
+            self.model.sort(
+                sort_column,
+                self.table.horizontalHeader().sortIndicatorOrder(),
+            )
         if ranked:
             self.table.selectRow(0)
         else:
@@ -798,5 +863,8 @@ class OnlineResultsPane(QWidget):
             self.copy_button,
         ):
             describe_control(button, button.text(), result_name)
+        self.table.horizontalHeader().setToolTip(
+            t("Clic droit pour choisir les colonnes affichées ; largeur, ordre et tri sont mémorisés.")
+        )
         self._update_lineage_button()
         self._update_export_button()

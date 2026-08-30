@@ -32,6 +32,7 @@ from ui_qt.components import (
 )
 from ui_qt.context import AppContext, LineageContextState
 from ui_qt.core import active_course_overrides_path
+from ui_qt.view_state import bind_collapsible_state
 
 
 PROFILE_CODES = {
@@ -239,6 +240,11 @@ class LineageRaceEditor(QWidget):
             self.advanced.setVisible(False)
         else:
             self.advanced.content_layout.addWidget(self.advanced_body)
+            bind_collapsible_state(
+                self.advanced,
+                self.context.store,
+                "ui_section_lineage_advanced",
+            )
             root.addWidget(self.advanced)
 
         self.course_combo.currentIndexChanged.connect(self._course_changed)

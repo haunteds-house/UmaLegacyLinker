@@ -74,6 +74,7 @@ from ui_qt.result_families import (
     online_mode_for_family,
 )
 from ui_qt.result_panes import OnlineResultsPane, ResultPane
+from ui_qt.view_state import bind_collapsible_state
 from ui_qt.presentation import profile_summary
 from ui_qt.theme import COLORS
 
@@ -203,6 +204,25 @@ class SearchPage(QWidget):
         self.section_online_gp = OnlineModeSection(context, GRANDPARENT_MODE)
         rail_body_layout.addWidget(self.section_online_gp)
 
+        for section, key, default_expanded in (
+            (self.section_objective, "ui_section_search_objective", True),
+            (self.section_course, "ui_section_search_course", False),
+            (self.section_conditions, "ui_section_search_conditions", False),
+            (self.section_retrieval, "ui_section_search_retrieval", False),
+            (
+                self.section_online_parent,
+                "ui_section_search_online_parent",
+                False,
+            ),
+            (self.section_online_gp, "ui_section_search_online_gp", False),
+        ):
+            bind_collapsible_state(
+                section,
+                self.context.store,
+                key,
+                default_expanded=default_expanded,
+            )
+
         rail_body_layout.addStretch(1)
         self.rail_scroll.setWidget(rail_body)
         rail_layout.addWidget(self.rail_scroll, 1)
@@ -287,8 +307,10 @@ class SearchPage(QWidget):
         self.future_results = ResultPane("future", context)
         # Two instances: a grandparent search must stop overwriting the parent
         # results it is meant to complement.
-        self.online_parent_results = OnlineResultsPane(context)
-        self.online_gp_results = OnlineResultsPane(context)
+        self.online_parent_results = OnlineResultsPane(
+            context, view_key=ONLINE_PARENT
+        )
+        self.online_gp_results = OnlineResultsPane(context, view_key=ONLINE_GP)
         self.families = ResultFamilyTabs(
             context,
             {
