@@ -21,6 +21,8 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from output_history import OutputProvenance
+
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -119,6 +121,7 @@ class ResultFamilyView(QWidget):
         # for a result read from disk: its inputs are unknown, and claiming
         # freshness would be a guess.
         self.fingerprint = ""
+        self.provenance: OutputProvenance | None = None
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -146,11 +149,13 @@ class ResultFamilyView(QWidget):
         kind: str,
         profile: dict[str, Any] | None,
         fingerprint: str = "",
+        provenance: OutputProvenance | None = None,
     ) -> None:
         self.state = STATE_LOADED if loaded else STATE_READY
         self.result_kind = kind
         self.profile = dict(profile or {})
         self.fingerprint = "" if loaded else fingerprint
+        self.provenance = provenance
         self.stack.setCurrentWidget(self.pane)
 
     def refresh_freshness(self, fingerprint: str) -> None:

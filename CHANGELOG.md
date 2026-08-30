@@ -4,6 +4,13 @@ This project uses feature-level semantic versioning. Small internal iterations a
 
 ## Unreleased
 
+- Exposed the retained output history in Search and Transfer Helper. Their
+  History menus now list the current run and the single predecessor already
+  maintained by `output_history.py`; loading either generation records its
+  exact file, generation time, schema, source and available input SHA-256
+  fingerprints in a visible provenance badge and tooltip. This is navigation
+  to one prior state only, not side-by-side result comparison, and does not
+  change scoring or output retention.
 - Isolated local lineage optimisation, uma.moe pairing and Transfer Helper
   analysis in one spawned backend process per run. Qt remains in the GUI
   process while a lightweight pool thread supervises typed IPC for logs,

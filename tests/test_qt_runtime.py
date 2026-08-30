@@ -162,6 +162,61 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.assertEqual(page._result_state, STATE_STALE)
             _dispose_widget(page, self.application)
 
+    def test_transfer_history_loads_previous_report_with_provenance(self) -> None:
+        from output_history import PREVIOUS_REVISION, write_json_with_history
+        from ui_qt.context import AppContext
+        from ui_qt.core import SettingsStore
+        from ui_qt.layout_audit import _dispose_widget
+        from ui_qt.pages_transfer import STATE_LOADED, TransferPage
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            output = root / "output"
+            report = output / "transfer_helper_report.json"
+            write_json_with_history(
+                report,
+                {
+                    "metadata": {
+                        "format_version": 5,
+                        "generated_at_utc": "2026-08-29T08:15:00+00:00",
+                        "purpose": "Transfer analysis",
+                        "source_veterans": {
+                            "filename": "veterans-old.json",
+                            "sha256": "old-sha256",
+                        },
+                    },
+                    "records": [],
+                },
+            )
+            write_json_with_history(
+                report,
+                {
+                    "metadata": {
+                        "format_version": 5,
+                        "generated_at_utc": "2026-08-30T09:30:00+00:00",
+                    },
+                    "records": [{"status": "keep", "trained_chara_id": 1}],
+                },
+            )
+            store = SettingsStore(root / "config.json")
+            store.update({"output_dir": str(output)})
+            page = TransferPage(AppContext(store))
+
+            self.assertEqual(len(page._records), 1)
+            page.load_revision(PREVIOUS_REVISION, show_errors=False)
+            page._rebuild_history_menu()
+
+            self.assertEqual(page._result_state, STATE_LOADED)
+            self.assertEqual(page._records, [])
+            self.assertIsNotNone(page._provenance)
+            assert page._provenance is not None
+            self.assertEqual(page._provenance.revision.key, PREVIOUS_REVISION)
+            self.assertIn("Précédent", page.revision_badge.text())
+            self.assertIn("transfer_helper_report.prev.json", page.revision_badge.toolTip())
+            self.assertIn("veterans-old.json · old-sha256", page.revision_badge.toolTip())
+            self.assertEqual(len(page.history_menu.actions()), 2)
+            _dispose_widget(page, self.application)
+
     def test_table_header_state_restores_hidden_order_and_sort(self) -> None:
         from PySide6.QtCore import Qt
         from PySide6.QtWidgets import QTableView
@@ -837,6 +892,72 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.assertEqual(
                 search.families.view(ONLINE_PARENT).state, STATE_LOADED
             )
+            _dispose_widget(search, self.application)
+
+    def test_search_history_loads_previous_remote_result_with_provenance(self) -> None:
+        from output_history import PREVIOUS_REVISION, write_json_with_history
+        from ui_qt.context import AppContext
+        from ui_qt.core import SettingsStore
+        from ui_qt.layout_audit import _dispose_widget
+        from ui_qt.pages_search import SearchPage
+        from ui_qt.result_families import ONLINE_PARENT, STATE_LOADED
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            output = root / "output"
+            ranking = output / "uma_moe_parent_pairs.json"
+            write_json_with_history(
+                ranking,
+                {
+                    "metadata": {
+                        "schema_version": 4,
+                        "generated_at_utc": "2026-08-29T08:15:00+00:00",
+                        "source": "imported response",
+                        "profile": {
+                            "surface": "dirt",
+                            "distance": "mile",
+                            "style": "late_surger",
+                        },
+                    },
+                    "results": [],
+                },
+            )
+            write_json_with_history(
+                ranking,
+                {
+                    "metadata": {
+                        "schema_version": 4,
+                        "generated_at_utc": "2026-08-30T09:30:00+00:00",
+                        "source": "uma.moe public API",
+                        "profile": {
+                            "surface": "turf",
+                            "distance": "medium",
+                            "style": "pace_chaser",
+                        },
+                    },
+                    "results": [],
+                },
+            )
+            store = SettingsStore(root / "config.json")
+            store.update({"output_dir": str(output)})
+            search = SearchPage(AppContext(store))
+            search._initial_refresh_timer.stop()
+            search._initial_result_timer.stop()
+            search.families.set_current_family(ONLINE_PARENT)
+
+            search.load_revision(PREVIOUS_REVISION, show_errors=False)
+            search._rebuild_history_menu()
+
+            view = search.families.view(ONLINE_PARENT)
+            self.assertEqual(view.state, STATE_LOADED)
+            self.assertIsNotNone(view.provenance)
+            assert view.provenance is not None
+            self.assertEqual(view.provenance.revision.key, PREVIOUS_REVISION)
+            self.assertEqual(view.profile["surface"], "dirt")
+            self.assertIn("Précédent", search.provenance_badge.text())
+            self.assertIn("uma_moe_parent_pairs.prev.json", search.provenance_badge.toolTip())
+            self.assertIn("imported response", search.provenance_badge.toolTip())
+            self.assertEqual(len(search.history_menu.actions()), 2)
             _dispose_widget(search, self.application)
 
     def test_result_families_keep_their_own_result_and_toolbar(self) -> None:

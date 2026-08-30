@@ -602,7 +602,6 @@ EXACT_EN.update({
     "Ajoute les rôles des cinq catégories Team Trials aux usages à préserver.": "Add roles from the five Team Trials categories to the uses that must be preserved.",
     "Ajoute des profils génériques pour protéger les usages qui ne dépendent pas d’une course planifiée.": "Add generic profiles to protect uses that do not depend on a planned race.",
     "Analyse la collection sans modifier ni supprimer aucun vétéran.": "Analyse the collection without modifying or deleting any veteran.",
-    "Recharge le dernier rapport Transfer Helper présent dans le dossier de sortie.": "Reload the latest Transfer Helper report from the output directory.",
     "Ouvre le dossier contenant le rapport JSON, le CSV et le résumé.": "Open the directory containing the JSON report, CSV, and summary.",
     "Filtre le tableau selon le niveau de confiance du diagnostic.": "Filter the table by diagnostic confidence level.",
     "La couverture désigne le remplaçant ou l’ensemble de vétérans qui préserve les rôles compétitifs de la copie.": "Coverage means the replacement or set of veterans that preserves the copy's competitive roles.",
@@ -612,7 +611,6 @@ EXACT_EN.update({
     "Une niche, une couverture incomplète ou une protection de Spark impose une vérification manuelle.": "A niche, incomplete coverage, or Spark protection requires manual review.",
     "La copie conserve au moins un rôle compétitif ou un élément stratégique qui n’est pas suffisamment remplacé.": "The copy retains at least one competitive role or strategic asset that is not sufficiently replaced.",
     "Un verrou ou un mémo en jeu interdit toute recommandation de transfert, quel que soit le score.": "An in-game lock or memo prevents any transfer recommendation, regardless of score.",
-    "Charger le dernier rapport": "Load latest report",
     "Rechercher un nom, un score ou un remplaçant…": "Search a name, score, or replacement…",
     "Rang parent": "Parent rank",
     "Rang": "rank",
@@ -1458,7 +1456,6 @@ EXACT_EN.update({
     "Cohortes de récupération des parents API": "API parent-retrieval cohorts",
     "Présélection des paires locales × distantes": "Local × remote pair preselection",
     "Sélectionne un réglage.": "Select a setting.",
-    "Le résultat doit être un objet JSON.": "The result must be a JSON object.",
     "Les paires de GP locales nécessitent le mode grand-parent.": "Local GP pairs require the grandparent search mode.",
     "Paires de GP locales classées.": "Local GP pairs ranked.",
     "Parent opposé (contexte)": "Opposing parent (context)",
@@ -1643,6 +1640,24 @@ EXACT_EN.update({
     "uma.moe · parents distants": "uma.moe · remote parents",
     "uma.moe · grands-parents distants": "uma.moe · remote grandparents",
     "Local · paires de grands-parents": "Local · grandparent pairs",
+})
+
+EXACT_EN.update({
+    "Historique": "History",
+    "Exécution courante": "Current run",
+    "Exécution précédente": "Previous run",
+    "Courant": "Current",
+    "Précédent": "Previous",
+    "Aucune exécution enregistrée": "No saved run",
+    "Fichier": "File",
+    "Générée le": "Generated on",
+    "Source": "Source",
+    "Version de schéma": "Schema version",
+    "Entrées et empreintes SHA-256": "Inputs and SHA-256 fingerprints",
+    "Traçabilité": "Provenance",
+    "Charge l’exécution courante ou l’unique exécution précédente conservée sur le disque.": "Loads the current run or the single previous run retained on disk.",
+    "Charge le rapport courant ou l’unique rapport précédent conservé sur le disque.": "Loads the current report or the single previous report retained on disk.",
+    "La sortie doit contenir un objet JSON.": "The output must contain one JSON object.",
 })
 
 

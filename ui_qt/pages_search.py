@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QMenu,
     QMessageBox,
     QPushButton,
     QScrollArea,
@@ -25,6 +26,12 @@ from PySide6.QtWidgets import (
 from backend_process import ProcessTask
 from error_guidance import actionable_error
 from lineage_planner import LineagePlannerError, write_lineage_planner_export
+from output_history import (
+    CURRENT_REVISION,
+    OutputProvenance,
+    available_output_revisions,
+    read_json_output_revision,
+)
 from parent_optimizer import (
     OptimizerError,
     load_ace_options,
@@ -46,7 +53,6 @@ from ui_qt.core import (
     VeteranOption,
     latest_rankings_path,
     load_local_veteran_options,
-    load_rankings_payload,
     open_path,
     run_online_search,
     run_optimization,
@@ -78,6 +84,11 @@ from ui_qt.result_families import (
 from ui_qt.result_panes import OnlineResultsPane, ResultPane
 from ui_qt.view_state import bind_collapsible_state
 from ui_qt.presentation import profile_summary
+from ui_qt.provenance import (
+    provenance_badge_text,
+    provenance_tooltip,
+    revision_menu_label,
+)
 from ui_qt.theme import COLORS
 
 RAIL_COLLAPSED_KEY = "search_rail_collapsed"
@@ -256,6 +267,9 @@ class SearchPage(QWidget):
         self.run_button = QPushButton("")
         self.run_button.setObjectName("primary")
         self.load_button = QPushButton("")
+        self.history_menu = QMenu(self.load_button)
+        self.history_menu.aboutToShow.connect(self._rebuild_history_menu)
+        self.load_button.setMenu(self.history_menu)
         self.export_button = QPushButton("")
         self.import_button = QPushButton("")
         self.local_gp_pairs_button = QPushButton("")
@@ -270,6 +284,9 @@ class SearchPage(QWidget):
         self.stale_badge = QLabel("")
         self.stale_badge.setObjectName("pillWarning")
         self.stale_badge.setVisible(False)
+        self.provenance_badge = QLabel("")
+        self.provenance_badge.setObjectName("pill")
+        self.provenance_badge.setVisible(False)
         self.results_context = muted_label("")
         self.online_badge = QLabel("")
         self.online_badge.setObjectName("pill")
@@ -293,6 +310,7 @@ class SearchPage(QWidget):
         status = QHBoxLayout()
         status.setSpacing(8)
         status.addWidget(self.result_badge)
+        status.addWidget(self.provenance_badge)
         status.addWidget(self.stale_badge)
         status.addWidget(self.results_context, 1)
         status.addWidget(self.local_badge)
@@ -349,9 +367,6 @@ class SearchPage(QWidget):
             lambda: self.start_online("grandparent", local_pairs=True)
         )
         self.export_button.clicked.connect(self.export_selected_pair)
-        self.load_button.clicked.connect(
-            lambda: self.load_latest(show_errors=True)
-        )
         self.open_button.clicked.connect(self.open_output)
         context.lineage_changed.connect(self._sync_lineage_context)
         context.lineage_changed.connect(self._refresh_freshness)
@@ -742,7 +757,10 @@ class SearchPage(QWidget):
                 lineage_root=self._last_future_parent,
             )
         self._show_results(
-            family_for_local_kind(kind), f"local:{kind}", self._last_profile
+            family_for_local_kind(kind),
+            f"local:{kind}",
+            self._last_profile,
+            provenance=self._result_provenance(result),
         )
 
     def _mode_section(self, mode: str) -> OnlineModeSection:
@@ -872,7 +890,10 @@ class SearchPage(QWidget):
         pane.set_result(result, profile)
         source = "local" if request.local_pair_mode else "uma.moe"
         self._show_results(
-            family, f"{source}:online_{request.search_mode}", profile
+            family,
+            f"{source}:online_{request.search_mode}",
+            profile,
+            provenance=self._result_provenance(result),
         )
         response = request.output_dir / "uma_moe_api_response.json"
         if not request.use_import and response.is_file():
@@ -885,6 +906,7 @@ class SearchPage(QWidget):
         profile: dict[str, Any] | None,
         *,
         loaded: bool = False,
+        provenance: OutputProvenance | None = None,
     ) -> None:
         """Record a family's result and bring it forward.
 
@@ -898,6 +920,7 @@ class SearchPage(QWidget):
             kind=kind,
             profile=profile,
             fingerprint=self.context.family_fingerprint(family),
+            provenance=provenance,
         )
         self.families.set_current_family(family)
         self.families.refresh_freshness()
@@ -954,6 +977,22 @@ class SearchPage(QWidget):
         self.result_badge.setText(
             t(labels.get(view.result_kind, view.result_kind))
         )
+        self.provenance_badge.setVisible(view.provenance is not None)
+        self.provenance_badge.setText(
+            provenance_badge_text(view.provenance, t)
+            if view.provenance is not None
+            else ""
+        )
+        self.provenance_badge.setToolTip(
+            provenance_tooltip(view.provenance, t)
+            if view.provenance is not None
+            else ""
+        )
+        describe_control(
+            self.provenance_badge,
+            t("Traçabilité"),
+            self.provenance_badge.toolTip(),
+        )
         self.results_context.setText(
             profile_summary(dict(view.profile), self.context.language)
             if view.has_result()
@@ -993,24 +1032,70 @@ class SearchPage(QWidget):
         if family in ONLINE_FAMILIES:
             self.open_online_options(online_mode_for_family(family))
 
+    def _result_output_path(self, family: str) -> Path:
+        output = Path(self.context.output_dir).expanduser()
+        if family == ONLINE_PARENT:
+            return output / "uma_moe_parent_pairs.json"
+        if family == ONLINE_GP:
+            return output / "uma_moe_grandparent_pairs.json"
+        return latest_rankings_path(output)
+
+    def _result_provenance(self, result: object) -> OutputProvenance | None:
+        path = getattr(result, "rankings_json_path", None)
+        if path is None:
+            return None
+        try:
+            _payload, provenance = read_json_output_revision(
+                Path(path), CURRENT_REVISION
+            )
+            return provenance
+        except (OSError, TypeError, json.JSONDecodeError, ValueError):
+            return None
+
+    def _rebuild_history_menu(self) -> None:
+        self.history_menu.clear()
+        revisions = available_output_revisions(
+            self._result_output_path(self.families.current_family())
+        )
+        if not revisions:
+            action = self.history_menu.addAction(
+                self.context.t("Aucune exécution enregistrée")
+            )
+            action.setEnabled(False)
+            return
+        for revision in revisions:
+            action = self.history_menu.addAction(
+                revision_menu_label(revision, self.context.t)
+            )
+            action.triggered.connect(
+                lambda _checked=False, key=revision.key: self.load_revision(
+                    key, show_errors=True
+                )
+            )
+
     def load_latest(self, *, show_errors: bool = True) -> None:
-        """Load the visible family's last generated result.
+        self.load_revision(CURRENT_REVISION, show_errors=show_errors)
+
+    def load_revision(
+        self,
+        revision_key: str,
+        *,
+        show_errors: bool = True,
+    ) -> None:
+        """Load one retained generation for the visible result family.
 
         Scoped to the active family rather than picking the newest file of any
         kind: with one result slot per family, a global "latest" would drop a
         result into whichever tab happened to be in front.
         """
         family = self.families.current_family()
-        output = Path(self.context.output_dir).expanduser()
-        if family in ONLINE_FAMILIES:
-            path = output / (
-                "uma_moe_parent_pairs.json"
-                if family == ONLINE_PARENT
-                else "uma_moe_grandparent_pairs.json"
-            )
-        else:
-            path = latest_rankings_path(output)
-        if not path.is_file():
+        path = self._result_output_path(family)
+        revisions = {
+            revision.key: revision
+            for revision in available_output_revisions(path)
+        }
+        selected = revisions.get(revision_key)
+        if selected is None:
             if show_errors:
                 QMessageBox.information(
                     self,
@@ -1021,12 +1106,9 @@ class SearchPage(QWidget):
                 )
             return
         try:
-            if family in ONLINE_FAMILIES:
-                payload = json.loads(path.read_text(encoding="utf-8-sig"))
-                if not isinstance(payload, dict):
-                    raise ValueError("Le résultat doit être un objet JSON.")
-            else:
-                payload = load_rankings_payload(path)
+            payload, provenance = read_json_output_revision(
+                self._result_output_path(family), revision_key
+            )
         except Exception as exc:
             if show_errors:
                 QMessageBox.warning(
@@ -1048,7 +1130,11 @@ class SearchPage(QWidget):
             is_local_gp = str(metadata.get("pair_mode") or "").startswith("local_")
             source = "local" if is_local_gp else "uma.moe"
             self._show_results(
-                family, f"{source}:online_{mode}", profile, loaded=True
+                family,
+                f"{source}:online_{mode}",
+                profile,
+                loaded=True,
+                provenance=provenance,
             )
             return
         ace = payload.get("ace") if isinstance(payload.get("ace"), dict) else None
@@ -1089,7 +1175,11 @@ class SearchPage(QWidget):
         }
         panes[family].set_rows(rows, profile, lineage_root=root)
         self._show_results(
-            family, f"local:{local_kind_for_family(family)}", profile, loaded=True
+            family,
+            f"local:{local_kind_for_family(family)}",
+            profile,
+            loaded=True,
+            provenance=provenance,
         )
 
     def export_selected_pair(self) -> None:
@@ -1193,7 +1283,10 @@ class SearchPage(QWidget):
         )
         self.top_label.setText(t("Résultats"))
         self.export_button.setText(t("Exporter…"))
-        self.load_button.setText(t("Dernier résultat"))
+        self.load_button.setText(t("Historique"))
+        self.load_button.setToolTip(
+            t("Charge l’exécution courante ou l’unique exécution précédente conservée sur le disque.")
+        )
         self.import_button.setText(t("Reclasser un JSON…"))
         self.import_button.setToolTip(
             t(

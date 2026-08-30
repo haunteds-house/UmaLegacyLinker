@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -16,6 +15,7 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QLabel,
     QLineEdit,
+    QMenu,
     QMessageBox,
     QPushButton,
     QSpinBox,
@@ -28,6 +28,13 @@ from PySide6.QtWidgets import (
 
 from backend_process import ProcessTask
 from error_guidance import actionable_error
+from output_history import (
+    CURRENT_REVISION,
+    OutputProvenance,
+    available_output_revisions,
+    format_output_timestamp,
+    read_json_output_revision,
+)
 from ui_qt.accessibility import describe_control, label_control
 from ui_qt.components import PageHeader, StatusCard, ThemedComboBox, muted_label
 from ui_qt.context import AppContext
@@ -39,6 +46,11 @@ from ui_qt.core import (
 )
 from ui_qt.models import Column, ResultTableModel, nested, number
 from ui_qt.presentation import transfer_detail_html
+from ui_qt.provenance import (
+    provenance_tooltip,
+    revision_menu_label,
+    revision_title,
+)
 from ui_qt.table_typography import enable_tabular_numbers
 from ui_qt.view_state import bind_splitter_state, bind_table_view_state
 from veteran_identity import (
@@ -79,6 +91,7 @@ class TransferPage(QWidget):
         self._running_fingerprint = ""
         self._state_before_running = STATE_EMPTY
         self._generated_at = ""
+        self._provenance: OutputProvenance | None = None
         root = QVBoxLayout(self)
         root.setContentsMargins(28, 20, 28, 20)
         root.setSpacing(12)
@@ -100,9 +113,15 @@ class TransferPage(QWidget):
         self.run_button = QPushButton("")
         self.run_button.setObjectName("primary")
         self.load_button = QPushButton("")
+        self.history_menu = QMenu(self.load_button)
+        self.history_menu.aboutToShow.connect(self._rebuild_history_menu)
+        self.load_button.setMenu(self.history_menu)
         self.open_button = QPushButton("")
         self.result_state = QLabel("")
         self.result_state.setObjectName("pill")
+        self.revision_badge = QLabel("")
+        self.revision_badge.setObjectName("pill")
+        self.revision_badge.setVisible(False)
         self.generated_at = muted_label("", wrap=False)
         safety_layout.addWidget(self.safety_text, 0, 0, 1, 8)
         safety_layout.addWidget(self.mode_label, 1, 0)
@@ -115,6 +134,7 @@ class TransferPage(QWidget):
         action_layout = QHBoxLayout()
         action_layout.setContentsMargins(0, 0, 0, 0)
         action_layout.addWidget(self.result_state)
+        action_layout.addWidget(self.revision_badge)
         action_layout.addWidget(self.generated_at)
         action_layout.addStretch(1)
         action_layout.addWidget(self.run_button)
@@ -214,7 +234,6 @@ class TransferPage(QWidget):
         self.upcoming_cm_limit.valueChanged.connect(self._scope_changed)
         self.team_trials_check.toggled.connect(self._scope_changed)
         self.generic_profiles_check.toggled.connect(self._scope_changed)
-        self.load_button.clicked.connect(lambda: self.load_latest(show_errors=True))
         self.open_button.clicked.connect(self.open_output)
         self.status_combo.currentIndexChanged.connect(self._status_filter_changed)
         self.search.textChanged.connect(self.apply_filters)
@@ -334,7 +353,7 @@ class TransferPage(QWidget):
         self.team_trials_check.setText(t("Inclure Team Trials"))
         self.generic_profiles_check.setText(t("Inclure les profils génériques"))
         self.run_button.setText(t("Analyser les vétérans locaux"))
-        self.load_button.setText(t("Charger le dernier rapport"))
+        self.load_button.setText(t("Historique"))
         self.open_button.setText(t("Ouvrir la sortie"))
         self.filter_label.setText(t("Afficher"))
         self.search.setPlaceholderText(t("Rechercher un nom, un score ou un remplaçant…"))
@@ -357,7 +376,7 @@ class TransferPage(QWidget):
             t("Analyse la collection sans modifier ni supprimer aucun vétéran.")
         )
         self.load_button.setToolTip(
-            t("Recharge le dernier rapport Transfer Helper présent dans le dossier de sortie.")
+            t("Charge le rapport courant ou l’unique rapport précédent conservé sur le disque.")
         )
         self.open_button.setToolTip(
             t("Ouvre le dossier contenant le rapport JSON, le CSV et le résumé.")
@@ -506,6 +525,22 @@ class TransferPage(QWidget):
             if self._generated_at
             else ""
         )
+        self.revision_badge.setVisible(self._provenance is not None)
+        self.revision_badge.setText(
+            revision_title(self._provenance.revision.key, t)
+            if self._provenance is not None
+            else ""
+        )
+        self.revision_badge.setToolTip(
+            provenance_tooltip(self._provenance, t)
+            if self._provenance is not None
+            else ""
+        )
+        describe_control(
+            self.revision_badge,
+            t("Traçabilité"),
+            self.revision_badge.toolTip(),
+        )
         describe_control(
             self.result_state,
             self.result_state.text(),
@@ -521,17 +556,6 @@ class TransferPage(QWidget):
             else STATE_STALE
         )
         self._set_result_state(state)
-
-    @staticmethod
-    def _format_generated_at(value: object) -> str:
-        raw = str(value or "").strip()
-        if not raw:
-            return ""
-        try:
-            parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
-            return parsed.astimezone().strftime("%Y-%m-%d %H:%M")
-        except ValueError:
-            return raw
 
     def showEvent(self, event) -> None:  # noqa: N802
         super().showEvent(event)
@@ -654,26 +678,58 @@ class TransferPage(QWidget):
         self._result_origin_state = STATE_READY
         report_path = getattr(result, "report_json_path", None)
         try:
-            payload = json.loads(Path(report_path).read_text(encoding="utf-8-sig"))
-            metadata = payload.get("metadata") if isinstance(payload, dict) else {}
-        except (OSError, TypeError, json.JSONDecodeError):
-            metadata = {}
-        self._generated_at = self._format_generated_at(
-            (metadata or {}).get("generated_at_utc")
+            _payload, self._provenance = read_json_output_revision(
+                Path(report_path), CURRENT_REVISION
+            )
+        except (OSError, TypeError, json.JSONDecodeError, ValueError):
+            self._provenance = None
+        self._generated_at = format_output_timestamp(
+            self._provenance.generated_at_utc if self._provenance else ""
         )
         self._set_result_state(STATE_READY)
 
     def load_latest(self, *, show_errors: bool = True) -> None:
-        path = Path(self.context.output_dir).expanduser() / "transfer_helper_report.json"
+        self.load_revision(CURRENT_REVISION, show_errors=show_errors)
+
+    def _report_path(self) -> Path:
+        return Path(self.context.output_dir).expanduser() / "transfer_helper_report.json"
+
+    def _rebuild_history_menu(self) -> None:
+        self.history_menu.clear()
+        revisions = available_output_revisions(self._report_path())
+        if not revisions:
+            action = self.history_menu.addAction(
+                self.context.t("Aucune exécution enregistrée")
+            )
+            action.setEnabled(False)
+            return
+        for revision in revisions:
+            action = self.history_menu.addAction(
+                revision_menu_label(revision, self.context.t)
+            )
+            action.triggered.connect(
+                lambda _checked=False, key=revision.key: self.load_revision(
+                    key, show_errors=True
+                )
+            )
+
+    def load_revision(
+        self,
+        revision_key: str,
+        *,
+        show_errors: bool = True,
+    ) -> None:
         try:
-            payload = json.loads(path.read_text(encoding="utf-8-sig"))
-            records = payload.get("records") if isinstance(payload, dict) else None
+            payload, provenance = read_json_output_revision(
+                self._report_path(), revision_key
+            )
+            records = payload.get("records")
             if not isinstance(records, list):
                 raise ValueError("Le rapport Transfer Helper ne contient pas de liste de résultats.")
             self.set_records([row for row in records if isinstance(row, dict)])
-            metadata = payload.get("metadata") or {}
-            self._generated_at = self._format_generated_at(
-                metadata.get("generated_at_utc")
+            self._provenance = provenance
+            self._generated_at = format_output_timestamp(
+                provenance.generated_at_utc
             )
             self._result_fingerprint = self._current_fingerprint()
             self._result_origin_state = STATE_LOADED

@@ -13,6 +13,8 @@ Uma Legacy Linker links an exported veteran collection to the current `master.md
 - Evaluates future grandparents for producing stronger parents.
 - Searches public parents through [uma.moe](https://uma.moe/) and combines them with local candidates.
 - Audits duplicate local veterans with the conservative **Transfer Helper**.
+- Reopens the current or immediately previous Search and Transfer Helper run,
+  with visible generation metadata and input-file fingerprints.
 - Opens every parent, pair and grandparent result as a context-aware top-down lineage with costume artwork, resolved skill icons, rich Spark details and optional ancestry history in the Qt interface.
 - Exports detailed JSON, compact CSV and readable diagnostics.
 - Provides an English and French desktop interface.

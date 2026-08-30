@@ -221,8 +221,8 @@ Five tabs, ordered by frequency, first selected by default (NN/g):
   computes the visible family with the current context. `Ctrl+Enter` runs the
   active family. This dissolves the seven-button command surface into one
   consistent verb per view.
-- **Per-tab toolbar**: Lancer · Charger le dernier (per-family
-  `load_latest`) · family-specific actions (Exporter on Paires, Importer JSON
+- **Per-tab toolbar**: Lancer · Historique (current + one retained predecessor,
+  per family) · family-specific actions (Exporter on Paires, Importer JSON
   + local-GP-pairs toggle on moe·GP, Lignée where available) · Ouvrir le
   dossier. The global load/open buttons disappear.
 - **Per-tab empty state**: one sentence on what the family answers + the Run
@@ -287,9 +287,16 @@ fingerprint(kind) = sha1(canonical_json({
   direct `store.update` writes from the dialog), `configuration_changed`,
   page shown / window activated (cheaply catches external edits to the
   overrides files via mtime/digest), and task completion.
-- `load_latest` results carry no known fingerprint → badge `▣` "chargé"
+- Results loaded from either retained revision carry no known fingerprint →
+  badge `▣` "chargé"
   (loaded, freshness unknown) rather than pretending freshness. Honest state
   beats a guess.
+- Each loaded or freshly computed result also carries an `OutputProvenance`.
+  A worded current/previous badge exposes its generation time; its tooltip
+  records the exact output filename, schema/source metadata and every input
+  filename/SHA-256 pair emitted by the backend. The existing one-predecessor
+  retention contract remains unchanged, and side-by-side comparison remains a
+  separate phase.
 - The existing `_last_profile` / `profile_summary` machinery stays as the
   human-readable "computed with" line; the fingerprint is its machine twin.
 - **Stale is stated twice, deliberately.** The tab glyph answers "which of my

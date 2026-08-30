@@ -29,7 +29,9 @@ The PySide6 interface is the desktop application. It shares the engines, configu
 - costume-aware trainee artwork and White Skill icons loaded asynchronously through a persistent, optional local cache;
 - explicit shared/local/remote G1 diagnostics and a themed three-year optimal calendar for both parent and grandparent pairs, with `+6`/`+3` link values, mandatory objective locks, an objective-free Trackblazer switch and cached GameTora race banners;
 - high-contrast Spark chips ordered Blue → Pink → Green → White, with visible semantic labels independent of colour, resolved skill icons, the existing full-run White inheritance probability and priority emphasis for the three strongest White score contributions;
-- loading the latest generated ranking;
+- History menus for Search rankings and Transfer Helper reports, exposing the
+  current and immediately previous retained generation with file, timestamp,
+  schema, source and available input SHA-256 provenance;
 - export of a selected final pair to the uma.moe Lineage Planner format;
 - live and imported uma.moe parent/grandparent searches, with shared retrieval constraints and per-search pairing, pool, fetch and import settings edited in the context rail, plus costume filters and Friend ID copy;
 - stable uma.moe API URL/key configuration under Settings, separate from scoring weights and per-search filters;
@@ -107,6 +109,7 @@ The **Windows release** GitHub Actions workflow runs the tests and visual audit,
 | --- | --- |
 | `qt_app.py` | Qt entry point |
 | `backend_process.py` | Qt-free process-task and typed IPC boundary |
+| `output_history.py` | atomic output replacement, one retained predecessor and shared provenance contract |
 | `cli.py` | Headless CLI sharing the same engines |
 | `veteran_identity.py` | canonical local-veteran labels, score formatting and collision handling |
 | `ui_qt/core.py` | GUI-independent configuration and workflow orchestration |
@@ -115,7 +118,8 @@ The **Windows release** GitHub Actions workflow runs the tests and visual audit,
 | `ui_qt/workers.py` | thread worker and backend-process IPC supervisor |
 | `ui_qt/pages_home_data.py` | dashboard and local linking workflow |
 | `ui_qt/pages_search.py` | unified context rail, adaptive toolbar and result families |
-| `ui_qt/result_families.py` | one tab and one persistent pane per result family, with per-family freshness |
+| `ui_qt/result_families.py` | one tab and one persistent pane per result family, with per-family freshness and provenance |
+| `ui_qt/provenance.py` | shared revision labels and provenance presentation for retained outputs |
 | `ui_qt/result_panes.py` | result tables and diagnostics shared by every family |
 | `ui_qt/online_options.py` | shared uma.moe retrieval constraints and per-search strategy sections |
 | `ui_qt/pages_optimizer.py` | reusable local result explorer and diagnostics |
