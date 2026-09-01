@@ -28,7 +28,7 @@ from scoring_config import (
 from simulator_weights import generate_simulator_weights
 from skill_catalog import generate_skill_catalogs
 from transfer_helper import TransferHelperError, analyze_transfer_candidates
-from ui_qt.core import (
+from application import (
     APP_NAME,
     default_scoring_path,
     default_skill_priorities_path,

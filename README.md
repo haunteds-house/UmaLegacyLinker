@@ -272,7 +272,8 @@ structural scoring settings stored in `parent_scoring_overrides.json`.
 | --- | --- |
 | `qt_app.py` | PySide6 desktop entry point |
 | `cli.py` | Headless CLI: linking, catalogues, ranking and Transfer Helper |
-| `ui_qt/` | Qt shell, pages, visual lineage/artwork system, table model and shared workflow orchestration |
+| `application.py` | Qt-free configuration and workflow orchestration shared by the desktop UI and CLI |
+| `ui_qt/` | Qt shell, pages, visual lineage/artwork system and table model |
 | `legacy_linker.py` | Links veteran exports to `master.mdb` |
 | `parent_optimizer.py` | Local branch, pair and future-GP scoring |
 | `transfer_helper.py` | Collection-portfolio cleanup analysis and exhaustive strict-replacement checks |

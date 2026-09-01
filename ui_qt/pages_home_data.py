@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 from error_guidance import actionable_error
 from ui_qt.components import PageHeader, PathPicker, StatusCard, muted_label, section_label
 from ui_qt.context import AppContext
-from ui_qt.core import (
+from application import (
     CatalogRequest,
     ExtractRequest,
     LinkRequest,

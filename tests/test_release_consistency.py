@@ -6,13 +6,24 @@ import re
 import unittest
 from pathlib import Path
 
-from ui_qt.core import APP_VERSION
+from application import APP_VERSION, app_base_dir, resource_base_dir
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class ReleaseConsistencyTests(unittest.TestCase):
+    def test_application_services_are_qt_free_and_rooted_at_project(self) -> None:
+        source = (ROOT / "application.py").read_text(encoding="utf-8")
+        cli_source = (ROOT / "cli.py").read_text(encoding="utf-8")
+
+        self.assertNotIn("PySide6", source)
+        self.assertNotIn("from ui_qt", source)
+        self.assertNotIn("from ui_qt", cli_source)
+        self.assertEqual(app_base_dir(), ROOT)
+        self.assertEqual(resource_base_dir(), ROOT)
+        self.assertFalse((ROOT / "ui_qt" / "core.py").exists())
+
     def test_release_version_is_current_across_public_surfaces(self) -> None:
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
         readme = (ROOT / "README.md").read_text(encoding="utf-8")

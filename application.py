@@ -1,3 +1,5 @@
+"""Qt-free application services shared by the desktop UI and CLI."""
+
 from __future__ import annotations
 
 import json
@@ -66,14 +68,14 @@ CheckpointCallback = Callable[[], None]
 def app_base_dir() -> Path:
     if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent
-    return Path(__file__).resolve().parent.parent
+    return Path(__file__).resolve().parent
 
 
 def resource_base_dir() -> Path:
     bundle_dir = getattr(sys, "_MEIPASS", None)
     if getattr(sys, "frozen", False) and bundle_dir:
         return Path(bundle_dir).resolve()
-    return Path(__file__).resolve().parent.parent
+    return Path(__file__).resolve().parent
 
 
 def config_path() -> Path:

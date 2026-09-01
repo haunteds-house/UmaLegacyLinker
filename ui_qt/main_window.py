@@ -27,7 +27,7 @@ from i18n import LANGUAGE_LABELS
 from ui_qt.accessibility import describe_control, label_control
 from ui_qt.components import ThemedComboBox
 from ui_qt.context import AppContext
-from ui_qt.core import APP_NAME, APP_VERSION
+from application import APP_NAME, APP_VERSION
 from ui_qt.icon_catalog import stateful_icon
 from ui_qt.theme import COLORS
 

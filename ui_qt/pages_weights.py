@@ -79,7 +79,7 @@ from ui_qt.accessibility import describe_control, label_control
 from ui_qt.context import AppContext, LineageContextState
 from ui_qt.distribution_chart import DistributionDonut
 from ui_qt.curve_editor import CurveEditor
-from ui_qt.core import (
+from application import (
     default_scoring_path,
     default_skill_priorities_path,
     open_path,

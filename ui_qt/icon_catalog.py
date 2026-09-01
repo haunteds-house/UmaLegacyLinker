@@ -29,7 +29,7 @@ from PySide6.QtCore import QByteArray, QRectF, Qt
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 
-from ui_qt.core import resource_base_dir
+from application import resource_base_dir
 
 # Semantic key -> vendored Lucide file name. Keys are what the rest of the
 # UI imports; file names are an implementation detail of the vendored set.

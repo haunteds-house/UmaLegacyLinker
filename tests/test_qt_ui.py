@@ -9,10 +9,10 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from tests.check_i18n import FRENCH_MARKERS
-from i18n import scoring_label, translate_text
+from i18n import EXACT_EN, scoring_label, translate_text
 from parent_optimizer import OptimizerError
 from scoring_config import iter_leaf_paths, read_json_object
-from ui_qt.core import (
+from application import (
     LinkRequest,
     OnlineSearchRequest,
     OptimizationRequest,
@@ -72,8 +72,8 @@ class QtUiCoreTests(unittest.TestCase):
         progress = Mock()
         sentinel = object()
         with (
-            patch("ui_qt.core.validate_link_request"),
-            patch("ui_qt.core.link_veterans", return_value=sentinel) as linker,
+            patch("application.validate_link_request"),
+            patch("application.link_veterans", return_value=sentinel) as linker,
         ):
             result = run_link(request, logger=logger, progress=progress)
 
@@ -779,9 +779,9 @@ class QtUiCoreTests(unittest.TestCase):
                 course_conditions={"weather": 1},
             )
             with (
-                patch("ui_qt.core.link_veterans", return_value=linked) as link,
-                patch("ui_qt.core.generate_manual_skill_weights", return_value=manual) as weights,
-                patch("ui_qt.core.optimize_parents", return_value=expected) as optimise,
+                patch("application.link_veterans", return_value=linked) as link,
+                patch("application.generate_manual_skill_weights", return_value=manual) as weights,
+                patch("application.optimize_parents", return_value=expected) as optimise,
             ):
                 result = run_optimization(
                     request,
@@ -827,9 +827,9 @@ class QtUiCoreTests(unittest.TestCase):
             )
             progress = Mock()
             with (
-                patch("ui_qt.core.link_veterans", return_value=linked),
-                patch("ui_qt.core.generate_manual_skill_weights", return_value=manual),
-                patch("ui_qt.core.optimize_parents", return_value=object()) as optimise,
+                patch("application.link_veterans", return_value=linked),
+                patch("application.generate_manual_skill_weights", return_value=manual),
+                patch("application.optimize_parents", return_value=object()) as optimise,
             ):
                 run_optimization(request, logger=Mock(), progress=progress)
 
@@ -886,9 +886,9 @@ class QtUiCoreTests(unittest.TestCase):
                 include_generic_profiles=True,
             )
             with (
-                patch("ui_qt.core.link_veterans", return_value=linked),
-                patch("ui_qt.core.generate_manual_skill_weights", return_value=manual),
-                patch("ui_qt.core.analyze_transfer_candidates", return_value=expected) as analyse,
+                patch("application.link_veterans", return_value=linked),
+                patch("application.generate_manual_skill_weights", return_value=manual),
+                patch("application.analyze_transfer_candidates", return_value=expected) as analyse,
             ):
                 result = run_transfer_analysis(
                     request,
@@ -946,10 +946,10 @@ class QtUiCoreTests(unittest.TestCase):
                 response_path=response,
             )
             with (
-                patch("ui_qt.core.link_veterans", return_value=linked),
-                patch("ui_qt.core.generate_manual_skill_weights", return_value=manual),
-                patch("ui_qt.core.generate_auto_uql", return_value=("", {"search_filters": {}})),
-                patch("ui_qt.core.rank_online_parent_pairs", return_value=expected) as ranker,
+                patch("application.link_veterans", return_value=linked),
+                patch("application.generate_manual_skill_weights", return_value=manual),
+                patch("application.generate_auto_uql", return_value=("", {"search_filters": {}})),
+                patch("application.rank_online_parent_pairs", return_value=expected) as ranker,
             ):
                 result = run_online_search(
                     request,
@@ -1031,17 +1031,17 @@ class QtUiCoreTests(unittest.TestCase):
             )
             expected = object()
             with (
-                patch("ui_qt.core.link_veterans", return_value=linked),
+                patch("application.link_veterans", return_value=linked),
                 patch(
-                    "ui_qt.core.generate_manual_skill_weights",
+                    "application.generate_manual_skill_weights",
                     return_value=manual,
                 ),
                 patch(
-                    "ui_qt.core.generate_auto_uql",
+                    "application.generate_auto_uql",
                     return_value=("", generated),
                 ) as generate,
                 patch(
-                    "ui_qt.core.build_lineage_factor_api_filters",
+                    "application.build_lineage_factor_api_filters",
                     return_value=(
                         {"blue_sparks": [205, 206, 207, 208, 209]},
                         {
@@ -1053,11 +1053,11 @@ class QtUiCoreTests(unittest.TestCase):
                     ),
                 ),
                 patch(
-                    "ui_qt.core.UmaMoeApiClient",
+                    "application.UmaMoeApiClient",
                     return_value=client,
                 ),
                 patch(
-                    "ui_qt.core.load_ace_options",
+                    "application.load_ace_options",
                     return_value=[
                         SimpleNamespace(card_id=1001, chara_id=1),
                         SimpleNamespace(card_id=2001, chara_id=2),
@@ -1066,7 +1066,7 @@ class QtUiCoreTests(unittest.TestCase):
                     ],
                 ),
                 patch(
-                    "ui_qt.core.rank_online_parent_pairs",
+                    "application.rank_online_parent_pairs",
                     return_value=expected,
                 ),
             ):
@@ -1140,25 +1140,25 @@ class QtUiCoreTests(unittest.TestCase):
             expected = object()
             with (
                 patch(
-                    "ui_qt.core._validated_online_request",
+                    "application._validated_online_request",
                     return_value={1001: 11, 2002: 22},
                 ),
-                patch("ui_qt.core.link_veterans", return_value=linked),
+                patch("application.link_veterans", return_value=linked),
                 patch(
-                    "ui_qt.core.generate_manual_skill_weights",
+                    "application.generate_manual_skill_weights",
                     return_value=manual,
                 ),
                 patch(
-                    "ui_qt.core.generate_auto_uql",
+                    "application.generate_auto_uql",
                     return_value=("", {"search_filters": {}, "retrieval_plan": {}}),
                 ),
                 patch(
-                    "ui_qt.core.build_lineage_factor_api_filters",
+                    "application.build_lineage_factor_api_filters",
                     return_value=({}, {}),
                 ),
-                patch("ui_qt.core.UmaMoeApiClient", return_value=client),
+                patch("application.UmaMoeApiClient", return_value=client),
                 patch(
-                    "ui_qt.core.rank_online_grandparent_pairs",
+                    "application.rank_online_grandparent_pairs",
                     return_value=expected,
                 ),
             ):
@@ -1206,8 +1206,8 @@ class QtUiCoreTests(unittest.TestCase):
             ]
             local = VeteranOption(77, 2999, 2, "Target", "Alt costume", 9000)
             with (
-                patch("ui_qt.core.load_ace_options", return_value=ace_options),
-                patch("ui_qt.core.load_local_veteran_options", return_value=[local]),
+                patch("application.load_ace_options", return_value=ace_options),
+                patch("application.load_local_veteran_options", return_value=[local]),
             ):
                 with self.assertRaisesRegex(UmaMoeError, "même Uma"):
                     run_online_search(
@@ -1302,7 +1302,8 @@ class QtUiCoreTests(unittest.TestCase):
                 if any(character.isalpha() for character in source.value):
                     english = translate_text(source.value, "en")
                     if english == source.value:
-                        missing.append(f"{path.name}:{node.lineno}: {source.value}")
+                        if EXACT_EN.get(source.value) != source.value:
+                            missing.append(f"{path.name}:{node.lineno}: {source.value}")
                     elif FRENCH_MARKERS.search(english):
                         # Partial fragment substitution: the exact key never
                         # matched (a straight/typographic apostrophe mismatch

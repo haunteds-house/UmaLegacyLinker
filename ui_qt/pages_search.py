@@ -61,7 +61,7 @@ from ui_qt.components import (
 from ui_qt.combo_avatars import ComboAvatarLoader
 from ui_qt.comparison_dialog import ResultComparisonDialog
 from ui_qt.context import AppContext, LineageContextState
-from ui_qt.core import (
+from application import (
     OnlineSearchRequest,
     OptimizationRequest,
     VeteranOption,

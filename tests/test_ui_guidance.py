@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 from i18n import translate_text
-from ui_qt.core import OnlineSearchRequest, materialize_online_search_options
+from application import OnlineSearchRequest, materialize_online_search_options
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]

@@ -19,7 +19,7 @@ from backend_process import (
     run_process_task,
 )
 from tests.process_test_support import fail_with_diagnostic, report_process_state
-from ui_qt.core import (
+from application import (
     OnlineSearchRequest,
     OptimizationRequest,
     TransferRequest,
@@ -49,7 +49,7 @@ def _spawn_messages(
             if receiver.poll(5.0):
                 try:
                     messages.append(receiver.recv())
-                except EOFError:
+                except (EOFError, BrokenPipeError):
                     break
                 continue
             if not process.is_alive():

@@ -12,7 +12,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ui_qt.core import (
+from application import (
     UMADUMP_COLLECTION_FILE,
     UMAEXTRACTOR_COLLECTION_FILE,
     extractor_backend,

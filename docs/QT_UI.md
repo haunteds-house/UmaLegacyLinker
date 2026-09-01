@@ -117,7 +117,7 @@ The **Windows release** GitHub Actions workflow runs the tests and visual audit,
 | `result_comparison.py` | Qt-free stable identities, datasets and metric definitions for comparisons |
 | `cli.py` | Headless CLI sharing the same engines |
 | `veteran_identity.py` | canonical local-veteran labels, score formatting and collision handling |
-| `ui_qt/core.py` | GUI-independent configuration and workflow orchestration |
+| `application.py` | GUI-independent configuration and workflow orchestration |
 | `ui_qt/accessibility.py` | shared explicit name, description and visible-label bindings for Qt assistive APIs |
 | `ui_qt/main_window.py` | application shell, navigation, progress and log drawer |
 | `ui_qt/workers.py` | thread worker and backend-process IPC supervisor |

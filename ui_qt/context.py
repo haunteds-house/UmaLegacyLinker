@@ -11,7 +11,7 @@ from PySide6.QtCore import QObject, Signal
 from i18n import normalise_language, translate_text
 from secret_store import resolve_api_key, save_api_key
 from uma_moe import DEFAULT_API_BASE
-from ui_qt.core import (
+from application import (
     SettingsStore,
     active_course_overrides_path,
     api_key_path,

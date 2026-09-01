@@ -12,7 +12,7 @@ def report_process_state(
     progress: Callable[[int, str], None],
     checkpoint: Callable[[], None],
 ) -> dict[str, Any]:
-    from ui_qt.core import APP_NAME
+    from application import APP_NAME
 
     checkpoint()
     logger("child-log")

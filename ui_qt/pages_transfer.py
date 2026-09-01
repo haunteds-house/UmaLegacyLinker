@@ -46,7 +46,7 @@ from ui_qt.accessibility import describe_control, label_control
 from ui_qt.components import PageHeader, StatusCard, ThemedComboBox, muted_label
 from ui_qt.comparison_dialog import ResultComparisonDialog
 from ui_qt.context import AppContext
-from ui_qt.core import (
+from application import (
     TransferRequest,
     active_course_overrides_path,
     open_path,

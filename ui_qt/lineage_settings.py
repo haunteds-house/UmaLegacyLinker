@@ -31,7 +31,7 @@ from ui_qt.components import (
     muted_label,
 )
 from ui_qt.context import AppContext, LineageContextState
-from ui_qt.core import active_course_overrides_path
+from application import active_course_overrides_path
 from ui_qt.icon_catalog import native_icon
 from ui_qt.view_state import bind_collapsible_state
 

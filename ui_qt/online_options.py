@@ -54,7 +54,7 @@ from ui_qt.components import (
     muted_label,
 )
 from ui_qt.context import AppContext
-from ui_qt.core import VeteranOption, load_opposing_parent_candidates
+from application import VeteranOption, load_opposing_parent_candidates
 from ui_qt.result_panes import CardFilterDialog
 
 PARENT_MODE = "parent"

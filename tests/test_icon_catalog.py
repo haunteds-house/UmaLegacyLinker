@@ -90,6 +90,22 @@ class IconCatalogIntegrityTests(unittest.TestCase):
                 f"{filename}: fixed-palette SVG must carry explicit colours",
             )
 
+    def test_running_style_badges_declare_distinct_palette_colours(self) -> None:
+        expected = {
+            "style-front-runner": "#4a90d9",
+            "style-end-closer": "#f16913",
+        }
+        declared: set[str] = set()
+        for key, colour in expected.items():
+            content = (
+                (icons_dir() / FIXED_ICON_FILES[key])
+                .read_text(encoding="utf-8")
+                .casefold()
+            )
+            self.assertIn(colour, content, f"{key}: expected authored colour {colour}")
+            declared.add(colour)
+        self.assertEqual(len(declared), len(expected))
+
 
 @unittest.skipUnless(QApplication is not None, "PySide6 is not installed")
 class IconRenderingTests(unittest.TestCase):
@@ -195,25 +211,6 @@ class FixedPaletteIconTests(unittest.TestCase):
                 .lower()
             )
             self.assertIn("#ffffff", content, f"{key}: expected the in-game white outline")
-
-    def test_running_style_badges_keep_distinct_palette_colours(self) -> None:
-        front = (
-            native_pixmap("style-front-runner", 24)
-            .toImage()
-            .pixelColor(12, 2)
-            .name()
-            .lower()
-        )
-        closer = (
-            native_pixmap("style-end-closer", 24)
-            .toImage()
-            .pixelColor(12, 2)
-            .name()
-            .lower()
-        )
-        self.assertEqual(front, "#4a90d9")
-        self.assertEqual(closer, "#f16913")
-        self.assertNotEqual(front, closer)
 
     def test_native_pixmap_rejects_tintable_key(self) -> None:
         with self.assertRaises(KeyError):

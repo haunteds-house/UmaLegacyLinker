@@ -2,7 +2,7 @@
 
 ## Automated Windows release
 
-1. Update `APP_VERSION` in `ui_qt/core.py` and the four-part versions in `windows_version_info_qt.txt`.
+1. Update `APP_VERSION` in `application.py` and the four-part versions in `windows_version_info_qt.txt`.
 2. Update `CHANGELOG.md` and any affected README/docs sections.
 3. Install `requirements-build-qt.txt`, then run the portable test and translation checks:
 

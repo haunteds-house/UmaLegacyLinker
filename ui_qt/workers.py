@@ -20,7 +20,7 @@ from backend_process import (
     ProcessTask,
     run_process_task,
 )
-from ui_qt.core import OperationCancelled
+from application import OperationCancelled
 
 
 PROCESS_POLL_SECONDS = 0.05
@@ -193,7 +193,7 @@ class ProcessFunctionWorker(QRunnable):
                 if receiver.poll(PROCESS_POLL_SECONDS):
                     try:
                         message = receiver.recv()
-                    except EOFError:
+                    except (EOFError, BrokenPipeError):
                         break
                     terminal_received = self._relay_message(message) or terminal_received
                     continue
@@ -201,7 +201,7 @@ class ProcessFunctionWorker(QRunnable):
                     while receiver.poll():
                         try:
                             message = receiver.recv()
-                        except EOFError:
+                        except (EOFError, BrokenPipeError):
                             break
                         terminal_received = (
                             self._relay_message(message) or terminal_received
