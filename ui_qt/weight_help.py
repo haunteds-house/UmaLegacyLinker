@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Sequence
 
-from i18n import normalise_language, scoring_label
+from uma_legacy_linker.i18n import normalise_language, scoring_label
 from ui_qt.weight_controls import is_percentage_setting, is_probability_setting
 
 

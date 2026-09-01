@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scoring_config import (
+from uma_legacy_linker.scoring_config import (
     ScoringConfigError,
     build_overrides,
     deep_merge,
@@ -16,7 +16,7 @@ from scoring_config import (
     validate_skill_priorities_config,
     write_json_object,
 )
-from uma_moe import (
+from uma_legacy_linker.uma_moe import (
     MAX_FETCH_CANDIDATES,
     UmaMoeApiClient,
     _recall_guard_remote_pool_size,
@@ -29,8 +29,8 @@ from uma_moe import (
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_SCORING = PROJECT_DIR / "default_parent_scoring.json"
-DEFAULT_SKILL_PRIORITIES = PROJECT_DIR / "default_skill_priorities.json"
+DEFAULT_SCORING = PROJECT_DIR / "resources" / "default_parent_scoring.json"
+DEFAULT_SKILL_PRIORITIES = PROJECT_DIR / "resources" / "default_skill_priorities.json"
 
 
 class ScoringConfigTests(unittest.TestCase):

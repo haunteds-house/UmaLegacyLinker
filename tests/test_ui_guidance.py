@@ -3,8 +3,8 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from i18n import translate_text
-from application import OnlineSearchRequest, materialize_online_search_options
+from uma_legacy_linker.i18n import translate_text
+from uma_legacy_linker.application import OnlineSearchRequest, materialize_online_search_options
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]

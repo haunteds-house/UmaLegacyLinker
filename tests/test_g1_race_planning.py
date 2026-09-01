@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from g1_race_planning import (
+from uma_legacy_linker.g1_race_planning import (
     build_pair_g1_diagnostic,
     calendar_slots,
     independent_training_win_probability,
@@ -12,8 +12,8 @@ from g1_race_planning import (
     schedule_export_summary,
     years_for_race_permissions,
 )
-from legacy_linker import MasterResolver
-from parent_optimizer import AffinityResolver
+from uma_legacy_linker.legacy_linker import MasterResolver
+from uma_legacy_linker.parent_optimizer import AffinityResolver
 
 
 def member(*races: dict) -> dict:
@@ -56,7 +56,7 @@ def test_lightweight_pair_diagnostic_skips_calendar_optimization() -> None:
         "name": "Shared G1",
         "schedule_slots": [{"year": 2, "month": 5, "half": 1}],
     }
-    with patch("g1_race_planning.optimize_race_schedule") as optimizer:
+    with patch("uma_legacy_linker.g1_race_planning.optimize_race_schedule") as optimizer:
         result = build_pair_g1_diagnostic(
             member(shared),
             member(shared),

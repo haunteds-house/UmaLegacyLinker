@@ -21,13 +21,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from backend_process import ProcessTask
-from error_guidance import actionable_error
-from i18n import LANGUAGE_LABELS
+from uma_legacy_linker.backend_process import ProcessTask
+from uma_legacy_linker.error_guidance import actionable_error
+from uma_legacy_linker.i18n import LANGUAGE_LABELS
 from ui_qt.accessibility import describe_control, label_control
 from ui_qt.components import ThemedComboBox
 from ui_qt.context import AppContext
-from application import APP_NAME, APP_VERSION
+from uma_legacy_linker.application import APP_NAME, APP_VERSION
 from ui_qt.icon_catalog import stateful_icon
 from ui_qt.theme import COLORS
 

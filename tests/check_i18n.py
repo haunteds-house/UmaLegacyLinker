@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from i18n import (  # noqa: E402
+from uma_legacy_linker.i18n import (  # noqa: E402
     EXACT_EN,
     FRAGMENTS_EN,
     SCORING_LABELS_EN,
@@ -217,7 +217,12 @@ def orphaned_translation_keys() -> dict[str, list[str]]:
     documentation intentionally do not keep a retired UI translation alive.
     """
     paths = [
-        *(path for path in ROOT.glob("*.py") if path.name != "i18n.py"),
+        *ROOT.glob("*.py"),
+        *(
+            path
+            for path in (ROOT / "uma_legacy_linker").glob("*.py")
+            if path.name != "i18n.py"
+        ),
         *(ROOT / "ui_qt").glob("*.py"),
     ]
     literals: list[str] = []
@@ -245,15 +250,15 @@ def main() -> None:
     # (ce qui remonte à l'utilisateur).
     plans = [
         (ROOT / "cli.py", None),
-        (ROOT / "legacy_linker.py", {"logger", "log", "raise"}),
-        (ROOT / "skill_catalog.py", {"logger", "log", "raise"}),
-        (ROOT / "manual_weights.py", {"logger", "log", "raise"}),
-        (ROOT / "simulator_weights.py", {"logger", "log", "raise"}),
-        (ROOT / "parent_optimizer.py", {"logger", "log", "raise"}),
-        (ROOT / "transfer_helper.py", {"logger", "log", "raise"}),
-        (ROOT / "uma_moe.py", {"logger", "log", "raise"}),
-        (ROOT / "lineage_planner.py", {"logger", "log", "raise"}),
-        (ROOT / "scoring_config.py", {"logger", "log", "raise"}),
+        (ROOT / "uma_legacy_linker" / "legacy_linker.py", {"logger", "log", "raise"}),
+        (ROOT / "uma_legacy_linker" / "skill_catalog.py", {"logger", "log", "raise"}),
+        (ROOT / "uma_legacy_linker" / "manual_weights.py", {"logger", "log", "raise"}),
+        (ROOT / "uma_legacy_linker" / "simulator_weights.py", {"logger", "log", "raise"}),
+        (ROOT / "uma_legacy_linker" / "parent_optimizer.py", {"logger", "log", "raise"}),
+        (ROOT / "uma_legacy_linker" / "transfer_helper.py", {"logger", "log", "raise"}),
+        (ROOT / "uma_legacy_linker" / "uma_moe.py", {"logger", "log", "raise"}),
+        (ROOT / "uma_legacy_linker" / "lineage_planner.py", {"logger", "log", "raise"}),
+        (ROOT / "uma_legacy_linker" / "scoring_config.py", {"logger", "log", "raise"}),
     ]
     # Couche Qt : couverture complète, comme app.py (tout le texte est UI).
     plans.extend(

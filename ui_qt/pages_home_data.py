@@ -16,10 +16,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from error_guidance import actionable_error
+from uma_legacy_linker.error_guidance import actionable_error
 from ui_qt.components import PageHeader, PathPicker, StatusCard, muted_label, section_label
 from ui_qt.context import AppContext
-from application import (
+from uma_legacy_linker.application import (
     CatalogRequest,
     ExtractRequest,
     LinkRequest,

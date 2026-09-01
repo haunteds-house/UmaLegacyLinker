@@ -2,11 +2,11 @@ import json
 import unittest
 from pathlib import Path
 
-from parent_optimizer import (
+from uma_legacy_linker.parent_optimizer import (
     _future_grandparent_pink_score,
     _future_grandparent_white_score,
 )
-from uma_moe import (
+from uma_legacy_linker.uma_moe import (
     _final_parent_affinity_potential,
     _future_parent_training_aptitudes,
     _full_production_affinity,
@@ -94,7 +94,7 @@ def ace_payload():
 
 
 def default_config():
-    path = PROJECT_DIR / "default_parent_scoring.json"
+    path = PROJECT_DIR / "resources" / "default_parent_scoring.json"
     return json.loads(path.read_text(encoding="utf-8"))
 
 

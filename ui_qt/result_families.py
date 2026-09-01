@@ -22,7 +22,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Any, Callable
 
-from output_history import OutputProvenance
+from uma_legacy_linker.output_history import OutputProvenance
 
 from PySide6.QtCore import QRectF, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap

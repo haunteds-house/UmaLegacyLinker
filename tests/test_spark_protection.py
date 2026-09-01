@@ -6,8 +6,8 @@ import math
 import unittest
 from pathlib import Path
 
-from spark_protection import build_spark_heritage, compare_spark_heritage
-from transfer_helper import DominanceAccumulator, classify_transfer_records
+from uma_legacy_linker.spark_protection import build_spark_heritage, compare_spark_heritage
+from uma_legacy_linker.transfer_helper import DominanceAccumulator, classify_transfer_records
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
@@ -51,7 +51,9 @@ def veteran(
 class SparkProtectionTests(unittest.TestCase):
     def setUp(self) -> None:
         self.config = json.loads(
-            (PROJECT_DIR / "default_parent_scoring.json").read_text(encoding="utf-8")
+            (PROJECT_DIR / "resources" / "default_parent_scoring.json").read_text(
+                encoding="utf-8"
+            )
         )
         self.protection = self.config["transfer_helper"]["spark_protection"]
         self.catalog = {

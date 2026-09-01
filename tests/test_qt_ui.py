@@ -9,10 +9,10 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from tests.check_i18n import FRENCH_MARKERS
-from i18n import EXACT_EN, scoring_label, translate_text
-from parent_optimizer import OptimizerError
-from scoring_config import iter_leaf_paths, read_json_object
-from application import (
+from uma_legacy_linker.i18n import EXACT_EN, scoring_label, translate_text
+from uma_legacy_linker.parent_optimizer import OptimizerError
+from uma_legacy_linker.scoring_config import iter_leaf_paths, read_json_object
+from uma_legacy_linker.application import (
     LinkRequest,
     OnlineSearchRequest,
     OptimizationRequest,
@@ -54,7 +54,7 @@ from ui_qt.weight_controls import (
     weight_subcategory,
 )
 from ui_qt.weight_help import describe_weight
-from uma_moe import UmaMoeError
+from uma_legacy_linker.uma_moe import UmaMoeError
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
@@ -72,8 +72,8 @@ class QtUiCoreTests(unittest.TestCase):
         progress = Mock()
         sentinel = object()
         with (
-            patch("application.validate_link_request"),
-            patch("application.link_veterans", return_value=sentinel) as linker,
+            patch("uma_legacy_linker.application.validate_link_request"),
+            patch("uma_legacy_linker.application.link_veterans", return_value=sentinel) as linker,
         ):
             result = run_link(request, logger=logger, progress=progress)
 
@@ -242,7 +242,9 @@ class QtUiCoreTests(unittest.TestCase):
         self.assertNotEqual(SPARK_COLORS["white_useful"], SPARK_COLORS["white_priority"])
 
     def test_weight_groups_preview_normalised_shares_without_mutation(self) -> None:
-        config = read_json_object(PROJECT_DIR / "default_parent_scoring.json")
+        config = read_json_object(
+            PROJECT_DIR / "resources" / "default_parent_scoring.json"
+        )
         path = ("mode_weights", "parent_pair", "distance_s")
         paths = relative_group_paths(config, path)
         shares = relative_group_shares(config, path)
@@ -276,7 +278,9 @@ class QtUiCoreTests(unittest.TestCase):
         self.assertEqual(sum(len(group) for group in groups), 32)
 
     def test_subcategories_cover_every_weight_in_curated_order(self) -> None:
-        config = read_json_object(PROJECT_DIR / "default_parent_scoring.json")
+        config = read_json_object(
+            PROJECT_DIR / "resources" / "default_parent_scoring.json"
+        )
         hidden = {"schema_version", "description", "formula_notes", "notes", "weight_source"}
         paths = [
             path
@@ -294,7 +298,9 @@ class QtUiCoreTests(unittest.TestCase):
         self.assertEqual(ordered[-1][0], "transfer_helper")
 
     def test_visible_weight_names_never_fall_back_to_json_keys(self) -> None:
-        config = read_json_object(PROJECT_DIR / "default_parent_scoring.json")
+        config = read_json_object(
+            PROJECT_DIR / "resources" / "default_parent_scoring.json"
+        )
         hidden = {"schema_version", "description", "formula_notes", "notes", "weight_source"}
         missing: list[str] = []
         for path, _value in iter_leaf_paths(config):
@@ -331,7 +337,9 @@ class QtUiCoreTests(unittest.TestCase):
                 )
 
     def test_every_visible_weight_has_bilingual_contextual_help(self) -> None:
-        config = read_json_object(PROJECT_DIR / "default_parent_scoring.json")
+        config = read_json_object(
+            PROJECT_DIR / "resources" / "default_parent_scoring.json"
+        )
         hidden = {"schema_version", "description", "formula_notes", "notes", "weight_source"}
         checked = 0
         for path, value in iter_leaf_paths(config):
@@ -779,9 +787,9 @@ class QtUiCoreTests(unittest.TestCase):
                 course_conditions={"weather": 1},
             )
             with (
-                patch("application.link_veterans", return_value=linked) as link,
-                patch("application.generate_manual_skill_weights", return_value=manual) as weights,
-                patch("application.optimize_parents", return_value=expected) as optimise,
+                patch("uma_legacy_linker.application.link_veterans", return_value=linked) as link,
+                patch("uma_legacy_linker.application.generate_manual_skill_weights", return_value=manual) as weights,
+                patch("uma_legacy_linker.application.optimize_parents", return_value=expected) as optimise,
             ):
                 result = run_optimization(
                     request,
@@ -827,9 +835,9 @@ class QtUiCoreTests(unittest.TestCase):
             )
             progress = Mock()
             with (
-                patch("application.link_veterans", return_value=linked),
-                patch("application.generate_manual_skill_weights", return_value=manual),
-                patch("application.optimize_parents", return_value=object()) as optimise,
+                patch("uma_legacy_linker.application.link_veterans", return_value=linked),
+                patch("uma_legacy_linker.application.generate_manual_skill_weights", return_value=manual),
+                patch("uma_legacy_linker.application.optimize_parents", return_value=object()) as optimise,
             ):
                 run_optimization(request, logger=Mock(), progress=progress)
 
@@ -886,9 +894,9 @@ class QtUiCoreTests(unittest.TestCase):
                 include_generic_profiles=True,
             )
             with (
-                patch("application.link_veterans", return_value=linked),
-                patch("application.generate_manual_skill_weights", return_value=manual),
-                patch("application.analyze_transfer_candidates", return_value=expected) as analyse,
+                patch("uma_legacy_linker.application.link_veterans", return_value=linked),
+                patch("uma_legacy_linker.application.generate_manual_skill_weights", return_value=manual),
+                patch("uma_legacy_linker.application.analyze_transfer_candidates", return_value=expected) as analyse,
             ):
                 result = run_transfer_analysis(
                     request,
@@ -946,10 +954,10 @@ class QtUiCoreTests(unittest.TestCase):
                 response_path=response,
             )
             with (
-                patch("application.link_veterans", return_value=linked),
-                patch("application.generate_manual_skill_weights", return_value=manual),
-                patch("application.generate_auto_uql", return_value=("", {"search_filters": {}})),
-                patch("application.rank_online_parent_pairs", return_value=expected) as ranker,
+                patch("uma_legacy_linker.application.link_veterans", return_value=linked),
+                patch("uma_legacy_linker.application.generate_manual_skill_weights", return_value=manual),
+                patch("uma_legacy_linker.application.generate_auto_uql", return_value=("", {"search_filters": {}})),
+                patch("uma_legacy_linker.application.rank_online_parent_pairs", return_value=expected) as ranker,
             ):
                 result = run_online_search(
                     request,
@@ -1031,17 +1039,17 @@ class QtUiCoreTests(unittest.TestCase):
             )
             expected = object()
             with (
-                patch("application.link_veterans", return_value=linked),
+                patch("uma_legacy_linker.application.link_veterans", return_value=linked),
                 patch(
-                    "application.generate_manual_skill_weights",
+                    "uma_legacy_linker.application.generate_manual_skill_weights",
                     return_value=manual,
                 ),
                 patch(
-                    "application.generate_auto_uql",
+                    "uma_legacy_linker.application.generate_auto_uql",
                     return_value=("", generated),
                 ) as generate,
                 patch(
-                    "application.build_lineage_factor_api_filters",
+                    "uma_legacy_linker.application.build_lineage_factor_api_filters",
                     return_value=(
                         {"blue_sparks": [205, 206, 207, 208, 209]},
                         {
@@ -1053,11 +1061,11 @@ class QtUiCoreTests(unittest.TestCase):
                     ),
                 ),
                 patch(
-                    "application.UmaMoeApiClient",
+                    "uma_legacy_linker.application.UmaMoeApiClient",
                     return_value=client,
                 ),
                 patch(
-                    "application.load_ace_options",
+                    "uma_legacy_linker.application.load_ace_options",
                     return_value=[
                         SimpleNamespace(card_id=1001, chara_id=1),
                         SimpleNamespace(card_id=2001, chara_id=2),
@@ -1066,7 +1074,7 @@ class QtUiCoreTests(unittest.TestCase):
                     ],
                 ),
                 patch(
-                    "application.rank_online_parent_pairs",
+                    "uma_legacy_linker.application.rank_online_parent_pairs",
                     return_value=expected,
                 ),
             ):
@@ -1140,25 +1148,25 @@ class QtUiCoreTests(unittest.TestCase):
             expected = object()
             with (
                 patch(
-                    "application._validated_online_request",
+                    "uma_legacy_linker.application._validated_online_request",
                     return_value={1001: 11, 2002: 22},
                 ),
-                patch("application.link_veterans", return_value=linked),
+                patch("uma_legacy_linker.application.link_veterans", return_value=linked),
                 patch(
-                    "application.generate_manual_skill_weights",
+                    "uma_legacy_linker.application.generate_manual_skill_weights",
                     return_value=manual,
                 ),
                 patch(
-                    "application.generate_auto_uql",
+                    "uma_legacy_linker.application.generate_auto_uql",
                     return_value=("", {"search_filters": {}, "retrieval_plan": {}}),
                 ),
                 patch(
-                    "application.build_lineage_factor_api_filters",
+                    "uma_legacy_linker.application.build_lineage_factor_api_filters",
                     return_value=({}, {}),
                 ),
-                patch("application.UmaMoeApiClient", return_value=client),
+                patch("uma_legacy_linker.application.UmaMoeApiClient", return_value=client),
                 patch(
-                    "application.rank_online_grandparent_pairs",
+                    "uma_legacy_linker.application.rank_online_grandparent_pairs",
                     return_value=expected,
                 ),
             ):
@@ -1206,8 +1214,8 @@ class QtUiCoreTests(unittest.TestCase):
             ]
             local = VeteranOption(77, 2999, 2, "Target", "Alt costume", 9000)
             with (
-                patch("application.load_ace_options", return_value=ace_options),
-                patch("application.load_local_veteran_options", return_value=[local]),
+                patch("uma_legacy_linker.application.load_ace_options", return_value=ace_options),
+                patch("uma_legacy_linker.application.load_local_veteran_options", return_value=[local]),
             ):
                 with self.assertRaisesRegex(UmaMoeError, "même Uma"):
                     run_online_search(

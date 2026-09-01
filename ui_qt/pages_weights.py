@@ -32,8 +32,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from error_guidance import actionable_error
-from i18n import scoring_label, translate_text
+from uma_legacy_linker.error_guidance import actionable_error
+from uma_legacy_linker.i18n import scoring_label, translate_text
 
 # `scoring_label` is a flat leaf-name lookup shared with course_conditions,
 # which reuses the same "parent_branch" / "parent_pair" leaf names for its own
@@ -54,7 +54,7 @@ def _mode_weights_aware_label(path: tuple[str, ...], key: str, language: str) ->
         if override is not None:
             return str(translate_text(override, language))
     return scoring_label(key, language)
-from scoring_config import (
+from uma_legacy_linker.scoring_config import (
     ScoringConfigError,
     build_overrides,
     count_override_leaves,
@@ -79,7 +79,7 @@ from ui_qt.accessibility import describe_control, label_control
 from ui_qt.context import AppContext, LineageContextState
 from ui_qt.distribution_chart import DistributionDonut
 from ui_qt.curve_editor import CurveEditor
-from application import (
+from uma_legacy_linker.application import (
     default_scoring_path,
     default_skill_priorities_path,
     open_path,

@@ -33,13 +33,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from error_guidance import actionable_error
-from lineage_planner import (
+from uma_legacy_linker.error_guidance import actionable_error
+from uma_legacy_linker.lineage_planner import (
     LineagePlannerError,
     build_lineage_planner_export,
     write_lineage_planner_export,
 )
-from uma_moe import OnlineParentSearchResult
+from uma_legacy_linker.uma_moe import OnlineParentSearchResult
 from ui_qt.accessibility import describe_control
 from ui_qt.avatar import AsyncAvatarProvider
 from ui_qt.components import muted_label
@@ -54,7 +54,7 @@ from ui_qt.presentation import (
 )
 from ui_qt.table_typography import enable_tabular_numbers
 from ui_qt.view_state import bind_splitter_state, bind_table_view_state
-from veteran_identity import canonical_veteran_label, technical_veteran_tooltip
+from uma_legacy_linker.veteran_identity import canonical_veteran_label, technical_veteran_tooltip
 
 RIGHT = Qt.AlignmentFlag.AlignRight
 RESULT_AVATAR_SIZE = 32

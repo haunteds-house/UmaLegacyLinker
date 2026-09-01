@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from transfer_helper import (
+from uma_legacy_linker.transfer_helper import (
     DominanceAccumulator,
     ProfileContext,
     _factor_snapshot,
@@ -529,7 +529,7 @@ if __name__ == "__main__":
 
 
 def test_static_condition_comparison_accepts_scalar_preset_values():
-    from parent_optimizer import _compare_condition, _static_condition_state
+    from uma_legacy_linker.parent_optimizer import _compare_condition, _static_condition_state
 
     assert _compare_condition(1, "==", 1)
     assert _compare_condition(2, ">=", 1)

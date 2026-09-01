@@ -37,7 +37,7 @@ This project uses feature-level semantic versioning. Small internal iterations a
   matches are rejected rather than guessed.
 - Exposed the retained output history in Search and Transfer Helper. Their
   History menus now list the current run and the single predecessor already
-  maintained by `output_history.py`; loading either generation records its
+  maintained by `uma_legacy_linker/output_history.py`; loading either generation records its
   exact file, generation time, schema, source and available input SHA-256
   fingerprints in a visible provenance badge and tooltip. This is navigation
   to one prior state only, not side-by-side result comparison, and does not

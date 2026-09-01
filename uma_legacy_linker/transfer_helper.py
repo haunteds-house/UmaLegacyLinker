@@ -10,14 +10,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
-from output_history import write_json_with_history
-from veteran_identity import (
+from uma_legacy_linker.output_history import write_json_with_history
+from uma_legacy_linker.paths import resource_base_dir
+from uma_legacy_linker.veteran_identity import (
     canonical_veteran_label,
     canonical_veteran_labels,
 )
 
-from course_presets import ordered_course_presets
-from parent_optimizer import (
+from uma_legacy_linker.course_presets import ordered_course_presets
+from uma_legacy_linker.parent_optimizer import (
     DISTANCES,
     STYLES,
     SURFACES,
@@ -44,7 +45,7 @@ from parent_optimizer import (
     _white_score,
     load_ace_options,
 )
-from spark_protection import (
+from uma_legacy_linker.spark_protection import (
     build_spark_heritage,
     compare_spark_heritage,
     effective_skill_keys,
@@ -1461,7 +1462,7 @@ def analyze_transfer_candidates(
     config_path = (
         Path(scoring_config_path).expanduser().resolve()
         if scoring_config_path
-        else Path(__file__).resolve().parent / "default_parent_scoring.json"
+        else resource_base_dir() / "default_parent_scoring.json"
     )
 
     required = (master, linked_path, weights_path, race_catalog_path, skill_catalog_path_resolved, config_path)

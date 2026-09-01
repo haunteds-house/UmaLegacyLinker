@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Callable
 
-from output_history import (
+from uma_legacy_linker.output_history import (
     CURRENT_REVISION,
     OutputProvenance,
     OutputRevision,

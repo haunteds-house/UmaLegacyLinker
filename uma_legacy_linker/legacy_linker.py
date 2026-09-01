@@ -10,16 +10,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
-from output_history import write_json_with_history
+from uma_legacy_linker.output_history import write_json_with_history
 
-from g1_race_planning import (
+from uma_legacy_linker.g1_race_planning import (
     calendar_slots,
     distance_type_for_meters,
     surface_for_ground,
     years_for_race_permissions,
 )
 
-from skill_catalog import FACTOR_TARGET_LABELS, generate_skill_catalogs
+from uma_legacy_linker.skill_catalog import FACTOR_TARGET_LABELS, generate_skill_catalogs
 
 
 FACTOR_TYPE_LABELS = {

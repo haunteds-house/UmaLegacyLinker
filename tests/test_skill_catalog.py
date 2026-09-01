@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 import unittest
 
-from skill_catalog import direct_support_hint_sources
+from uma_legacy_linker.skill_catalog import direct_support_hint_sources
 
 
 class SkillCatalogAcquisitionTests(unittest.TestCase):

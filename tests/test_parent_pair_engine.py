@@ -1,6 +1,6 @@
 import unittest
 
-from parent_optimizer import (
+from uma_legacy_linker.parent_optimizer import (
     CooperativeCheckpoint,
     _aptitude_pair_score,
     _blue_score,
@@ -11,7 +11,7 @@ from parent_optimizer import (
     evaluate_parent_pair,
     parent_pair_sort_key,
 )
-from scoring_config import read_json_object
+from uma_legacy_linker.scoring_config import read_json_object
 
 
 class FakeResolver:
@@ -746,7 +746,9 @@ def _surface_policy_pair(surface_stars: list[int], *, config=None, surface_rank=
         add_red(target, "Turf", stars)
     add_red(members[0], "Medium", 3)
     add_red(members[1], "Medium", 3)
-    effective_config = config or read_json_object("default_parent_scoring.json")
+    effective_config = config or read_json_object(
+        "resources/default_parent_scoring.json"
+    )
     return evaluate_parent_pair(
         FakeResolver(), ace(distance_rank=7, surface_rank=surface_rank), members[0], members[1],
         surface="turf", distance="medium", style="pace_chaser",
@@ -813,7 +815,7 @@ def test_e_can_start_at_a_with_ten_stars():
 
 
 def test_surface_policy_thresholds_are_configurable():
-    config = read_json_object("default_parent_scoring.json")
+    config = read_json_object("resources/default_parent_scoring.json")
     config["aptitude_inheritance"]["surface"]["minimum_initial_rank"] = 3
     config["aptitude_inheritance"]["surface"]["preferred_initial_rank"] = 6
 
@@ -877,7 +879,7 @@ def test_surface_minimum_is_secondary_to_distance_while_a_remains_compensable():
 
 def test_online_parent_search_exports_canonical_pair_results(tmp_path, monkeypatch):
     import json
-    import uma_moe
+    from uma_legacy_linker import uma_moe
 
     local_gp1 = member(4, "Local GP1", ["A"])
     local_gp2 = member(5, "Local GP2", ["B"])

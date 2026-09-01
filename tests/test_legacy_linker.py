@@ -8,7 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from legacy_linker import (
+from uma_legacy_linker.legacy_linker import (
     LINK_CACHE_SCHEMA_VERSION,
     LinkerError,
     build_lineage_summary,
@@ -447,8 +447,8 @@ class LinkVeteransIntegrationTests(unittest.TestCase):
             logs: list[str] = []
 
             with (
-                patch("legacy_linker.MasterResolver", self.FakeResolver),
-                patch("legacy_linker.generate_skill_catalogs", self.fake_catalogs),
+                patch("uma_legacy_linker.legacy_linker.MasterResolver", self.FakeResolver),
+                patch("uma_legacy_linker.legacy_linker.generate_skill_catalogs", self.fake_catalogs),
             ):
                 result = link_veterans(master, source, output, logger=logs.append)
 
@@ -522,8 +522,8 @@ class LinkVeteransIntegrationTests(unittest.TestCase):
             self.assertEqual(link_cache_freshness(master, source, output).state, "ready")
 
             with (
-                patch("legacy_linker.MasterResolver", self.FakeResolver),
-                patch("legacy_linker.generate_skill_catalogs", self.fake_catalogs),
+                patch("uma_legacy_linker.legacy_linker.MasterResolver", self.FakeResolver),
+                patch("uma_legacy_linker.legacy_linker.generate_skill_catalogs", self.fake_catalogs),
             ):
                 cached = link_veterans(master, source, output, logger=logs.append)
             self.assertTrue(cached.reused)
@@ -536,8 +536,8 @@ class LinkVeteransIntegrationTests(unittest.TestCase):
                 "inputs_changed",
             )
             with (
-                patch("legacy_linker.MasterResolver", self.FakeResolver),
-                patch("legacy_linker.generate_skill_catalogs", self.fake_catalogs),
+                patch("uma_legacy_linker.legacy_linker.MasterResolver", self.FakeResolver),
+                patch("uma_legacy_linker.legacy_linker.generate_skill_catalogs", self.fake_catalogs),
             ):
                 refreshed = link_veterans(master, source, output)
             self.assertFalse(refreshed.reused)
@@ -551,13 +551,13 @@ class LinkVeteransIntegrationTests(unittest.TestCase):
             )
 
             with (
-                patch("legacy_linker.MasterResolver", self.FakeResolver),
-                patch("legacy_linker.generate_skill_catalogs", self.fake_catalogs),
+                patch("uma_legacy_linker.legacy_linker.MasterResolver", self.FakeResolver),
+                patch("uma_legacy_linker.legacy_linker.generate_skill_catalogs", self.fake_catalogs),
             ):
                 valid_again = link_veterans(master, source, output)
             self.assertTrue(valid_again.manifest_path.is_file())
             with patch(
-                "legacy_linker.MasterResolver",
+                "uma_legacy_linker.legacy_linker.MasterResolver",
                 side_effect=LinkerError("échec contrôlé"),
             ):
                 with self.assertRaisesRegex(LinkerError, "échec contrôlé"):
@@ -568,8 +568,8 @@ class LinkVeteransIntegrationTests(unittest.TestCase):
                 "not_generated",
             )
             with (
-                patch("legacy_linker.MasterResolver", self.FakeResolver),
-                patch("legacy_linker.generate_skill_catalogs", self.fake_catalogs),
+                patch("uma_legacy_linker.legacy_linker.MasterResolver", self.FakeResolver),
+                patch("uma_legacy_linker.legacy_linker.generate_skill_catalogs", self.fake_catalogs),
             ):
                 repaired = link_veterans(master, source, output)
                 forced = link_veterans(

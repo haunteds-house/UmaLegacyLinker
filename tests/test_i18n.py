@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from i18n import (
+from uma_legacy_linker.i18n import (
     language_from_label,
     language_label,
     profile_code,

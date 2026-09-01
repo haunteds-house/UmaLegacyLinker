@@ -3,7 +3,7 @@ from __future__ import annotations
 from html import escape
 from typing import Any
 
-from i18n import profile_label, translate_text
+from uma_legacy_linker.i18n import profile_label, translate_text
 from ui_qt.lineage_nodes import build_result_lineage_nodes
 from ui_qt.theme import (
     COLORS,
@@ -13,7 +13,7 @@ from ui_qt.theme import (
     spark_style_key,
 )
 from ui_qt.typography import TYPE_SCALE_PT, css_point_size
-from veteran_identity import (
+from uma_legacy_linker.veteran_identity import (
     canonical_veteran_label,
     canonical_veteran_labels,
     format_rank_score,

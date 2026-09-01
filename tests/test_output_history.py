@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from output_history import (
+from uma_legacy_linker.output_history import (
     CURRENT_REVISION,
     PREVIOUS_REVISION,
     available_output_revisions,
@@ -16,7 +16,7 @@ from output_history import (
     read_json_output_revision,
     write_json_with_history,
 )
-from simulator_weights import _quantile
+from uma_legacy_linker.simulator_weights import _quantile
 
 
 class OutputHistoryTests(unittest.TestCase):

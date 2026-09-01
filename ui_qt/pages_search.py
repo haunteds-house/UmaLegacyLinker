@@ -24,29 +24,29 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from backend_process import ProcessTask
-from error_guidance import actionable_error
-from lineage_planner import LineagePlannerError, write_lineage_planner_export
-from output_history import (
+from uma_legacy_linker.backend_process import ProcessTask
+from uma_legacy_linker.error_guidance import actionable_error
+from uma_legacy_linker.lineage_planner import LineagePlannerError, write_lineage_planner_export
+from uma_legacy_linker.output_history import (
     CURRENT_REVISION,
     OutputProvenance,
     PREVIOUS_REVISION,
     available_output_revisions,
     read_json_output_revision,
 )
-from parent_optimizer import (
+from uma_legacy_linker.parent_optimizer import (
     OptimizerError,
     load_ace_options,
     load_track_options,
 )
-from result_comparison import (
+from uma_legacy_linker.result_comparison import (
     SEARCH_METRICS,
     ComparisonDataset,
     intersect_datasets,
     search_comparison_dataset,
     search_payload_rows,
 )
-from uma_moe import UmaMoeError
+from uma_legacy_linker.uma_moe import UmaMoeError
 from ui_qt.accessibility import describe_control, label_control
 from ui_qt.asset_catalog import trainee_image_url
 from ui_qt.avatar import circular_avatar
@@ -61,7 +61,7 @@ from ui_qt.components import (
 from ui_qt.combo_avatars import ComboAvatarLoader
 from ui_qt.comparison_dialog import ResultComparisonDialog
 from ui_qt.context import AppContext, LineageContextState
-from application import (
+from uma_legacy_linker.application import (
     OnlineSearchRequest,
     OptimizationRequest,
     VeteranOption,

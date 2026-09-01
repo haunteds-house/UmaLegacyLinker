@@ -4,17 +4,18 @@ from PyInstaller.utils.hooks import copy_metadata
 
 
 project_root = Path.cwd()
+resources_dir = project_root / "resources"
 data_files = [
-    (str(project_root / "default_course_overrides.json"), "."),
-    (str(project_root / "default_manual_adjustments.json"), "."),
-    (str(project_root / "default_parent_scoring.json"), "."),
-    (str(project_root / "default_skill_priorities.json"), "."),
+    (str(resources_dir / "default_course_overrides.json"), "resources"),
+    (str(resources_dir / "default_manual_adjustments.json"), "resources"),
+    (str(resources_dir / "default_parent_scoring.json"), "resources"),
+    (str(resources_dir / "default_skill_priorities.json"), "resources"),
     (str(project_root / "docs" / "THIRD_PARTY.md"), "docs"),
     (str(project_root / "docs" / "QT_UI.md"), "docs"),
     (str(project_root / "docs" / "WEIGHTS_UI_DESIGN.md"), "docs"),
 ]
-for icon_file in sorted((project_root / "ui_qt" / "icons").glob("*.svg")):
-    data_files.append((str(icon_file), "ui_qt/icons"))
+for icon_file in sorted((resources_dir / "icons").glob("*.svg")):
+    data_files.append((str(icon_file), "resources/icons"))
 for distribution in ("PySide6", "PySide6_Essentials", "shiboken6"):
     try:
         data_files += copy_metadata(distribution)

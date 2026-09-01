@@ -11,8 +11,8 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Callable
 
-from course_presets import resolve_course_overrides_path
-from legacy_linker import (
+from uma_legacy_linker.course_presets import resolve_course_overrides_path
+from uma_legacy_linker.legacy_linker import (
     LinkFreshness,
     LinkResult,
     LinkerError,
@@ -20,10 +20,11 @@ from legacy_linker import (
     link_veterans,
     normalize_json_root,
 )
-from manual_weights import generate_manual_skill_weights
-from output_history import write_json_with_history
-from parent_optimizer import OptimizerError, OptimizerResult, load_ace_options, optimize_parents
-from scoring_config import (
+from uma_legacy_linker.manual_weights import generate_manual_skill_weights
+from uma_legacy_linker.output_history import write_json_with_history
+from uma_legacy_linker.paths import app_base_dir, resource_base_dir
+from uma_legacy_linker.parent_optimizer import OptimizerError, OptimizerResult, load_ace_options, optimize_parents
+from uma_legacy_linker.scoring_config import (
     ScoringConfigError,
     deep_merge,
     materialize_effective_scoring_config,
@@ -32,13 +33,13 @@ from scoring_config import (
     validate_skill_priorities_config,
     write_json_object,
 )
-from skill_catalog import SkillCatalogResult, generate_skill_catalogs
-from transfer_helper import (
+from uma_legacy_linker.skill_catalog import SkillCatalogResult, generate_skill_catalogs
+from uma_legacy_linker.transfer_helper import (
     TransferHelperError,
     TransferHelperResult,
     analyze_transfer_candidates,
 )
-from uma_moe import (
+from uma_legacy_linker.uma_moe import (
     DEFAULT_API_BASE,
     MAX_FETCH_CANDIDATES,
     OnlineParentSearchResult,
@@ -51,7 +52,7 @@ from uma_moe import (
     rank_online_grandparent_pairs,
     rank_online_parent_pairs,
 )
-from veteran_identity import (
+from uma_legacy_linker.veteran_identity import (
     canonical_veteran_label,
     technical_veteran_tooltip,
 )
@@ -63,19 +64,6 @@ APP_VERSION = "1.8.0"
 LogCallback = Callable[[str], None]
 ProgressCallback = Callable[[int, str], None]
 CheckpointCallback = Callable[[], None]
-
-
-def app_base_dir() -> Path:
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).resolve().parent
-    return Path(__file__).resolve().parent
-
-
-def resource_base_dir() -> Path:
-    bundle_dir = getattr(sys, "_MEIPASS", None)
-    if getattr(sys, "frozen", False) and bundle_dir:
-        return Path(bundle_dir).resolve()
-    return Path(__file__).resolve().parent
 
 
 def config_path() -> Path:

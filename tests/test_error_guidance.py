@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from error_guidance import (
+from uma_legacy_linker.error_guidance import (
     CONFIG_GUIDANCE,
     DEFAULT_GUIDANCE,
     FILE_GUIDANCE,
@@ -15,7 +15,7 @@ from error_guidance import (
     actionable_error,
     guidance_for_error,
 )
-from i18n import translate_text
+from uma_legacy_linker.i18n import translate_text
 
 
 @pytest.mark.parametrize(

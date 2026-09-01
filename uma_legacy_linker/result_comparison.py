@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable
 
-from output_history import OutputProvenance
-from veteran_identity import canonical_veteran_label
+from uma_legacy_linker.output_history import OutputProvenance
+from uma_legacy_linker.veteran_identity import canonical_veteran_label
 
 
 Getter = Callable[[dict[str, Any]], object]

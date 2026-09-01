@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from veteran_identity import (
+from uma_legacy_linker.veteran_identity import (
     canonical_veteran_label,
     canonical_veteran_labels,
     format_rank_score,

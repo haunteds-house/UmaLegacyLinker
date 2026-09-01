@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from secret_store import load_api_key, resolve_api_key, save_api_key
+from uma_legacy_linker.secret_store import load_api_key, resolve_api_key, save_api_key
 
 
 class SecretStoreTests(unittest.TestCase):
@@ -15,9 +15,9 @@ class SecretStoreTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "api-key.dat"
             with (
-                patch("secret_store._uses_windows_dpapi", return_value=True),
-                patch("secret_store.protect_secret", return_value="encrypted-value"),
-                patch("secret_store.unprotect_secret", return_value="secret-value"),
+                patch("uma_legacy_linker.secret_store._uses_windows_dpapi", return_value=True),
+                patch("uma_legacy_linker.secret_store.protect_secret", return_value="encrypted-value"),
+                patch("uma_legacy_linker.secret_store.unprotect_secret", return_value="secret-value"),
             ):
                 save_api_key(path, "secret-value")
                 self.assertEqual(
@@ -30,9 +30,9 @@ class SecretStoreTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "api-key.dat"
             with (
-                patch("secret_store._uses_windows_dpapi", return_value=False),
+                patch("uma_legacy_linker.secret_store._uses_windows_dpapi", return_value=False),
                 patch(
-                    "secret_store.os.fchmod",
+                    "uma_legacy_linker.secret_store.os.fchmod",
                     side_effect=AssertionError("plaintext storage must not require os.fchmod"),
                     create=True,
                 ),
@@ -49,8 +49,8 @@ class SecretStoreTests(unittest.TestCase):
             path = Path(tmp) / "api-key.dat"
             path.write_text("legacy-encrypted-value", encoding="ascii")
             with (
-                patch("secret_store._uses_windows_dpapi", return_value=True),
-                patch("secret_store.unprotect_secret", return_value="secret-value") as unprotect,
+                patch("uma_legacy_linker.secret_store._uses_windows_dpapi", return_value=True),
+                patch("uma_legacy_linker.secret_store.unprotect_secret", return_value="secret-value") as unprotect,
             ):
                 self.assertEqual(load_api_key(path), "secret-value")
                 unprotect.assert_called_once_with("legacy-encrypted-value")
@@ -60,7 +60,7 @@ class SecretStoreTests(unittest.TestCase):
             path = Path(tmp) / "api-key.dat"
             with (
                 patch.dict(os.environ, {"UMA_MOE_API_KEY": "environment-value"}),
-                patch("secret_store.load_api_key", return_value="remembered-value") as load,
+                patch("uma_legacy_linker.secret_store.load_api_key", return_value="remembered-value") as load,
             ):
                 self.assertEqual(
                     resolve_api_key(path, remembered=True),
@@ -93,7 +93,7 @@ class SecretStoreTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "api-key.dat"
             path.write_text("plain-v1:not-valid-base64!", encoding="ascii")
-            with patch("secret_store._uses_windows_dpapi", return_value=False):
+            with patch("uma_legacy_linker.secret_store._uses_windows_dpapi", return_value=False):
                 self.assertEqual(load_api_key(path), "")
                 save_api_key(path, "replacement")
                 self.assertEqual(load_api_key(path), "replacement")

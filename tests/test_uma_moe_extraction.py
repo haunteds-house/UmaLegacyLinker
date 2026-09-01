@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from uma_moe import _extract_record_list
+from uma_legacy_linker.uma_moe import _extract_record_list
 
 
 class ExtractRecordListTests(unittest.TestCase):

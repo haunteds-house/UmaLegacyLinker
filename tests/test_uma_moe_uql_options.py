@@ -9,7 +9,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from uma_moe import (
+from uma_legacy_linker.uma_moe import (
     UmaMoeError,
     UmaMoeApiClient,
     build_lineage_factor_api_filters,
@@ -115,8 +115,8 @@ class UmaMoeUqlOptionTests(unittest.TestCase):
             ),
         ]
         with (
-            patch("uma_moe.urllib.request.urlopen", side_effect=errors) as request,
-            patch("uma_moe.time.sleep") as sleep,
+            patch("uma_legacy_linker.uma_moe.urllib.request.urlopen", side_effect=errors) as request,
+            patch("uma_legacy_linker.uma_moe.time.sleep") as sleep,
         ):
             with self.assertRaises(UmaMoeError):
                 client._request_document("https://example.invalid/api/v3/search")
@@ -132,8 +132,8 @@ class UmaMoeUqlOptionTests(unittest.TestCase):
         )
         clock = iter((10.0, 10.0, 10.1, 10.2, 10.25))
         with (
-            patch("uma_moe.time.monotonic", side_effect=lambda: next(clock)),
-            patch("uma_moe.time.sleep") as sleep,
+            patch("uma_legacy_linker.uma_moe.time.monotonic", side_effect=lambda: next(clock)),
+            patch("uma_legacy_linker.uma_moe.time.sleep") as sleep,
         ):
             client._wait_before_retry(0.25)
 
@@ -195,7 +195,7 @@ class UmaMoeUqlOptionTests(unittest.TestCase):
                 captured.append(list(names))
                 return list(range(len(names)))
 
-            with patch("uma_moe.resolve_white_factor_group_ids", side_effect=resolve):
+            with patch("uma_legacy_linker.uma_moe.resolve_white_factor_group_ids", side_effect=resolve):
                 uql, metadata = generate_auto_uql(
                     weights,
                     catalog,
@@ -296,7 +296,7 @@ class UmaMoeUqlOptionTests(unittest.TestCase):
             },
             close=lambda: None,
         )
-        with patch("uma_moe.MasterResolver", return_value=resolver):
+        with patch("uma_legacy_linker.uma_moe.MasterResolver", return_value=resolver):
             filters, diagnostics = build_lineage_factor_api_filters(
                 "master.mdb",
                 ("Stamina", 5),

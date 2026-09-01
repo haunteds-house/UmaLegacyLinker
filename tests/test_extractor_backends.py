@@ -12,7 +12,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from application import (
+from uma_legacy_linker.application import (
     UMADUMP_COLLECTION_FILE,
     UMAEXTRACTOR_COLLECTION_FILE,
     extractor_backend,

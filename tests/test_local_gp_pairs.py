@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from uma_moe import (
+from uma_legacy_linker.uma_moe import (
     _apply_lineage_factor_filters,
     _lineage_factor_type_stars,
     rank_online_grandparent_pairs,

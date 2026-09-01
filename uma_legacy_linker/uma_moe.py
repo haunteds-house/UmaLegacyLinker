@@ -21,15 +21,16 @@ from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
-from g1_race_planning import (
+from uma_legacy_linker.g1_race_planning import (
     apply_independent_training_cutoff,
     build_pair_g1_diagnostic,
     optimize_race_schedule,
     schedule_export_summary,
 )
-from legacy_linker import MasterResolver, grouped_factors
-from output_history import write_json_with_history
-from parent_optimizer import (
+from uma_legacy_linker.legacy_linker import MasterResolver, grouped_factors
+from uma_legacy_linker.output_history import write_json_with_history
+from uma_legacy_linker.paths import resource_base_dir
+from uma_legacy_linker.parent_optimizer import (
     APTITUDE_LABELS,
     AffinityResolver,
     DISTANCE_FACTOR_NAMES,
@@ -3320,7 +3321,11 @@ def rank_online_grandparent_pairs(
     race_factor_catalog_path = Path(race_factor_catalog_path).resolve() if race_factor_catalog_path else None
     output_dir = Path(output_dir).resolve()
     course_weights_path = Path(course_weights_path).resolve() if course_weights_path else None
-    scoring_config_path = Path(scoring_config_path).resolve() if scoring_config_path else Path(__file__).resolve().parent / "default_parent_scoring.json"
+    scoring_config_path = (
+        Path(scoring_config_path).resolve()
+        if scoring_config_path
+        else resource_base_dir() / "default_parent_scoring.json"
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
 
     linked = _read_json(linked_veterans_path)
@@ -4495,7 +4500,7 @@ def rank_online_parent_pairs(
     scoring_config_path = (
         Path(scoring_config_path).resolve()
         if scoring_config_path
-        else Path(__file__).resolve().parent / "default_parent_scoring.json"
+        else resource_base_dir() / "default_parent_scoring.json"
     )
     output_dir.mkdir(parents=True, exist_ok=True)
     allowed_parent_card_ids = {int(value) for value in (allowed_parent_card_ids or []) if int(value) > 0}

@@ -1,4 +1,4 @@
-from parent_optimizer import CooperativeCheckpoint, cooperative_checkpoint
+from uma_legacy_linker.parent_optimizer import CooperativeCheckpoint, cooperative_checkpoint
 
 
 class FakeClock:

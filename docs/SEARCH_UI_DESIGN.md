@@ -389,5 +389,5 @@ splitter work.
   `result_panes.py` extraction; new assertions worth adding: every
   `SummarySection` exposes a non-empty summary when collapsed; badge state
   transitions on fingerprint divergence.
-- `i18n.py`: all new labels/summaries as French sources with English
+- `uma_legacy_linker/i18n.py`: all new labels/summaries as French sources with English
   translations; `check_i18n` gates every phase.

@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import re
+import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from application import APP_VERSION, app_base_dir, resource_base_dir
+from uma_legacy_linker.application import APP_VERSION, app_base_dir, resource_base_dir
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -14,15 +17,67 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class ReleaseConsistencyTests(unittest.TestCase):
     def test_application_services_are_qt_free_and_rooted_at_project(self) -> None:
-        source = (ROOT / "application.py").read_text(encoding="utf-8")
+        source = (ROOT / "uma_legacy_linker" / "application.py").read_text(
+            encoding="utf-8"
+        )
         cli_source = (ROOT / "cli.py").read_text(encoding="utf-8")
 
         self.assertNotIn("PySide6", source)
         self.assertNotIn("from ui_qt", source)
         self.assertNotIn("from ui_qt", cli_source)
         self.assertEqual(app_base_dir(), ROOT)
-        self.assertEqual(resource_base_dir(), ROOT)
+        self.assertEqual(resource_base_dir(), ROOT / "resources")
         self.assertFalse((ROOT / "ui_qt" / "core.py").exists())
+
+    def test_repository_layout_groups_core_modules_and_bundled_resources(self) -> None:
+        core_modules = {
+            "application.py",
+            "backend_process.py",
+            "legacy_linker.py",
+            "parent_optimizer.py",
+            "scoring_config.py",
+            "transfer_helper.py",
+            "uma_moe.py",
+        }
+        resource_files = {
+            "default_course_overrides.json",
+            "default_manual_adjustments.json",
+            "default_parent_scoring.json",
+            "default_skill_priorities.json",
+        }
+
+        self.assertTrue((ROOT / "uma_legacy_linker" / "__init__.py").is_file())
+        self.assertEqual(
+            {path.name for path in ROOT.glob("*.py")},
+            {"cli.py", "qt_app.py"},
+        )
+        for filename in core_modules:
+            self.assertTrue((ROOT / "uma_legacy_linker" / filename).is_file())
+            self.assertFalse((ROOT / filename).exists())
+        for filename in resource_files:
+            self.assertTrue((ROOT / "resources" / filename).is_file())
+            self.assertFalse((ROOT / filename).exists())
+        resource_icons = list((ROOT / "resources" / "icons").glob("*.svg"))
+        self.assertGreaterEqual(len(resource_icons), 20)
+        self.assertFalse(list((ROOT / "ui_qt" / "icons").glob("*.svg")))
+
+    def test_frozen_resource_path_matches_pyinstaller_data_destinations(self) -> None:
+        spec = (ROOT / "UmaLegacyLinkerQt.spec").read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with (
+                patch.object(sys, "frozen", True, create=True),
+                patch.object(sys, "_MEIPASS", temp_dir, create=True),
+            ):
+                self.assertEqual(resource_base_dir(), Path(temp_dir) / "resources")
+
+        self.assertIn('resources_dir = project_root / "resources"', spec)
+        self.assertIn(
+            '(str(resources_dir / "default_parent_scoring.json"), "resources")',
+            spec,
+        )
+        self.assertIn('(str(icon_file), "resources/icons")', spec)
+        self.assertNotIn('project_root / "default_parent_scoring.json"', spec)
+        self.assertNotIn('project_root / "ui_qt" / "icons"', spec)
 
     def test_release_version_is_current_across_public_surfaces(self) -> None:
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")

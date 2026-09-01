@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Iterable
 
-from skill_catalog import slugify
+from uma_legacy_linker.skill_catalog import slugify
 
 
 REVIEW = "review"

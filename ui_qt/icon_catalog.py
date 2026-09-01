@@ -29,7 +29,7 @@ from PySide6.QtCore import QByteArray, QRectF, Qt
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 
-from application import resource_base_dir
+from uma_legacy_linker.application import resource_base_dir
 
 # Semantic key -> vendored Lucide file name. Keys are what the rest of the
 # UI imports; file names are an implementation detail of the vendored set.
@@ -66,7 +66,7 @@ DEFAULT_SIZE = 20
 
 
 def icons_dir() -> Path:
-    return resource_base_dir() / "ui_qt" / "icons"
+    return resource_base_dir() / "icons"
 
 
 def icon_path(key: str) -> Path:

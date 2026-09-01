@@ -9,7 +9,7 @@ from typing import Any
 
 import pytest
 
-from backend_process import (
+from uma_legacy_linker.backend_process import (
     CANCELLED_MESSAGE,
     ERROR_MESSAGE,
     LOG_MESSAGE,
@@ -19,7 +19,7 @@ from backend_process import (
     run_process_task,
 )
 from tests.process_test_support import fail_with_diagnostic, report_process_state
-from application import (
+from uma_legacy_linker.application import (
     OnlineSearchRequest,
     OptimizationRequest,
     TransferRequest,
@@ -155,7 +155,9 @@ def test_all_heavy_desktop_requests_are_picklable_process_tasks() -> None:
 
 
 def test_process_boundary_and_frozen_entrypoint_are_explicit() -> None:
-    backend_source = Path("backend_process.py").read_text(encoding="utf-8")
+    backend_source = Path("uma_legacy_linker/backend_process.py").read_text(
+        encoding="utf-8"
+    )
     search_source = Path("ui_qt/pages_search.py").read_text(encoding="utf-8")
     transfer_source = Path("ui_qt/pages_transfer.py").read_text(encoding="utf-8")
     data_source = Path("ui_qt/pages_home_data.py").read_text(encoding="utf-8")

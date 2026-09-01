@@ -7,13 +7,13 @@ curves, thresholds and the relative importance of the White component itself.
 
 The selectors shown in the shared **Search** workspace and in
 **Weights → Individual White Skill priorities** edit the same persisted setting for local and
-uma.moe searches. Leaving the path empty uses `default_skill_priorities.json`.
+uma.moe searches. Leaving the path empty uses `resources/default_skill_priorities.json`.
 
 ## Merge and output pipeline
 
 A selected file may be a complete profile or a minimal override:
 
-1. the application loads `default_skill_priorities.json`;
+1. the application loads `resources/default_skill_priorities.json`;
 2. it recursively merges the selected JSON on top;
 3. it validates the resulting complete profile;
 4. it writes the effective result to `output/active_skill_priorities.json`;
@@ -56,7 +56,7 @@ Only the values that differ from the bundled profile need to be present:
 ```
 
 For these existing `catalog_key` entries, omitted fields such as `base` and
-other styles remain inherited from `default_skill_priorities.json`.
+other styles remain inherited from `resources/default_skill_priorities.json`.
 
 ## Root object
 
@@ -143,7 +143,7 @@ silently ignored.
 
 ## Choosing identifiers
 
-Use the `catalog_key` values from `default_skill_priorities.json` or from the
+Use the `catalog_key` values from `resources/default_skill_priorities.json` or from the
 generated `manual_skill_weights.json`. A key that is not present in the bundled
 defaults must provide at least `base`; it only affects scoring when the current
 MDB skill catalogue contains the same key.

@@ -261,7 +261,7 @@ The effective profiles used by a run are exported as:
 The White Skill priority selector used by **Search** and shown in the advanced
 section of **Weights** is one live shared setting. Its input
 may be a complete profile or a minimal recursive override of
-`default_skill_priorities.json`; see
+`resources/default_skill_priorities.json`; see
 [`docs/SKILL_PRIORITIES.md`](docs/SKILL_PRIORITIES.md) for the exact schema,
 merge rules and examples. These per-skill priorities remain distinct from the
 structural scoring settings stored in `parent_scoring_overrides.json`.
@@ -272,17 +272,17 @@ structural scoring settings stored in `parent_scoring_overrides.json`.
 | --- | --- |
 | `qt_app.py` | PySide6 desktop entry point |
 | `cli.py` | Headless CLI: linking, catalogues, ranking and Transfer Helper |
-| `application.py` | Qt-free configuration and workflow orchestration shared by the desktop UI and CLI |
+| `uma_legacy_linker/application.py` | Qt-free configuration and workflow orchestration shared by the desktop UI and CLI |
 | `ui_qt/` | Qt shell, pages, visual lineage/artwork system and table model |
-| `legacy_linker.py` | Links veteran exports to `master.mdb` |
-| `parent_optimizer.py` | Local branch, pair and future-GP scoring |
-| `transfer_helper.py` | Collection-portfolio cleanup analysis and exhaustive strict-replacement checks |
-| `spark_protection.py` | Strategic Spark-heritage coverage and strict replacement comparison |
-| `uma_moe.py` | uma.moe API discovery, normalisation and online pairing |
-| `lineage_planner.py` | Native uma.moe Lineage Planner JSON export |
-| `scoring_config.py` | Scoring profile loading, migration and validation |
-| `default_parent_scoring.json` | Bundled structural scoring defaults |
-| `default_skill_priorities.json` | Bundled per-skill White Spark priorities |
+| `uma_legacy_linker/legacy_linker.py` | Links veteran exports to `master.mdb` |
+| `uma_legacy_linker/parent_optimizer.py` | Local branch, pair and future-GP scoring |
+| `uma_legacy_linker/transfer_helper.py` | Collection-portfolio cleanup analysis and exhaustive strict-replacement checks |
+| `uma_legacy_linker/spark_protection.py` | Strategic Spark-heritage coverage and strict replacement comparison |
+| `uma_legacy_linker/uma_moe.py` | uma.moe API discovery, normalisation and online pairing |
+| `uma_legacy_linker/lineage_planner.py` | Native uma.moe Lineage Planner JSON export |
+| `uma_legacy_linker/scoring_config.py` | Scoring profile loading, migration and validation |
+| `resources/default_parent_scoring.json` | Bundled structural scoring defaults |
+| `resources/default_skill_priorities.json` | Bundled per-skill White Spark priorities |
 | `tests/` | Automated engine, UI, release, documentation and i18n checks |
 
 Test modules are project source code, intentionally versioned and kept outside the application

@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from legacy_linker import MasterResolver, normalize_json_root
+from uma_legacy_linker.legacy_linker import MasterResolver, normalize_json_root
 
 
 LINEAGE_PLANNER_URL = "https://uma.moe/tools/lineage-planner"

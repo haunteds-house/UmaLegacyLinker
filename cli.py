@@ -13,11 +13,11 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from error_guidance import actionable_error
-from legacy_linker import LinkerError, link_veterans
-from manual_weights import generate_manual_skill_weights
-from parent_optimizer import OptimizerError, optimize_parents
-from scoring_config import (
+from uma_legacy_linker.error_guidance import actionable_error
+from uma_legacy_linker.legacy_linker import LinkerError, link_veterans
+from uma_legacy_linker.manual_weights import generate_manual_skill_weights
+from uma_legacy_linker.parent_optimizer import OptimizerError, optimize_parents
+from uma_legacy_linker.scoring_config import (
     deep_merge,
     migrate_scoring_overrides,
     read_json_object,
@@ -25,10 +25,10 @@ from scoring_config import (
     validate_skill_priorities_config,
     write_json_object,
 )
-from simulator_weights import generate_simulator_weights
-from skill_catalog import generate_skill_catalogs
-from transfer_helper import TransferHelperError, analyze_transfer_candidates
-from application import (
+from uma_legacy_linker.simulator_weights import generate_simulator_weights
+from uma_legacy_linker.skill_catalog import generate_skill_catalogs
+from uma_legacy_linker.transfer_helper import TransferHelperError, analyze_transfer_candidates
+from uma_legacy_linker.application import (
     APP_NAME,
     default_scoring_path,
     default_skill_priorities_path,

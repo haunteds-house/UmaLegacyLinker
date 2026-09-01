@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from result_comparison import (
+from uma_legacy_linker.result_comparison import (
     SEARCH_METRICS,
     TRANSFER_METRICS,
     format_metric_delta,

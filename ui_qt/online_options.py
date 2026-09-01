@@ -39,8 +39,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from error_guidance import actionable_error
-from parent_optimizer import (
+from uma_legacy_linker.error_guidance import actionable_error
+from uma_legacy_linker.parent_optimizer import (
     DISTANCE_FACTOR_NAMES,
     STYLE_FACTOR_NAMES,
     SURFACE_FACTOR_NAMES,
@@ -54,7 +54,7 @@ from ui_qt.components import (
     muted_label,
 )
 from ui_qt.context import AppContext
-from application import VeteranOption, load_opposing_parent_candidates
+from uma_legacy_linker.application import VeteranOption, load_opposing_parent_candidates
 from ui_qt.result_panes import CardFilterDialog
 
 PARENT_MODE = "parent"

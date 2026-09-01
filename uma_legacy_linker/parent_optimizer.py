@@ -15,9 +15,10 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
-from output_history import write_json_with_history
+from uma_legacy_linker.output_history import write_json_with_history
+from uma_legacy_linker.paths import resource_base_dir
 
-from g1_race_planning import (
+from uma_legacy_linker.g1_race_planning import (
     build_pair_g1_diagnostic,
     distance_type_for_meters,
     schedule_export_summary,
@@ -2976,7 +2977,11 @@ def optimize_parents(
     skill_catalog_path_resolved = Path(skill_catalog_path).expanduser().resolve()
     destination = Path(output_dir).expanduser().resolve()
     course_path = Path(course_weights_path).expanduser().resolve() if course_weights_path else None
-    config_path = Path(scoring_config_path).expanduser().resolve() if scoring_config_path else Path(__file__).resolve().parent / "default_parent_scoring.json"
+    config_path = (
+        Path(scoring_config_path).expanduser().resolve()
+        if scoring_config_path
+        else resource_base_dir() / "default_parent_scoring.json"
+    )
 
     for required in (master, linked_path, weights_path, race_catalog_path, skill_catalog_path_resolved, config_path):
         if not required.is_file():

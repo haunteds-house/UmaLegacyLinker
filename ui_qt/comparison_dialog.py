@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from result_comparison import (
+from uma_legacy_linker.result_comparison import (
     ComparisonDataset,
     ComparisonItem,
     ComparisonMetric,

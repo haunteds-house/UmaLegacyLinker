@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from course_presets import (
+from uma_legacy_linker.course_presets import (
     course_preset_conditions,
     load_course_preset_payload,
     normalize_racecourse_name,
@@ -13,12 +13,12 @@ from course_presets import (
     racecourse_names_match,
     resolve_course_overrides_path,
 )
-from manual_weights import generate_manual_skill_weights
-from transfer_helper import _build_profile_contexts
+from uma_legacy_linker.manual_weights import generate_manual_skill_weights
+from uma_legacy_linker.transfer_helper import _build_profile_contexts
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_PRESETS = PROJECT_DIR / "default_course_overrides.json"
+DEFAULT_PRESETS = PROJECT_DIR / "resources" / "default_course_overrides.json"
 
 
 class CoursePresetTests(unittest.TestCase):

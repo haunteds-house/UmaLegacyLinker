@@ -112,12 +112,12 @@ The **Windows release** GitHub Actions workflow runs the tests and visual audit,
 | Path | Purpose |
 | --- | --- |
 | `qt_app.py` | Qt entry point |
-| `backend_process.py` | Qt-free process-task and typed IPC boundary |
-| `output_history.py` | atomic output replacement, one retained predecessor and shared provenance contract |
-| `result_comparison.py` | Qt-free stable identities, datasets and metric definitions for comparisons |
+| `uma_legacy_linker/backend_process.py` | Qt-free process-task and typed IPC boundary |
+| `uma_legacy_linker/output_history.py` | atomic output replacement, one retained predecessor and shared provenance contract |
+| `uma_legacy_linker/result_comparison.py` | Qt-free stable identities, datasets and metric definitions for comparisons |
 | `cli.py` | Headless CLI sharing the same engines |
-| `veteran_identity.py` | canonical local-veteran labels, score formatting and collision handling |
-| `application.py` | GUI-independent configuration and workflow orchestration |
+| `uma_legacy_linker/veteran_identity.py` | canonical local-veteran labels, score formatting and collision handling |
+| `uma_legacy_linker/application.py` | GUI-independent configuration and workflow orchestration |
 | `ui_qt/accessibility.py` | shared explicit name, description and visible-label bindings for Qt assistive APIs |
 | `ui_qt/main_window.py` | application shell, navigation, progress and log drawer |
 | `ui_qt/workers.py` | thread worker and backend-process IPC supervisor |
@@ -128,8 +128,6 @@ The **Windows release** GitHub Actions workflow runs the tests and visual audit,
 | `ui_qt/comparison_dialog.py` | shared two-column diagnostics and delta table for Search and Transfer Helper |
 | `ui_qt/result_panes.py` | result tables and diagnostics shared by every family |
 | `ui_qt/online_options.py` | shared uma.moe retrieval constraints and per-search strategy sections |
-| `ui_qt/pages_optimizer.py` | reusable local result explorer and diagnostics |
-| `ui_qt/pages_online.py` | reusable uma.moe result explorer and costume-filter dialog |
 | `ui_qt/pages_transfer.py` | Transfer Helper analysis and diagnostics |
 | `ui_qt/pages_weights.py` | scoring and White Skill priority editor |
 | `ui_qt/pages_tools.py` | Settings: uma.moe integration |
@@ -137,7 +135,7 @@ The **Windows release** GitHub Actions workflow runs the tests and visual audit,
 | `ui_qt/presentation.py` | safe HTML diagnostics rendering |
 | `ui_qt/asset_catalog.py` | validated GameTora trainee, support, skill and race-banner asset URLs |
 | `ui_qt/icon_catalog.py` | vendored SVG icons, tinted for the active theme at paint time |
-| `ui_qt/icons/` | vendored Lucide SVG sources (see [`THIRD_PARTY.md`](THIRD_PARTY.md)) |
+| `resources/icons/` | vendored Lucide SVG sources (see [`THIRD_PARTY.md`](THIRD_PARTY.md)) |
 | `ui_qt/typography.py` | shared named point-size scale for QSS, painted views and rich text |
 | `ui_qt/table_typography.py` | OpenType tabular-figure policy for dense numeric Qt tables |
 | `ui_qt/zoom.py` | shared canvas zoom bounds, stepping, formatting and persistence keys |

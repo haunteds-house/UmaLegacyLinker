@@ -7,8 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
-import lineage_planner
-from lineage_planner import _planner_factor, build_lineage_planner_export
+from uma_legacy_linker import lineage_planner
+from uma_legacy_linker.lineage_planner import _planner_factor, build_lineage_planner_export
 
 
 def factor(base_id: int, stars: int, name: str, factor_type: str) -> dict[str, object]:

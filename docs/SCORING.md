@@ -1,7 +1,7 @@
 # Modèle de score — état courant
 
-La source de vérité est `default_parent_scoring.json` pour les pondérations et les courbes,
-et `default_skill_priorities.json` pour la valeur des white skills par profil. Ce document
+La source de vérité est `resources/default_parent_scoring.json` pour les pondérations et les courbes,
+et `resources/default_skill_priorities.json` pour la valeur des white skills par profil. Ce document
 décrit le modèle fourni par défaut ; toutes les valeurs restent modifiables sans toucher au
 code. Le schéma complet et les règles de fusion des overrides individuels sont documentés
 dans [`SKILL_PRIORITIES.md`](SKILL_PRIORITIES.md). L'historique des évolutions est dans
@@ -14,7 +14,7 @@ roses, les whites, les courbes d'affinité, les conditions de course, la génér
 le classement uma.moe et le Transfer Helper.
 
 Les réglages utilisateur sont enregistrés comme un diff récursif par rapport à
-`default_parent_scoring.json`, puis fusionnés avec le profil courant à chaque calcul. Une mise
+`resources/default_parent_scoring.json`, puis fusionnés avec le profil courant à chaque calcul. Une mise
 à jour qui ajoute de nouveaux paramètres reste donc compatible avec un ancien profil. Les
 anciens profils contenant `mode_weights.parent_final` sont automatiquement répartis entre
 `parent_branch` et `parent_pair`; les anciennes heuristiques roses V31 sont ignorées au profit

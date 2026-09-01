@@ -10,7 +10,7 @@ from typing import Any, Callable
 
 from PySide6.QtCore import QObject, QRunnable, Signal, Slot
 
-from backend_process import (
+from uma_legacy_linker.backend_process import (
     CANCELLED_MESSAGE,
     ERROR_MESSAGE,
     LOG_MESSAGE,
@@ -20,7 +20,7 @@ from backend_process import (
     ProcessTask,
     run_process_task,
 )
-from application import OperationCancelled
+from uma_legacy_linker.application import OperationCancelled
 
 
 PROCESS_POLL_SECONDS = 0.05

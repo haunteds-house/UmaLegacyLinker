@@ -27,7 +27,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
     def test_every_page_constructs_and_retranslates(self) -> None:
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.main_window import MainWindow
         from ui_qt.theme import application_stylesheet
 
@@ -59,7 +59,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
     def test_process_worker_relays_backend_without_loading_qt_in_child(self) -> None:
         from PySide6.QtCore import QThreadPool
 
-        from backend_process import ProcessTask
+        from uma_legacy_linker.backend_process import ProcessTask
         from tests.process_test_support import report_process_state
         from ui_qt.workers import ProcessFunctionWorker
 
@@ -97,7 +97,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
     def test_process_worker_bounds_uncooperative_cancellation(self) -> None:
         from PySide6.QtCore import QThreadPool
 
-        from backend_process import ProcessTask
+        from uma_legacy_linker.backend_process import ProcessTask
         from tests.process_test_support import block_without_checkpoint
         from ui_qt.workers import ProcessFunctionWorker
 
@@ -130,7 +130,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
     def test_transfer_report_becomes_stale_when_scope_changes(self) -> None:
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.layout_audit import _dispose_widget
         from ui_qt.pages_transfer import STATE_LOADED, STATE_STALE, TransferPage
 
@@ -163,9 +163,9 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             _dispose_widget(page, self.application)
 
     def test_transfer_history_loads_previous_report_with_provenance(self) -> None:
-        from output_history import PREVIOUS_REVISION, write_json_with_history
+        from uma_legacy_linker.output_history import PREVIOUS_REVISION, write_json_with_history
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.layout_audit import _dispose_widget
         from ui_qt.pages_transfer import STATE_LOADED, TransferPage
 
@@ -228,7 +228,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
         from unittest.mock import patch
 
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.layout_audit import _dispose_widget
         from ui_qt.pages_transfer import TransferPage
 
@@ -269,9 +269,9 @@ class QtRuntimeSmokeTests(unittest.TestCase):
     def test_transfer_history_compares_same_veteran_before_and_after(self) -> None:
         from unittest.mock import patch
 
-        from output_history import write_json_with_history
+        from uma_legacy_linker.output_history import write_json_with_history
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.layout_audit import _dispose_widget
         from ui_qt.pages_transfer import TransferPage
 
@@ -321,7 +321,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
         from PySide6.QtCore import Qt
         from PySide6.QtWidgets import QTableView
 
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.models import Column, ResultTableModel
         from ui_qt.view_state import bind_table_view_state
 
@@ -372,7 +372,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
     def test_data_hierarchy_and_transfer_help_are_exposed_at_runtime(self) -> None:
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.pages_home_data import DataPage
         from ui_qt.pages_transfer import TransferPage
 
@@ -410,7 +410,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
     def test_semantic_controls_have_bilingual_accessible_contracts(self) -> None:
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.layout_audit import _dispose_widget
         from ui_qt.main_window import MainWindow
 
@@ -482,7 +482,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
     def test_result_panes_do_not_refresh_before_the_detail_browser_exists(self) -> None:
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.layout_audit import _dispose_widget
         from ui_qt.result_panes import ResultPane
 
@@ -511,7 +511,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
         from ui_qt.asset_catalog import trainee_image_url
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.image_assets import image_repository
         from ui_qt.layout_audit import _dispose_widget
         from ui_qt.result_panes import RESULT_AVATAR_SIZE, ResultPane
@@ -558,7 +558,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
         from ui_qt.asset_catalog import trainee_image_url
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.image_assets import image_repository
         from ui_qt.layout_audit import _dispose_widget
         from ui_qt.result_panes import RESULT_AVATAR_SIZE, OnlineResultsPane
@@ -666,7 +666,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
     def test_shared_race_editor_applies_clears_and_synchronizes_presets(self) -> None:
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.layout_audit import _dispose_widget
         from ui_qt.lineage_settings import LineageRaceEditor
 
@@ -777,7 +777,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
     def test_search_workspace_uses_one_live_context_for_every_search(self) -> None:
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.layout_audit import _dispose_widget
         from ui_qt.pages_search import SearchPage
 
@@ -836,7 +836,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
     def test_context_rail_keeps_its_state_readable_while_collapsed(self) -> None:
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.layout_audit import _dispose_widget
         from ui_qt.pages_search import RAIL_COLLAPSED_KEY, SearchPage
 
@@ -935,7 +935,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
     def test_context_rail_starts_collapsed_only_on_narrow_workspaces(self) -> None:
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.layout_audit import _dispose_widget
         from ui_qt.pages_search import (
             NARROW_WORKSPACE_WIDTH,
@@ -975,7 +975,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
     def test_online_options_split_shared_and_per_mode_storage(self) -> None:
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.layout_audit import _dispose_widget
         from ui_qt.pages_search import SearchPage
 
@@ -1033,7 +1033,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
     def test_costume_conflict_stays_visible_on_a_collapsed_section(self) -> None:
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.layout_audit import _dispose_widget
         from ui_qt.pages_search import SearchPage
 
@@ -1074,7 +1074,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
     def test_search_workspace_loads_the_latest_remote_result_too(self) -> None:
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.layout_audit import _dispose_widget
         from ui_qt.pages_search import SearchPage
         from ui_qt.result_families import ONLINE_PARENT, STATE_LOADED
@@ -1119,9 +1119,9 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             _dispose_widget(search, self.application)
 
     def test_search_history_loads_previous_remote_result_with_provenance(self) -> None:
-        from output_history import PREVIOUS_REVISION, write_json_with_history
+        from uma_legacy_linker.output_history import PREVIOUS_REVISION, write_json_with_history
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.layout_audit import _dispose_widget
         from ui_qt.pages_search import SearchPage
         from ui_qt.result_families import ONLINE_PARENT, STATE_LOADED
@@ -1194,9 +1194,9 @@ class QtRuntimeSmokeTests(unittest.TestCase):
     def test_search_history_compares_only_stable_common_candidates(self) -> None:
         from unittest.mock import patch
 
-        from output_history import write_json_with_history
+        from uma_legacy_linker.output_history import write_json_with_history
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.layout_audit import _dispose_widget
         from ui_qt.pages_search import SearchPage
         from ui_qt.result_families import PAIRS
@@ -1258,7 +1258,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
         from unittest.mock import patch
 
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.layout_audit import _dispose_widget
         from ui_qt.pages_search import SearchPage
         from ui_qt.result_families import PAIRS
@@ -1296,10 +1296,10 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             _dispose_widget(search, self.application)
 
     def test_comparison_dialog_updates_metrics_and_diagnostics(self) -> None:
-        from result_comparison import SEARCH_METRICS, search_comparison_dataset
+        from uma_legacy_linker.result_comparison import SEARCH_METRICS, search_comparison_dataset
         from ui_qt.comparison_dialog import ResultComparisonDialog
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.layout_audit import _dispose_widget, audit_window
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1347,7 +1347,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
     def test_result_families_keep_their_own_result_and_toolbar(self) -> None:
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.layout_audit import _dispose_widget
         from ui_qt.pages_search import SearchPage
         from ui_qt.result_families import (
@@ -1429,7 +1429,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
     def test_active_tab_drives_the_matching_mode_section(self) -> None:
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.layout_audit import _dispose_widget
         from ui_qt.pages_search import SearchPage
         from ui_qt.result_families import ONLINE_GP, ONLINE_PARENT
@@ -1462,7 +1462,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
     def test_staleness_is_scoped_to_each_family_inputs(self) -> None:
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.layout_audit import _dispose_widget
         from ui_qt.pages_search import SearchPage
         from ui_qt.result_families import (
@@ -1548,7 +1548,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
     def test_detail_pane_hides_instead_of_being_squeezed(self) -> None:
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.layout_audit import _dispose_widget
         from ui_qt.pages_search import SearchPage
 
@@ -1589,7 +1589,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
         from unittest.mock import patch
 
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
 
         with tempfile.TemporaryDirectory() as temp_dir:
             store = SettingsStore(Path(temp_dir) / "config.json")
@@ -1615,7 +1615,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
     def test_weights_and_lineage_share_scoring_sources_bidirectionally(self) -> None:
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.layout_audit import _dispose_widget
         from ui_qt.lineage_settings import LineageRaceEditor
         from ui_qt.pages_weights import WeightsPage
@@ -1777,7 +1777,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
     def test_narrow_layouts_fit_the_audited_content_width(self) -> None:
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.layout_audit import _dispose_widget, _text_overflow, audit_window
         from ui_qt.main_window import MainWindow
         from ui_qt.theme import application_stylesheet
@@ -1843,7 +1843,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
         from PySide6.QtCore import Qt
 
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.lineage_view import LineageDialog
         from ui_qt.zoom import MIN_POINTER_TARGET_PX, MIN_ZOOM
 
@@ -1997,7 +1997,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
     def test_lineage_dialog_adds_the_g1_affinity_calendar(self) -> None:
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.lineage_view import LineageDialog
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -2086,7 +2086,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
     def test_lineage_planning_switches_to_trackblazer_without_recomputing(self) -> None:
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.lineage_view import LineageDialog
 
         slot = {"year": 2, "month": 5, "half": 2}
@@ -2165,7 +2165,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
     def test_grandparent_dialog_uses_target_parent_as_root(self) -> None:
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.lineage_view import LineageDialog
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -2211,7 +2211,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
         from PySide6.QtCore import Qt
 
         from ui_qt.context import AppContext
-        from application import SettingsStore
+        from uma_legacy_linker.application import SettingsStore
         from ui_qt.pages_weights import WeightsPage
         from ui_qt.weight_controls import relative_group_paths, relative_group_shares
 

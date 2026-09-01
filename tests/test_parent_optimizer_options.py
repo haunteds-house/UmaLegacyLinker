@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from parent_optimizer import (
+from uma_legacy_linker.parent_optimizer import (
     _serialize_top_results,
     _valid_grandparent_for_target_parent,
     load_ace_options,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from manual_weights import _profile_weight
+from uma_legacy_linker.manual_weights import _profile_weight
 
 
 class ManualProfileWeightTests(unittest.TestCase):

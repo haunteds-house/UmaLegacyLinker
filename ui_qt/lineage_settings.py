@@ -14,14 +14,14 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from course_presets import (
+from uma_legacy_linker.course_presets import (
     course_preset_conditions,
     course_preset_label,
     load_course_preset_payload,
     ordered_course_presets,
     racecourse_names_match,
 )
-from i18n import profile_values
+from uma_legacy_linker.i18n import profile_values
 from ui_qt.accessibility import describe_control, label_control
 from ui_qt.components import (
     CollapsibleSection,
@@ -31,7 +31,7 @@ from ui_qt.components import (
     muted_label,
 )
 from ui_qt.context import AppContext, LineageContextState
-from application import active_course_overrides_path
+from uma_legacy_linker.application import active_course_overrides_path
 from ui_qt.icon_catalog import native_icon
 from ui_qt.view_state import bind_collapsible_state
 

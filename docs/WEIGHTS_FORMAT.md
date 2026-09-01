@@ -3,7 +3,7 @@
 This document describes generated catalogue/diagnostic weights, not the custom
 JSON selected in the application. See
 [`SKILL_PRIORITIES.md`](SKILL_PRIORITIES.md) for the accepted full or partial
-`default_skill_priorities.json` override format.
+`resources/default_skill_priorities.json` override format.
 
 `white_skill_weights_template.json` is regenerated from the selected `master.mdb`.
 It contains one entry per white skill Spark group.
@@ -50,7 +50,7 @@ a separate bonus rather than inflating all race Sparks.
 
 ## Manual parent-Spark priority semantics
 
-`default_skill_priorities.json` does **not** score raw in-race performance alone.
+`resources/default_skill_priorities.json` does **not** score raw in-race performance alone.
 Its values combine:
 
 1. strategic usefulness for the selected Ace profile;

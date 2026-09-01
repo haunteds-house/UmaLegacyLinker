@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import unittest
 
-from legacy_linker import is_borrowed_veteran, normalize_json_root
+from uma_legacy_linker.legacy_linker import is_borrowed_veteran, normalize_json_root
 
 
 def veteran(trained_chara_id: int, use_type: object = 0) -> dict[str, object]:

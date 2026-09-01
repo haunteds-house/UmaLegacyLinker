@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from parent_optimizer import lineage_preview_for_pair
+from uma_legacy_linker.parent_optimizer import lineage_preview_for_pair
 from ui_qt.asset_catalog import (
     image_cache_path,
     is_allowed_image_url,

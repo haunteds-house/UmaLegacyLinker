@@ -8,10 +8,10 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal
 
-from i18n import normalise_language, translate_text
-from secret_store import resolve_api_key, save_api_key
-from uma_moe import DEFAULT_API_BASE
-from application import (
+from uma_legacy_linker.i18n import normalise_language, translate_text
+from uma_legacy_linker.secret_store import resolve_api_key, save_api_key
+from uma_legacy_linker.uma_moe import DEFAULT_API_BASE
+from uma_legacy_linker.application import (
     SettingsStore,
     active_course_overrides_path,
     api_key_path,

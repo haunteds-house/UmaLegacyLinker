@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
 
 from ui_qt.components import CollapsibleSection
 from ui_qt.context import AppContext
-from application import SettingsStore
+from uma_legacy_linker.application import SettingsStore
 from ui_qt.lineage_view import LineageDialog
 from ui_qt.main_window import MainWindow
 from ui_qt.result_panes import OnlineResultsPane, ResultPane

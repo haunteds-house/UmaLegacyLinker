@@ -26,9 +26,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from backend_process import ProcessTask
-from error_guidance import actionable_error
-from output_history import (
+from uma_legacy_linker.backend_process import ProcessTask
+from uma_legacy_linker.error_guidance import actionable_error
+from uma_legacy_linker.output_history import (
     CURRENT_REVISION,
     OutputProvenance,
     PREVIOUS_REVISION,
@@ -36,7 +36,7 @@ from output_history import (
     format_output_timestamp,
     read_json_output_revision,
 )
-from result_comparison import (
+from uma_legacy_linker.result_comparison import (
     TRANSFER_METRICS,
     ComparisonDataset,
     intersect_datasets,
@@ -46,7 +46,7 @@ from ui_qt.accessibility import describe_control, label_control
 from ui_qt.components import PageHeader, StatusCard, ThemedComboBox, muted_label
 from ui_qt.comparison_dialog import ResultComparisonDialog
 from ui_qt.context import AppContext
-from application import (
+from uma_legacy_linker.application import (
     TransferRequest,
     active_course_overrides_path,
     open_path,
@@ -61,7 +61,7 @@ from ui_qt.provenance import (
 )
 from ui_qt.table_typography import enable_tabular_numbers
 from ui_qt.view_state import bind_splitter_state, bind_table_view_state
-from veteran_identity import (
+from uma_legacy_linker.veteran_identity import (
     canonical_veteran_label,
     canonical_veteran_labels,
     technical_veteran_tooltip,

@@ -30,7 +30,7 @@ Software that reads a running game's memory is used at the user's discretion. Re
 
 Project: [Lucide](https://lucide.dev/) ([lucide-icons/lucide](https://github.com/lucide-icons/lucide))
 
-A small set of Lucide SVG icons is vendored under `ui_qt/icons/` and recoloured at
+A small set of Lucide SVG icons is vendored under `resources/icons/` and recoloured at
 paint time for the desktop theme (`ui_qt/icon_catalog.py`), replacing bare Unicode
 glyphs that depended on the host's font-fallback chain. Lucide icons are ISC
 licensed, except for a subset inherited from the Feather project (MIT), which

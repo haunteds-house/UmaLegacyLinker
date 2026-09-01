@@ -15,8 +15,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from error_guidance import SECRET_STORAGE_GUIDANCE, actionable_error
-from secret_store import SecretStoreError
+from uma_legacy_linker.error_guidance import SECRET_STORAGE_GUIDANCE, actionable_error
+from uma_legacy_linker.secret_store import SecretStoreError
 from ui_qt.accessibility import describe_control, label_control
 from ui_qt.components import PageHeader, muted_label, section_label
 from ui_qt.context import AppContext
