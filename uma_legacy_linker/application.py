@@ -59,7 +59,7 @@ from uma_legacy_linker.veteran_identity import (
 
 
 APP_NAME = "Uma Legacy Linker"
-APP_VERSION = "1.8.0"
+APP_VERSION = "1.8.1"
 
 LogCallback = Callable[[str], None]
 ProgressCallback = Callable[[int, str], None]

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 import tempfile
@@ -117,6 +118,13 @@ class ReleaseConsistencyTests(unittest.TestCase):
         self.assertIn(f"StringStruct('ProductVersion', '{APP_VERSION}')", metadata)
         self.assertIn("flags=0x0", metadata)
         self.assertNotIn("preview", metadata.lower())
+
+    def test_tagged_workflow_ref_matches_application_version(self) -> None:
+        if os.environ.get("GITHUB_REF_TYPE") == "tag":
+            self.assertEqual(
+                os.environ.get("GITHUB_REF_NAME"),
+                f"v{APP_VERSION}",
+            )
 
     def test_release_workflow_runs_the_visual_layout_audit(self) -> None:
         workflow = (

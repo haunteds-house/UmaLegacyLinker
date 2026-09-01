@@ -4,6 +4,13 @@ This project uses feature-level semantic versioning. Small internal iterations a
 
 ## Unreleased
 
+## 1.8.1 - Desktop hardening, diagnostics and repository cleanup
+
+- Moved the Qt-free application services and scoring engines into the
+  `uma_legacy_linker` package while keeping `qt_app.py` and `cli.py` as stable
+  root entry points. Bundled default profiles and SVG icons now live under
+  `resources/`, with one source/frozen-path contract shared by the application,
+  tests and PyInstaller build.
 - Reworked the repository landing documentation around the actual user journey:
   Windows download and checksum verification, first launch, data linking, the
   five Search result families, Transfer Helper safety and the verified project
