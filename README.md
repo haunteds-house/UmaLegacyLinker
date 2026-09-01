@@ -1,213 +1,60 @@
+<div align="center">
+
 # Uma Legacy Linker
 
-Local desktop tool for analysing inheritance lineages in **Umamusume: Pretty Derby**.
+**Build and compare inheritance lineages for Umamusume: Pretty Derby.**
 
-Uma Legacy Linker links an exported veteran collection to the current `master.mdb`, reconstructs Sparks, skills, G1 history and ancestry, then ranks parents, parent pairs and future grandparents for a selected Ace and race profile.
+[![Latest release](https://img.shields.io/github/v/release/Rom1foucher/UmaLegacyLinker?display_name=tag&sort=semver)](https://github.com/Rom1foucher/UmaLegacyLinker/releases/latest)
+[![Windows release](https://github.com/Rom1foucher/UmaLegacyLinker/actions/workflows/release-windows.yml/badge.svg)](https://github.com/Rom1foucher/UmaLegacyLinker/actions/workflows/release-windows.yml)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+
+[Download for Windows](https://github.com/Rom1foucher/UmaLegacyLinker/releases/latest) · [User guide](docs/USER_GUIDE.md) · [Scoring model](docs/SCORING.md) · [Changelog](CHANGELOG.md)
+
+</div>
+
+Uma Legacy Linker turns a local veteran export and the current `master.mdb` into actionable parent, grandparent and complete six-member lineage rankings. It combines local analysis with optional [uma.moe](https://uma.moe/) searches, then explains every result through Sparks, aptitude readiness, affinity and G1 compatibility.
 
 > Independent community project. Not affiliated with or endorsed by Cygames.
 
-## What it does
+## Why use it?
 
-- Resolves local veterans and costume variants against the current game database.
-- Ranks complete six-member parent lineages for a target Ace.
-- Evaluates future grandparents for producing stronger parents.
-- Searches public parents through [uma.moe](https://uma.moe/) and combines them with local candidates.
-- Audits duplicate local veterans with the conservative **Transfer Helper**.
-- Reopens the current or immediately previous Search and Transfer Helper run,
-  with visible generation metadata and input-file fingerprints.
-- Compares two lineage candidates, a veteran with retained coverage, or the
-  same stable result before and after a recalculation in a side-by-side view.
-- Opens every parent, pair and grandparent result as a context-aware top-down lineage with costume artwork, resolved skill icons, rich Spark details and optional ancestry history in the Qt interface.
-- Exports detailed JSON, compact CSV and readable diagnostics.
-- Provides an English and French desktop interface.
-- Exposes explicit bilingual names and descriptions to desktop assistive
-  technologies for the main controls, result tables and diagnostic views.
+| Workflow | What it answers |
+| --- | --- |
+| **Lineage Search** | Which local or local × remote parent pair best fits this Ace and race? |
+| **Future grandparents** | Which veterans should be used to produce the next parent? |
+| **Lineage inspector** | Where do the useful Sparks, probabilities and G1 links come from? |
+| **G1 planner** | Which compatible races can be scheduled across the three training years? |
+| **Transfer Helper** | Which duplicate veterans are worth keeping, redundant or safe to review? |
+| **Weights** | How should the scoring profile reflect a distance, style or personal priority? |
 
-## Main workflows
+The desktop application includes French and English interfaces, sortable rankings, side-by-side comparisons, retained result history, detailed JSON/CSV exports and process-isolated calculations that keep Qt outside the scoring process.
 
-### Local linking
+## Install on Windows
 
-Loads a supported veteran export (`data.json` from UmaExtractor or
-`trained_chara_data.json` from umadump) and `master.mdb`, then resolves:
+The packaged Windows application is the recommended way to use Uma Legacy Linker. It includes Python, PySide6, PyYAML and the default scoring profiles.
 
-- Blue, Pink, Green, White and Race Sparks;
-- star levels and granted skills;
-- learned skills and G1 victories;
-- parents, grandparents and local training identifiers.
+1. Open the [latest release](https://github.com/Rom1foucher/UmaLegacyLinker/releases/latest).
+2. Download `UmaLegacyLinkerQt-win64.zip` and, optionally, its `.sha256` file.
+3. Extract the **whole ZIP** to a normal folder.
+4. Run `UmaLegacyLinkerQt.exe` from the extracted directory.
 
-The linked export is the input used by the optimiser and Transfer Helper.
-
-### Lineage optimisation
-
-Configure the target Ace, the parent being produced, surface, distance, running style and optional course conditions.
-
-The optimiser produces three complementary rankings:
-
-- **final parent pairs** for the Ace;
-- **individual parent branches**;
-- **future grandparents** for the next breeding step.
-
-Final pairs use the complete visible lineage: both parents and all four grandparents.
-
-### Transfer Helper
-
-Evaluates every local veteran as both a parent and a future grandparent against a stable baseline:
-Turf Sprint/Mile/Medium/Long and Dirt Sprint/Mile/Medium, each split into Front, Pace and Backline.
-The default fast mode only tests Aces with natural B or better in surface, distance and style.
-The bundled profile adds up to five upcoming Champion Meetings as optional extra evidence; they
-can be disabled, and a temporary calendar gap can never make a permanent archetype disappear from
-the cleanup baseline. The Transfer Helper panel exposes Fast (recommended) and Exhaustive (slow)
-modes, the upcoming-CM limit, Team Trials and generic profiles; selections persist between runs.
-Team Trials and generic profiles are disabled by default.
-
-The helper builds the smallest same-costume portfolio that remains within 2.5 score points of the
-best copy in every globally competitive niche. It also covers direct 3-star Distance/Surface
-Sparks, high-value direct White Sparks from 2 stars, repeated/hard-to-obtain skills and configured
-packages collectively across the retained copies.
-
-Verdicts are:
-
-- **Protected** — locked in game or carrying a memo;
-- **Keep** — required by the collection portfolio;
-- **Strictly safe transfer** — in exhaustive mode only, one retained same-costume, same-Unique replacement is no worse in every viable profile envelope, retains G1 pair support and individually preserves protected heritage;
-- **Recommended transfer** — redundant at collection level, possibly covered by several retained copies rather than one universal replacement;
-- **Review** — incomplete or insufficiently modelled coverage requiring manual inspection.
-
-The detail pane and JSON/CSV reports expose the retained coverage, portfolio reasons, lock/memo
-metadata, exact strict replacement when one exists and the permanent/dynamic context split. Each
-verdict shows its competitive, evaluated, distinct-profile and elite counts, plus candidate and
-retained score envelopes and their delta for every viable parent/future-GP context. Collective
-recommendations name the best retained copy per row rather than inventing one universal
-replacement. Transfer candidates also receive a complete Spark comparison against the strict
-replacement or every retained cover, including strategic heritage that was preserved successfully
-rather than only failed protections.
-
-The displayed Transfer Helper report carries an explicit freshness state and generation time. A
-change to its analysis scope, collection, MDB, course data or active scoring inputs marks the
-existing result stale until it is rerun. Table sorting, visible columns, column order, split-pane
-positions, detail visibility and expert-section expansion are remembered between sessions.
-Local copies use the same `Card name · evaluation score` identity in selectors, tables and
-reports. The internal training ID remains in machine-readable exports and UI tooltips for joins,
-but is not used as the primary name or as a user-facing search criterion.
-
-The tool never edits the collection and never transfers or deletes anything automatically. An
-optional exhaustive audit restores all four styles and unfiltered Ace variants for occasional
-cross-checking; it is intentionally much slower than the default mode and is the only mode allowed
-to issue the **Strictly safe transfer** verdict. Fast-mode redundancies remain recommendations.
-
-### uma.moe search
-
-Two online search modes are available:
-
-- remote grandparent paired with a local GP;
-- remote final parent paired with a local parent.
-
-Future-grandparent search can optionally receive a complete **opposing parent branch**, either
-from the local veteran collection or imported from an application parent-pair/raw uma.moe JSON.
-When present, every GP1+GP2 candidate is inserted under the not-yet-trained target parent and
-ranked against that fixed branch with the same six-member engine as a final parent pair. The
-future parent's own unknown Sparks remain empty; the selected GPs, the opposing branch and a
-projected G1 plan are evaluated exactly. Leaving the field empty preserves the generic future-GP model.
-
-The active Ace, target parent, profile, course preset, exact conditions and scoring files form one live shared context at the top of **Search**. Local and uma.moe searches sit side by side beneath it and write into the same result area. Stable integration values (API URL and key) live separately under **Settings**.
-
-Friend IDs can be copied directly from result tables. Online retrieval is capped at **2,000 candidates per search**.
-For final-parent searches, this budget is divided between a Distance cohort, a target-surface
-cohort when the Ace needs it, and a broad White-preferred cohort. The cohorts are merged and
-deduplicated before exact local × remote pair scoring; they guide sampling rather than acting
-as final hard constraints.
-
-The target-surface cohort can be disabled per search in the uma.moe filter dialog, or by setting
-`uma_moe_parent_search.retrieval.surface_cohort_enabled` to `false` in the active scoring
-profile. This only changes API sampling; target-surface scoring remains active. In manual
-pair mode, the locked local parent/GP is resolved before retrieval. If the already-known
-surface Sparks start the Ace at A, no automatic Turf/Dirt cohort is emitted and a persisted
-remote-Main Surface constraint is suppressed as redundant.
-
-Contextual future-GP searches use the same global cap but subtract the opposing branch's known
-aptitude coverage and, in manual mode, the locked local GP's own Sparks first. The locked GP's
-ancestors are not counted because they sit outside the final six-member lineage. For example,
-7 known target-surface stars toward a 10-star minimum leave only a 3-star surface deficit, so
-most of the released surface budget moves to Distance and broad White discovery. Whites already
-carried by the fixed branch are softly down-ranked for retrieval, not excluded; the final scorer
-still combines duplicate copies through cumulative probability.
-
-The search panel only exposes filters supported by `/api/v3/search`: soft White preferences,
-optional target-surface/distance/style constraints on the remote Main, and optional minimum
-Blue/White quality for the full remote lineage. Per-factor Blue/Pink lineage minima use the
-same aggregate IDs as the uma.moe sliders (for example, Stamina `>=5★` is sent as
-`blue_sparks=205,206,207,208,209`) before the 2,000-result pagination cap, then revalidated
-locally after normalisation. Explicit hard filters are copied into every retrieval cohort.
-If a hard lineage filter conflicts with a soft aptitude cohort on the same API parameter, the
-hard filter wins and that cohort's budget returns to the broad search.
-
-Automatic-pair preselection still uses the canonical local scorer and keeps dedicated
-Distance/Surface coverage. As a recall guard, a hard-filtered remote pool is kept in full up
-to 500 candidates before exact pair scoring, even when the configured remote preselection
-pool is smaller. Fixed-local searches already score every valid remote candidate without a
-remote preselection cut.
-
-The generated UQL text is kept only as an audit and manual-copy representation because the
-public endpoint has no free-text UQL parameter.
-
-Any selected final parent pair, whether fully local or local × uma.moe, can be exported in the native **Lineage Planner v1 JSON** format used by the current uma.moe frontend. In the planner, use **Save / Load** to import the generated file. Local branches retain every veteran and succession record available in the source export; normalized and remote branches retain every available Spark, lineage member and race-saddle ID.
-
-## Scoring model
-
-The model is configurable and intentionally differs by workflow.
-
-**Final parents and parent pairs** use:
-
-- modern individual inheritance affinity;
-- initial aptitude ranks and estimated `P(A)` / `P(S)`;
-- probability-aware White Skill Spark inheritance;
-- distance-aware Blue Spark priorities;
-- G1 overlap and course-specific Green Skills.
-
-**Future grandparents** use a simpler pre-production model based on:
-
-- direct Pink, Blue and White Spark quality;
-- Ace × parent × GP affinity;
-- G1 overlap;
-- current-lineage support for generating useful White Sparks.
-
-This avoids pretending that the full final lineage is already known during a generic future-GP
-search. When the opposing branch is explicitly supplied, the application instead uses the exact
-final-pair model for every candidate GP pair.
-
-See [`docs/SCORING.md`](docs/SCORING.md) for formulas and implementation details.
-
-## Requirements
-
-- Windows is the primary supported platform.
-- The Windows release executable requires no Python installation.
-- Running from source requires Python **3.10+**.
-- PySide6 for the desktop interface.
-- A current Umamusume `master.mdb`.
-- A veteran export from UmaExtractor (`data.json`) or umadump
-  (`trained_chara_data.json`).
-- `PyYAML` for live uma.moe searches when running from source.
-
-Install the source dependencies with:
+The executable is not currently Authenticode-signed, so Windows SmartScreen may display a warning on first launch. The archive checksum can be verified with:
 
 ```powershell
-py -m pip install -r requirements-qt.txt
+Get-FileHash .\UmaLegacyLinkerQt-win64.zip -Algorithm SHA256
+Get-Content .\UmaLegacyLinkerQt-win64.zip.sha256
 ```
 
-## Veteran data extraction
+The two SHA-256 values must match.
 
-Uma Legacy Linker does not bundle a game-memory reader.
+## Run from source
 
-Two backends are supported by the built-in **Extract and link** launcher, which picks the right one from the tool's name:
+Requirements:
 
-- [umadump](https://github.com/Werseter/umadump) reads the running game's memory and validates its wrapper layouts against `global-metadata.dat`, so it survives game updates better than cache interception. It is run with `--rerun-mode once` from the output folder, and its `trained_chara_data.json` is linked directly. Note that it leaves `succession_trained_chara_id_1/2` at zero, so the informational "referenced by" column of the Transfer Helper stays empty; scoring and rankings are unaffected because every lineage member's Sparks come from the frozen `succession_chara_array` snapshot.
-- [UmaExtractor](https://github.com/xancia/UmaExtractor) intercepts a cached API response and writes a single `data.json`. It still provides the local lineage links above.
-
-Both are separate projects with their own requirements (umadump needs Python 3.14+ when run from source), licences and warnings.
-
-Tools that read a running game process are used at your own discretion.
-
-## Quick start
+- Python 3.10 or newer;
+- Windows as the primary supported platform;
+- a current Umamusume `master.mdb`;
+- a collection export from UmaExtractor or umadump.
 
 ```powershell
 git clone https://github.com/Rom1foucher/UmaLegacyLinker.git
@@ -216,153 +63,134 @@ py -m pip install -r requirements-qt.txt
 py qt_app.py
 ```
 
-On Windows, `run.bat` starts the same application.
+On Windows, `run.bat` launches the same interface after the dependencies have been installed.
 
-Then select:
+## First run
 
-1. the current `master.mdb`;
-2. the exported `data.json` or `trained_chara_data.json`;
-3. an output directory.
+Open **Data** and configure:
 
-Run **Link collection** before using lineage search, Transfer Helper or
-local × online pair calculation.
+1. **Current game database** — select `master.mdb` if it was not detected automatically.
+2. **Exported collection** — select `data.json` or `trained_chara_data.json`.
+3. **Output directory** — keep generated rankings and diagnostics separate from the source export.
+4. Select **Link an existing export**.
 
-### Desktop interface
+The original collection export is never modified. Linking creates `veterans_legacy_linked.json` and the catalogues required by Search and Transfer Helper in the selected output directory.
 
-The PySide6 interface covers the full workflow: dashboard, extraction and linking, one unified local/uma.moe Search workspace (including fixed opposing-parent context and offline local GP-pair ranking), Transfer Helper, scoring-profile editing, Settings and diagnostics, sortable embedded results with tabular figures for numeric comparison, a visual lineage inspector and Lineage Planner export. The three local buttons calculate final pairs, parent branches or future grandparents independently. Long-running tasks can be cancelled from the status bar.
+You can also configure UmaExtractor or umadump and use **Extract my collection**. These tools are separate projects and are not bundled with Uma Legacy Linker.
 
-Preferences live in `%APPDATA%\UmaLegacyLinker\config.json` and the interface renders in French and English. The Windows workflow also renders every page at three viewport sizes in both languages and rejects detected text overflow. See [`docs/QT_UI.md`](docs/QT_UI.md) for the UI architecture and build instructions.
+## Main workflows
 
-The Qt lineage inspector loads costume-aware trainee artwork, resolved White Skill icons and G1 race banners on demand from GameTora. Images are never bundled with the source or executable: they are kept in a bounded per-user cache, remain available offline once cached, and can be disabled or cleared directly in the inspector. Missing or unavailable artwork falls back to a generated card.
+### Search a lineage
 
-Parent and grandparent pair diagnostics distinguish shared G1 wins from races won on only one side, including whether that one-sided source is local or remote. A dedicated three-year planning tab builds an executable one-race-per-turn schedule: winning a shared race with the new trainee creates two `+3` links (`+6`), while a one-sided race creates one `+3` link. For future-grandparent searches, each race keeps that full value only when the future parent's Independent Training win chance reaches the configurable cutoff after consecutive-race penalties; otherwise it contributes zero. The standard plan locks the target character's fixed race objectives resolved from `master.mdb`; **Schedule for Trackblazer** ignores those objectives and shows the affinity-only optimum. Objective/calendar conflicts remain visible below the schedule, and unavoidable streaks of four or more races stay present with a risk warning. The JSON diagnostics retain both variants, the objective races, ownership, MDB IDs, dates, distance/surface, win chances and every available calendar slot.
+The shared Search context contains the target Ace, parent to produce, race profile, course conditions and scoring files. From the result tabs, run only the calculation you need:
 
-White Sparks show the inheritance probability already calculated by the scoring engine across the run's configured Inspiration Events, and the three strongest White contributions receive priority emphasis. Every Spark chip includes a semantic text label independent of colour, with a boundary kept above the 3:1 non-text contrast floor. Result diagnostics also show game-inspired aptitude rows, score/P(S) cards and a compact direct-Spark recap. The view does not introduce a second probability formula.
+- final parent pairs;
+- individual parent branches;
+- future grandparents;
+- local parent × remote parent through uma.moe;
+- local GP × remote GP through uma.moe.
 
-## Weights
+Every result can be inspected as a top-down lineage. The detail view exposes aptitude targets, `P(S)`, modern affinity, Spark sources, White inheritance probabilities and G1 planning without introducing a second scoring formula.
 
-The **Weights** tab uses a two-pane settings editor: search, gameplay categories and 51 ordered subcategories on the left, then a complete explanation and the appropriate control on the right. Every visible setting has bilingual purpose, impact and scope guidance, plus a quick hover summary. Probabilities and bounded thresholds use percentages, independent coefficients use an explicit `×1` reference, and the nine scoring groups normalised by the engine use a live 100% distribution preview with a donut chart. Adjusting a coefficient changes only that stored value; the displayed effective shares are recalculated without rewriting its siblings. Booleans, integers and curves receive controls suited to their type. Draft/default states are explicit and internal JSON paths remain out of the interface.
+Online retrieval is capped at 2,000 candidates per search. An uma.moe API key can be entered under **Settings** and remembered locally.
 
-Values are stored as minimal overrides on top of the bundled defaults, so new settings can be introduced without replacing the user's whole profile.
+### Review duplicate veterans
 
-Practical examples:
+Transfer Helper evaluates each local veteran across a permanent set of Turf and Dirt profiles, with optional Champion Meeting, Team Trials and generic contexts. Its verdicts distinguish protected copies, required portfolio members, strict replacements, collection-level redundancies and cases requiring manual review.
 
-- increase the Long Stamina preference to favour Stamina lineages in Long races;
-- reduce Blue Spark influence for Sprint to make weak Blue Sparks less punitive there;
-- change the Distance-S utility curve to adjust the value of 40%, 50% or 60% `P(S)`;
-- raise Distance-B compensation thresholds to accept B-start pairs only with exceptional support;
-- tune the target-surface component or its minimum/preferred ranks (B/A by default) for low-natural-aptitude Aces.
+It is an analysis tool only: it never edits the export and cannot transfer or delete a veteran in game. Fast mode is recommended for routine use; only the slower exhaustive mode can emit **Strictly safe transfer**.
 
-The effective profiles used by a run are exported as:
+### Adjust scoring
 
-- `active_parent_scoring.json`;
-- `active_skill_priorities.json`.
+The Weights page edits minimal overrides on top of the bundled defaults. It includes searchable categories, bilingual explanations, purpose-built controls and live distribution previews for normalised scoring groups.
 
-The White Skill priority selector used by **Search** and shown in the advanced
-section of **Weights** is one live shared setting. Its input
-may be a complete profile or a minimal recursive override of
-`resources/default_skill_priorities.json`; see
-[`docs/SKILL_PRIORITIES.md`](docs/SKILL_PRIORITIES.md) for the exact schema,
-merge rules and examples. These per-skill priorities remain distinct from the
-structural scoring settings stored in `parent_scoring_overrides.json`.
+The structural scoring profile and per-skill White priorities remain separate. See [White Skill priorities](docs/SKILL_PRIORITIES.md) for partial override examples and merge rules.
 
-## Main files
+For the complete operational walkthrough, result states, extraction limitations and troubleshooting guidance, read the [user guide](docs/USER_GUIDE.md).
 
-| File | Purpose |
+## Data and network use
+
+| Data | Behaviour |
 | --- | --- |
-| `qt_app.py` | PySide6 desktop entry point |
-| `cli.py` | Headless CLI: linking, catalogues, ranking and Transfer Helper |
-| `uma_legacy_linker/application.py` | Qt-free configuration and workflow orchestration shared by the desktop UI and CLI |
-| `ui_qt/` | Qt shell, pages, visual lineage/artwork system and table model |
-| `uma_legacy_linker/legacy_linker.py` | Links veteran exports to `master.mdb` |
-| `uma_legacy_linker/parent_optimizer.py` | Local branch, pair and future-GP scoring |
-| `uma_legacy_linker/transfer_helper.py` | Collection-portfolio cleanup analysis and exhaustive strict-replacement checks |
-| `uma_legacy_linker/spark_protection.py` | Strategic Spark-heritage coverage and strict replacement comparison |
-| `uma_legacy_linker/uma_moe.py` | uma.moe API discovery, normalisation and online pairing |
-| `uma_legacy_linker/lineage_planner.py` | Native uma.moe Lineage Planner JSON export |
-| `uma_legacy_linker/scoring_config.py` | Scoring profile loading, migration and validation |
-| `resources/default_parent_scoring.json` | Bundled structural scoring defaults |
-| `resources/default_skill_priorities.json` | Bundled per-skill White Spark priorities |
-| `tests/` | Automated engine, UI, release, documentation and i18n checks |
+| Collection export and `master.mdb` | Read and processed locally; originals are not modified |
+| Generated rankings | Written to the selected output directory |
+| uma.moe | Used only for requested remote-parent searches |
+| GameTora artwork | Downloaded on demand by the lineage view; optional and locally cached |
+| API key | Protected with Windows DPAPI when remembered on Windows; never stored in `config.json` |
 
-Test modules are project source code, intentionally versioned and kept outside the application
-root so the runtime files remain easy to scan.
+No game assets, executable extractors, `master.mdb`, collection exports or uma.moe datasets are distributed with this project. Cached artwork can be disabled or cleared from the lineage inspector.
 
-## Main outputs
+## Output files
 
-| File | Purpose |
+| File | Contents |
 | --- | --- |
-| `veterans_legacy_linked.json` | Fully linked local collection |
-| `legacy_parent_rankings.json` | Detailed local lineage rankings |
-| `legacy_parent_pairs.csv` | Compact final parent-pair ranking |
-| `legacy_future_grandparents.csv` | Future-grandparent ranking |
-| `transfer_helper_report.json` | Complete cleanup evidence and replacements |
-| `transfer_helper_candidates.csv` | Compact cleanup list |
-| `uma_moe_grandparent_pairs.json` | Local-GP × remote-GP results |
+| `veterans_legacy_linked.json` | Collection resolved against the current MDB |
+| `legacy_parent_rankings.json` | Complete local parent, pair and future-GP results |
+| `legacy_parent_pairs.csv` | Compact final-pair ranking |
+| `legacy_future_grandparents.csv` | Compact future-grandparent ranking |
+| `transfer_helper_report.json` | Complete portfolio evidence and replacement analysis |
+| `transfer_helper_candidates.csv` | Compact Transfer Helper verdict list |
 | `uma_moe_parent_pairs.json` | Local-parent × remote-parent results |
+| `uma_moe_grandparent_pairs.json` | Local-GP × remote-GP results |
 
-Additional diagnostics, raw API responses and catalogues are written alongside these files.
+The application also writes catalogues, readable diagnostics, raw online responses and one previous generation of its principal Search and Transfer Helper results.
 
 ## Command line
 
-The GUI is the recommended workflow. Local linking, catalogue generation, lineage ranking and Transfer Helper are also available through the CLI:
+The desktop interface is the recommended workflow. The same Qt-free services are available for local linking, catalogue generation, lineage ranking and Transfer Helper automation:
 
 ```powershell
 py cli.py --help
 ```
 
-## Tests
+## Project layout
 
-Install the build dependencies, then run the portable suite and bilingual audit:
+| Path | Purpose |
+| --- | --- |
+| `qt_app.py` | Desktop entry point |
+| `cli.py` | Headless entry point |
+| `uma_legacy_linker/` | Qt-free application services, data linking and scoring engines |
+| `ui_qt/` | PySide6 shell, pages, models and visualisation components |
+| `resources/` | Bundled default profiles and SVG interface icons |
+| `tests/` | Engine, UI, accessibility, release and i18n checks |
+| `docs/` | User, scoring, architecture and release documentation |
+
+## Development and Windows build
+
+Install the complete build environment:
 
 ```powershell
 py -m pip install -r requirements-build-qt.txt
+```
+
+Run the portable test gate and translation audit:
+
+```powershell
 py -m pytest -q tests --ignore=tests/test_qt_runtime.py
 py tests/check_i18n.py
 ```
 
-`build_windows_qt.ps1` additionally discovers every Qt runtime test and executes each one in a
-fresh process before the visual layout audit and packaging. This avoids native Qt teardown issues
-without silently omitting newly added runtime tests.
-
-## Windows build
+Build the verified Windows bundle:
 
 ```powershell
-.\build_windows_qt.ps1
+.\build_windows_qt.ps1 -RunLayoutAudit
 ```
 
-The script runs the complete test suite and produces `dist\UmaLegacyLinkerQt-win64.zip` (plus its `.sha256`). Extract the whole directory before launching `UmaLegacyLinkerQt.exe`. It bundles Python, PySide6, PyYAML and the default profiles, so no Python installation and no adjacent `default_*.json` files are required on the destination PC.
-
-The uma.moe API key can be remembered from the application. On Windows it is encrypted with DPAPI for the current Windows account and stored under `%APPDATA%\UmaLegacyLinker`. On Linux and macOS it is stored unencrypted under `${XDG_CONFIG_HOME:-~/.config}/UmaLegacyLinker/uma_moe_api_key.dat`, with `0700` permissions on the application directory and `0600` on the file. It is never written to `config.json`; `UMA_MOE_API_KEY` keeps priority when present.
-
-### Publishing a GitHub release
-
-The `Windows release` GitHub Actions workflow builds the same package on every `v*` tag and attaches the archive and checksum to the corresponding GitHub release:
-
-```powershell
-git tag v1.8.0
-git push origin v1.8.0
-```
-
-The workflow can also be started manually to obtain a downloadable build artifact without creating a release.
+The script runs the portable suite, executes every Qt runtime smoke test in a fresh process, performs the bilingual layout audit, builds the PyInstaller `onedir` bundle, then creates the ZIP and checksum. See [Releasing](docs/RELEASING.md) for the publication checklist.
 
 ## Documentation
 
-- [`docs/SCORING.md`](docs/SCORING.md) — scoring model and formulas;
-- [`docs/WEIGHTS_FORMAT.md`](docs/WEIGHTS_FORMAT.md) — White Spark priority format;
-- [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) — desktop process isolation and future multicore design;
-- [`docs/QT_UI.md`](docs/QT_UI.md) — desktop UI architecture and packaging;
-- [`docs/RELEASING.md`](docs/RELEASING.md) — Windows build and GitHub release procedure;
-- [`docs/THIRD_PARTY.md`](docs/THIRD_PARTY.md) — external tools and services;
-- [`CHANGELOG.md`](CHANGELOG.md) — release history.
+- [User guide](docs/USER_GUIDE.md) — setup, workflows, result states and troubleshooting;
+- [Scoring model](docs/SCORING.md) — formulas, probabilities and workflow-specific scoring;
+- [White Skill priorities](docs/SKILL_PRIORITIES.md) — complete and partial priority profiles;
+- [Qt UI](docs/QT_UI.md) — desktop architecture, visual QA and packaging;
+- [Performance](docs/PERFORMANCE.md) — process isolation and cancellation design;
+- [Third-party components](docs/THIRD_PARTY.md) — tools, services, icons and licences;
+- [Releasing](docs/RELEASING.md) — Windows build, verification and GitHub release procedure;
+- [Changelog](CHANGELOG.md) — release history and current unreleased work.
 
-## Notes
+## Project status
 
-- Always verify that an online Friend ID is still active before starting a career.
-- Alternate costumes are never considered interchangeable by Transfer Helper.
-- Expensive Search and Transfer calculations remain deterministic and
-  sequential inside a backend process whose GIL is isolated from Qt;
-  process-based multicore execution is documented but not enabled yet.
-- No game assets, executable files, `master.mdb`, extractor binaries or uma.moe datasets are distributed with this project.
+Uma Legacy Linker is a community tool under active development. Rankings are decision support, not guarantees: inheritance remains probabilistic, remote Friend IDs can expire and community-derived game mechanics may evolve after game updates.
 
 Umamusume: Pretty Derby and related assets belong to their respective rights holders.

@@ -87,10 +87,25 @@ class ReleaseConsistencyTests(unittest.TestCase):
 
         self.assertTrue(release_headings)
         self.assertEqual(release_headings[0], APP_VERSION)
-        self.assertIn(f"git tag v{APP_VERSION}", readme)
-        self.assertIn(f"git push origin v{APP_VERSION}", readme)
         self.assertIn(f"git tag v{APP_VERSION}", releasing)
         self.assertIn(f"git push origin v{APP_VERSION}", releasing)
+        self.assertNotRegex(readme, r"git (?:tag|push origin) v\d+\.\d+\.\d+")
+
+    def test_readme_keeps_a_user_first_install_contract(self) -> None:
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+
+        self.assertIn(
+            "https://github.com/Rom1foucher/UmaLegacyLinker/releases/latest",
+            readme,
+        )
+        self.assertIn("UmaLegacyLinkerQt-win64.zip", readme)
+        self.assertIn("Extract the **whole ZIP**", readme)
+        self.assertIn("py -m pip install -r requirements-qt.txt", readme)
+        self.assertIn("py qt_app.py", readme)
+        self.assertIn("[User guide](docs/USER_GUIDE.md)", readme)
+        self.assertIn("`uma_legacy_linker/`", readme)
+        self.assertIn("`resources/`", readme)
+        self.assertNotIn("ui_qt/icons/", readme)
 
     def test_windows_metadata_matches_application_version(self) -> None:
         metadata = (ROOT / "windows_version_info_qt.txt").read_text(encoding="utf-8")

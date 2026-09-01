@@ -4,6 +4,12 @@ This project uses feature-level semantic versioning. Small internal iterations a
 
 ## Unreleased
 
+- Reworked the repository landing documentation around the actual user journey:
+  Windows download and checksum verification, first launch, data linking, the
+  five Search result families, Transfer Helper safety and the verified project
+  layout now appear before contributor details. Moved the operational depth to
+  a dedicated user guide, while release-version commands remain in the release
+  checklist so the README cannot advertise a stale tag.
 - Kept the five Search result-family tabs fixed in place instead of exposing horizontal tab scrolling. The bar now expands the five families evenly across the available width, preserving the clearer tab styling while avoiding scroll arrows/overflow behaviour that looked like a layout bug.
 - Replaced Search result-family status glyphs with Qt-painted status icons so Windows font fallback can no longer turn them into broken symbols. The result-family bar now has a dedicated tab treatment with visible inactive surfaces, hover feedback and a stronger selected state, making the five persistent result views read as tabs rather than loose labels.
 - Simplified the shared race context by removing manual Right/Left selection. Rotation is now derived from the selected MDB racecourse/course layout (`race_course_set.turn`), with ambiguous or straight-only layouts left unspecified; the derived value still reaches scoring and remains visible in the collapsed condition summary. Search result tables now reuse the existing async GameTora portrait cache and show 32 px trainee avatars beside local/remote parent, grandparent and future-candidate names.
