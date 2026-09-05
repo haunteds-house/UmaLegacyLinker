@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from uma_legacy_linker.solver_runtime import solver_search
+from uma_legacy_linker.solver_runtime import optimized_solver
+
 import hashlib
 import copy
 import json
@@ -3277,6 +3280,279 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
             writer.writerow({field: row.get(field, "") for field in fields})
 
 
+def _evaluate_gp_pair(context, gp1, gp2, *, detailed) -> dict[str, Any]:
+    """Pair evaluator with explicit, serializable job inputs for spawn workers."""
+    full = detailed or not optimized_solver()
+    resolver = context["resolver"]
+    ace_chara = context["ace_chara"]
+    target_parent_chara = context["target_parent_chara"]
+    g1_bonus_value = context["g1_bonus_value"]
+    planned_g1_budget = context["planned_g1_budget"]
+    local_pair_mode = context["local_pair_mode"]
+    target_parent = context["target_parent"]
+    resolved_g1_win_probability_cutoff = context["resolved_g1_win_probability_cutoff"]
+    final_full_score_at = context["final_full_score_at"]
+    production_full_score_at = context["production_full_score_at"]
+    production_thresholds = context["production_thresholds"]
+    distance = context["distance"]
+    config = context["config"]
+    ace = context["ace"]
+    surface = context["surface"]
+    style = context["style"]
+    weight_lookup = context["weight_lookup"]
+    race_skills = context["race_skills"]
+    final_thresholds = context["final_thresholds"]
+    mode_weights = context["mode_weights"]
+    contextual_opposing_parent = context["contextual_opposing_parent"]
+    opposing_branch = context["opposing_branch"]
+    final_parent_affinity = _final_parent_affinity_potential(
+        resolver,
+        ace_chara,
+        target_parent_chara,
+        gp1,
+        gp2,
+        g1_bonus_value,
+        planned_g1_budget=planned_g1_budget,
+        fixed_origin="local",
+        candidate_origin=("local" if local_pair_mode else "remote"),
+        target_parent=target_parent,
+        g1_win_probability_cutoff=resolved_g1_win_probability_cutoff,
+    )
+    final_parent_affinity["base_full_score_at"] = final_full_score_at
+    production_affinity = _full_production_affinity(
+        resolver,
+        target_parent_chara,
+        gp1,
+        gp2,
+        g1_bonus_value,
+    )
+    production_affinity["full_score_at"] = production_full_score_at
+    gp1_modifier = float(
+        (production_affinity.get("gp1_inheritance_modifier") or {}).get("total") or 0.0
+    )
+    gp2_modifier = float(
+        (production_affinity.get("gp2_inheritance_modifier") or {}).get("total") or 0.0
+    )
+    production_affinity["scored_value"] = (
+        0.60 * min(gp1_modifier, gp2_modifier)
+        + 0.40 * ((gp1_modifier + gp2_modifier) / 2.0)
+    )
+    production_affinity["scored_mode"] = "balanced_individual_gp_modifiers"
+    production_affinity["score"] = _affinity_score(
+        production_affinity["scored_value"], production_thresholds
+    )
+    production_affinity["included_in_weighted_score"] = False
+
+    direct_members = [
+        (gp1, "grandparent", "local_gp1"),
+        (gp2, "grandparent", "online_gp2"),
+    ]
+    six_members = _lineage_members(gp1) + _lineage_members(gp2)
+    blue, blue_detail = _blue_score(
+        direct_members,
+        distance,
+        config,
+        inheritance_affinities={
+            "local_gp1": float(
+                (final_parent_affinity.get("projected_gp1_inheritance_modifier") or {}).get("total")
+                or 0.0
+            ),
+            "online_gp2": float(
+                (final_parent_affinity.get("projected_gp2_inheritance_modifier") or {}).get("total")
+                or 0.0
+            ),
+        },
+        include_details=full,
+    )
+    pink, pink_detail = _future_grandparent_pink_score(
+        direct_members, ace, surface, distance, style, config, include_details=full
+    )
+    white, white_detail = _future_grandparent_white_score(
+        direct_members, weight_lookup, config, race_skills, include_details=full
+    )
+    white_generation, white_generation_detail = _white_generation_support_score(six_members, weight_lookup, config, include_details=full)
+    unique, unique_detail = _unique_score(
+        direct_members, config, "future_grandparent", include_details=full
+    )
+    g1_potential = _future_gp_pair_g1_score(final_parent_affinity)
+    final_parent_affinity["g1_potential_score"] = g1_potential
+    components = {
+        "affinity": _affinity_score(final_parent_affinity["base"], final_thresholds),
+        "g1_potential": g1_potential,
+        "pink": pink,
+        "white_skill": white,
+        "white_generation": white_generation,
+        "blue": blue,
+        "unique": unique,
+    }
+    # In contextual mode `components` below gets reassigned to the
+    # parent_pair engine's own component keys (distance_s,
+    # surface_aptitude, ...) for ranking purposes, which do not
+    # include "affinity"/"g1_potential". Keep this snapshot so the
+    # future-grandparent's own diagnostic sub-scores stay available
+    # for the component_details block further down, even though
+    # that block is fully replaced by contextual_pair's own detail
+    # a few lines later when contextual mode is active.
+    diagnostic_components = components
+    breakdown = _score_breakdown(components, mode_weights, include_details=full)
+    contextual_pair: dict[str, Any] | None = None
+    projected_parent: dict[str, Any] | None = None
+    projected_g1_plan: dict[str, Any] | None = None
+    if contextual_opposing_parent is not None:
+        assert opposing_branch is not None
+        projected_parent, projected_g1_plan = _project_future_parent_branch(
+            target_parent,
+            gp1,
+            gp2,
+            contextual_opposing_parent,
+            planned_g1_budget=planned_g1_budget,
+            training_aptitudes=final_parent_affinity.get(
+                "independent_training_aptitudes"
+            ),
+            g1_win_probability_cutoff=resolved_g1_win_probability_cutoff,
+            objective_races=resolver.objective_races(target_parent_chara),
+        )
+        contextual_pair = evaluate_parent_pair(
+            resolver,
+            ace,
+            projected_parent,
+            contextual_opposing_parent,
+            surface=surface,
+            distance=distance,
+            style=style,
+            weight_lookup=weight_lookup,
+            race_skills=race_skills,
+            config=config,
+            parent_2_branch=opposing_branch,
+            include_g1_schedule=detailed if optimized_solver() else True,
+            include_details=detailed,
+            parent_1_origin="planned",
+            parent_2_origin="local",
+            g1_bonus_value=g1_bonus_value,
+            affinity_thresholds=(
+                (config.get("affinity") or {}).get("parent_pair_thresholds")
+                or [[0, 0], [151, 100]]
+            ),
+        )
+        components = dict(contextual_pair["components"])
+        # Keep generation support visible as a non-scoring diagnostic.
+        components["white_generation"] = white_generation
+        breakdown = dict(contextual_pair["score_breakdown"])
+    row: dict[str, Any] = {
+        "score": float(
+            contextual_pair["score"]
+            if contextual_pair is not None else breakdown["total"]
+        ),
+        "local_trained_id": gp1.get("trained_chara_id"),
+        "local_card_name": gp1.get("card_name"),
+        "local_rank_score": gp1.get("rank_score"),
+        "remote_inheritance_id": ((gp2.get("online") or {}).get("inheritance_id")),
+        "remote_card_name": gp2.get("card_name"),
+        "remote_rank_score": gp2.get("rank_score"),
+        "_gp1": gp1,
+        "_gp2": gp2,
+        "final_parent_affinity": final_parent_affinity,
+        "race_affinity_plan": final_parent_affinity["race_affinity_plan"],
+        "production_affinity": production_affinity,
+        "components": components,
+        "score_breakdown": breakdown,
+        "candidate_g1_count": len(_member_g1(gp2)),
+        "scoring_context": (
+            "fixed_opposing_parent_exact_pair"
+            if contextual_pair is not None
+            else "generic_future_grandparent"
+        ),
+    }
+    if contextual_pair is not None:
+        row.update({
+            "affinity": contextual_pair["affinity"],
+            "distance_viability": contextual_pair["distance_viability"],
+            "distance_s_summary": contextual_pair["distance_s_summary"],
+            "surface_viability": contextual_pair["surface_viability"],
+            "surface_aptitude_summary": contextual_pair["surface_aptitude_summary"],
+            "aptitude_summaries": contextual_pair["aptitude_summaries"],
+            "projected_g1_plan": projected_g1_plan,
+        })
+    if detailed:
+        row.update({
+            "candidate": _identity(gp2),
+            "fixed_grandparent": _identity(gp1),
+            "final_branch_affinity": {**final_parent_affinity, "total": final_parent_affinity["potential_total"]},
+            "component_details": {
+                "affinity": {
+                    "raw_base": final_parent_affinity["base"],
+                    "thresholds": final_thresholds,
+                    "score": diagnostic_components["affinity"],
+                    "formula": "pair(Ace,parent) + triple(Ace,parent,GP1) + triple(Ace,parent,GP2)",
+                },
+                "g1_potential": {
+                    "planned_bonus": final_parent_affinity["planned_g1_bonus"],
+                    "maximum_bonus_for_budget": (
+                        final_parent_affinity["planned_g1_budget"]
+                        * 2
+                        * final_parent_affinity["g1_bonus_per_link"]
+                    ),
+                    "g1_race_plan": final_parent_affinity["race_affinity_plan"],
+                    "score": diagnostic_components["g1_potential"],
+                    "formula": "100 × planned G1 bonus / maximum double-link bonus for the configured race budget",
+                },
+                "blue": blue_detail,
+                "pink": {
+                    **pink_detail,
+                    "evaluation_context": "future_grandparent_simple_quality",
+                },
+                "white_skill": {
+                    **white_detail,
+                    "evaluation_context": "future_grandparent_direct_factor_quality",
+                },
+                "white_generation": {
+                    **white_generation_detail,
+                    "evaluation_context": "intermediate_run_that_creates_target_parent",
+                },
+                "unique": unique_detail,
+            },
+        })
+        if contextual_pair is not None:
+            row.update({
+                "opposing_parent": _identity(contextual_opposing_parent),
+                "projected_future_parent": _identity(projected_parent or {}),
+                "contextual_final_pair": {
+                    "affinity": contextual_pair["affinity"],
+                    "components": contextual_pair["components"],
+                    "score_breakdown": contextual_pair["score_breakdown"],
+                    "distance_viability": contextual_pair["distance_viability"],
+                    "distance_s_summary": contextual_pair["distance_s_summary"],
+                    "surface_viability": contextual_pair["surface_viability"],
+                    "surface_aptitude_summary": contextual_pair["surface_aptitude_summary"],
+                    "aptitude_summaries": contextual_pair["aptitude_summaries"],
+                },
+                "component_details": {
+                    **contextual_pair["component_details"],
+                    "white_generation": {
+                        **white_generation_detail,
+                        "included_in_weighted_score": False,
+                        "evaluation_context": "intermediate_run_that_creates_target_parent",
+                    },
+                },
+            })
+    if not full:
+        # These private first-pass rows feed sorting and the exhaustive CSV.
+        # Keep its scalar contract, release full G1 diagnostics before IPC.
+        row["_g1_csv"] = _g1_schedule_csv_fields(row["race_affinity_plan"])
+        row["race_affinity_plan"] = {}
+        fields = ("base", "planned_g1_budget", "planned_g1_bonus",
+                  "planned_g1_bonus_exact_if_all_won", "g1_win_probability_cutoff",
+                  "potential_total", "common_g1_count", "fixed_only_g1_count",
+                  "candidate_only_g1_count", "common_gp_g1", "fixed_only_g1", "candidate_only_g1")
+        row["final_parent_affinity"] = {key: final_parent_affinity[key] for key in fields}
+        row["production_affinity"] = {key: production_affinity[key] for key in ("total", "scored_value")}
+        if contextual_pair is not None:
+            row["affinity"] = {"total": contextual_pair["affinity"]["total"]}
+            row["projected_g1_plan"] = {"selected_count": projected_g1_plan.get("selected_count")}
+    return row
+
+
+@solver_search
 def rank_online_grandparent_pairs(
     master_path: str | Path,
     linked_veterans_path: str | Path,
@@ -3312,8 +3588,11 @@ def rank_online_grandparent_pairs(
     lineage_blue_filter: tuple[str, int] | None = None,
     lineage_pink_filter: tuple[str, int] | None = None,
     logger: Callable[[str], None] | None = None,
+    checkpoint: Callable[[], None] | None = None,
 ) -> OnlineSearchResult:
     log = logger or (lambda _message: None)
+    check = cooperative_checkpoint(checkpoint)
+    check()
     master_path = Path(master_path).resolve()
     linked_veterans_path = Path(linked_veterans_path).resolve()
     manual_weights_path = Path(manual_weights_path).resolve()
@@ -3758,243 +4037,46 @@ def rank_online_grandparent_pairs(
             + f"(jusqu’à {len(selected_locals) * len(selected_remotes)} paires avant exclusions)."
         )
 
-        def evaluate_pair(gp1: dict[str, Any], gp2: dict[str, Any], *, detailed: bool) -> dict[str, Any]:
-            final_parent_affinity = _final_parent_affinity_potential(
-                resolver,
-                ace_chara,
-                target_parent_chara,
-                gp1,
-                gp2,
-                g1_bonus_value,
-                planned_g1_budget=planned_g1_budget,
-                fixed_origin="local",
-                candidate_origin=("local" if local_pair_mode else "remote"),
-                target_parent=target_parent,
-                g1_win_probability_cutoff=resolved_g1_win_probability_cutoff,
-            )
-            final_parent_affinity["base_full_score_at"] = final_full_score_at
-            production_affinity = _full_production_affinity(
-                resolver,
-                target_parent_chara,
-                gp1,
-                gp2,
-                g1_bonus_value,
-            )
-            production_affinity["full_score_at"] = production_full_score_at
-            gp1_modifier = float(
-                (production_affinity.get("gp1_inheritance_modifier") or {}).get("total") or 0.0
-            )
-            gp2_modifier = float(
-                (production_affinity.get("gp2_inheritance_modifier") or {}).get("total") or 0.0
-            )
-            production_affinity["scored_value"] = (
-                0.60 * min(gp1_modifier, gp2_modifier)
-                + 0.40 * ((gp1_modifier + gp2_modifier) / 2.0)
-            )
-            production_affinity["scored_mode"] = "balanced_individual_gp_modifiers"
-            production_affinity["score"] = _affinity_score(
-                production_affinity["scored_value"], production_thresholds
-            )
-            production_affinity["included_in_weighted_score"] = False
+        pair_context = {
+            "resolver": resolver,
+            "ace_chara": ace_chara,
+            "target_parent_chara": target_parent_chara,
+            "g1_bonus_value": g1_bonus_value,
+            "planned_g1_budget": planned_g1_budget,
+            "local_pair_mode": local_pair_mode,
+            "target_parent": target_parent,
+            "resolved_g1_win_probability_cutoff": resolved_g1_win_probability_cutoff,
+            "final_full_score_at": final_full_score_at,
+            "production_full_score_at": production_full_score_at,
+            "production_thresholds": production_thresholds,
+            "distance": distance,
+            "config": config,
+            "ace": ace,
+            "surface": surface,
+            "style": style,
+            "weight_lookup": weight_lookup,
+            "race_skills": race_skills,
+            "final_thresholds": final_thresholds,
+            "mode_weights": mode_weights,
+            "contextual_opposing_parent": contextual_opposing_parent,
+            "opposing_branch": opposing_branch,
+        }
 
-            direct_members = [
-                (gp1, "grandparent", "local_gp1"),
-                (gp2, "grandparent", "online_gp2"),
-            ]
-            six_members = _lineage_members(gp1) + _lineage_members(gp2)
-            blue, blue_detail = _blue_score(
-                direct_members,
-                distance,
-                config,
-                inheritance_affinities={
-                    "local_gp1": float(
-                        (final_parent_affinity.get("projected_gp1_inheritance_modifier") or {}).get("total")
-                        or 0.0
-                    ),
-                    "online_gp2": float(
-                        (final_parent_affinity.get("projected_gp2_inheritance_modifier") or {}).get("total")
-                        or 0.0
-                    ),
-                },
-            )
-            pink, pink_detail = _future_grandparent_pink_score(
-                direct_members, ace, surface, distance, style, config
-            )
-            white, white_detail = _future_grandparent_white_score(
-                direct_members, weight_lookup, config, race_skills
-            )
-            white_generation, white_generation_detail = _white_generation_support_score(six_members, weight_lookup, config)
-            unique, unique_detail = _unique_score(
-                direct_members, config, "future_grandparent"
-            )
-            g1_potential = _future_gp_pair_g1_score(final_parent_affinity)
-            final_parent_affinity["g1_potential_score"] = g1_potential
-            components = {
-                "affinity": _affinity_score(final_parent_affinity["base"], final_thresholds),
-                "g1_potential": g1_potential,
-                "pink": pink,
-                "white_skill": white,
-                "white_generation": white_generation,
-                "blue": blue,
-                "unique": unique,
-            }
-            # In contextual mode `components` below gets reassigned to the
-            # parent_pair engine's own component keys (distance_s,
-            # surface_aptitude, ...) for ranking purposes, which do not
-            # include "affinity"/"g1_potential". Keep this snapshot so the
-            # future-grandparent's own diagnostic sub-scores stay available
-            # for the component_details block further down, even though
-            # that block is fully replaced by contextual_pair's own detail
-            # a few lines later when contextual mode is active.
-            diagnostic_components = components
-            breakdown = _score_breakdown(components, mode_weights)
-            contextual_pair: dict[str, Any] | None = None
-            projected_parent: dict[str, Any] | None = None
-            projected_g1_plan: dict[str, Any] | None = None
-            if contextual_opposing_parent is not None:
-                assert opposing_branch is not None
-                projected_parent, projected_g1_plan = _project_future_parent_branch(
-                    target_parent,
-                    gp1,
-                    gp2,
-                    contextual_opposing_parent,
-                    planned_g1_budget=planned_g1_budget,
-                    training_aptitudes=final_parent_affinity.get(
-                        "independent_training_aptitudes"
-                    ),
-                    g1_win_probability_cutoff=resolved_g1_win_probability_cutoff,
-                    objective_races=resolver.objective_races(target_parent_chara),
-                )
-                contextual_pair = evaluate_parent_pair(
-                    resolver,
-                    ace,
-                    projected_parent,
-                    contextual_opposing_parent,
-                    surface=surface,
-                    distance=distance,
-                    style=style,
-                    weight_lookup=weight_lookup,
-                    race_skills=race_skills,
-                    config=config,
-                    parent_2_branch=opposing_branch,
-                    parent_1_origin="planned",
-                    parent_2_origin="local",
-                    g1_bonus_value=g1_bonus_value,
-                    affinity_thresholds=(
-                        (config.get("affinity") or {}).get("parent_pair_thresholds")
-                        or [[0, 0], [151, 100]]
-                    ),
-                )
-                components = dict(contextual_pair["components"])
-                # Keep generation support visible as a non-scoring diagnostic.
-                components["white_generation"] = white_generation
-                breakdown = dict(contextual_pair["score_breakdown"])
-            row: dict[str, Any] = {
-                "score": float(
-                    contextual_pair["score"]
-                    if contextual_pair is not None else breakdown["total"]
-                ),
-                "local_trained_id": gp1.get("trained_chara_id"),
-                "local_card_name": gp1.get("card_name"),
-                "local_rank_score": gp1.get("rank_score"),
-                "remote_inheritance_id": ((gp2.get("online") or {}).get("inheritance_id")),
-                "remote_card_name": gp2.get("card_name"),
-                "remote_rank_score": gp2.get("rank_score"),
-                "_gp1": gp1,
-                "_gp2": gp2,
-                "final_parent_affinity": final_parent_affinity,
-                "race_affinity_plan": final_parent_affinity["race_affinity_plan"],
-                "production_affinity": production_affinity,
-                "components": components,
-                "score_breakdown": breakdown,
-                "candidate_g1_count": len(_member_g1(gp2)),
-                "scoring_context": (
-                    "fixed_opposing_parent_exact_pair"
-                    if contextual_pair is not None
-                    else "generic_future_grandparent"
-                ),
-            }
-            if contextual_pair is not None:
-                row.update({
-                    "affinity": contextual_pair["affinity"],
-                    "distance_viability": contextual_pair["distance_viability"],
-                    "distance_s_summary": contextual_pair["distance_s_summary"],
-                    "surface_viability": contextual_pair["surface_viability"],
-                    "surface_aptitude_summary": contextual_pair["surface_aptitude_summary"],
-                    "aptitude_summaries": contextual_pair["aptitude_summaries"],
-                    "projected_g1_plan": projected_g1_plan,
-                })
-            if detailed:
-                row.update({
-                    "candidate": _identity(gp2),
-                    "fixed_grandparent": _identity(gp1),
-                    "final_branch_affinity": {**final_parent_affinity, "total": final_parent_affinity["potential_total"]},
-                    "component_details": {
-                        "affinity": {
-                            "raw_base": final_parent_affinity["base"],
-                            "thresholds": final_thresholds,
-                            "score": diagnostic_components["affinity"],
-                            "formula": "pair(Ace,parent) + triple(Ace,parent,GP1) + triple(Ace,parent,GP2)",
-                        },
-                        "g1_potential": {
-                            "planned_bonus": final_parent_affinity["planned_g1_bonus"],
-                            "maximum_bonus_for_budget": (
-                                final_parent_affinity["planned_g1_budget"]
-                                * 2
-                                * final_parent_affinity["g1_bonus_per_link"]
-                            ),
-                            "g1_race_plan": final_parent_affinity["race_affinity_plan"],
-                            "score": diagnostic_components["g1_potential"],
-                            "formula": "100 × planned G1 bonus / maximum double-link bonus for the configured race budget",
-                        },
-                        "blue": blue_detail,
-                        "pink": {
-                            **pink_detail,
-                            "evaluation_context": "future_grandparent_simple_quality",
-                        },
-                        "white_skill": {
-                            **white_detail,
-                            "evaluation_context": "future_grandparent_direct_factor_quality",
-                        },
-                        "white_generation": {
-                            **white_generation_detail,
-                            "evaluation_context": "intermediate_run_that_creates_target_parent",
-                        },
-                        "unique": unique_detail,
-                    },
-                })
-                if contextual_pair is not None:
-                    row.update({
-                        "opposing_parent": _identity(contextual_opposing_parent),
-                        "projected_future_parent": _identity(projected_parent or {}),
-                        "contextual_final_pair": {
-                            "affinity": contextual_pair["affinity"],
-                            "components": contextual_pair["components"],
-                            "score_breakdown": contextual_pair["score_breakdown"],
-                            "distance_viability": contextual_pair["distance_viability"],
-                            "distance_s_summary": contextual_pair["distance_s_summary"],
-                            "surface_viability": contextual_pair["surface_viability"],
-                            "surface_aptitude_summary": contextual_pair["surface_aptitude_summary"],
-                            "aptitude_summaries": contextual_pair["aptitude_summaries"],
-                        },
-                        "component_details": {
-                            **contextual_pair["component_details"],
-                            "white_generation": {
-                                **white_generation_detail,
-                                "included_in_weighted_score": False,
-                                "evaluation_context": "intermediate_run_that_creates_target_parent",
-                            },
-                        },
-                    })
-            return row
+        def evaluate_pair(gp1, gp2, *, detailed):
+            check()
+            return _evaluate_gp_pair(pair_context, gp1, gp2, detailed=detailed)
 
+        from uma_legacy_linker.solver_parallel import parallel_requested, parallel_pair_rows
+        parallel = parallel_requested()
+        pair_indices = []
         summaries: list[dict[str, Any]] = []
         total_possible = len(selected_locals) * len(selected_remotes)
         processed = 0
         evaluated_local_pairs: set[frozenset[int]] = set()
-        for gp1 in selected_locals:
+        for left_index, gp1 in enumerate(selected_locals):
             gp1_chara = int(gp1.get("chara_id") or 0)
-            for gp2 in selected_remotes:
+            for right_index, gp2 in enumerate(selected_remotes):
+                check()
                 processed += 1
                 gp2_chara = int(gp2.get("chara_id") or 0)
                 if gp1_chara <= 0 or gp2_chara <= 0 or gp1_chara == gp2_chara:
@@ -4009,9 +4091,22 @@ def rank_online_grandparent_pairs(
                     if len(pair_key) < 2 or pair_key in evaluated_local_pairs:
                         continue
                     evaluated_local_pairs.add(pair_key)
-                summaries.append(evaluate_pair(gp1, gp2, detailed=False))
-            if exhaustive_pairs and (processed % max(1, len(selected_remotes) * 10) == 0 or processed == total_possible):
+                if parallel:
+                    pair_indices.append((left_index, right_index))
+                else:
+                    summaries.append(evaluate_pair(gp1, gp2, detailed=False))
+            if not parallel and exhaustive_pairs and (processed % max(1, len(selected_remotes) * 10) == 0 or processed == total_possible):
                 log(f"Paires évaluées : {processed}/{total_possible} — {len(summaries)} valides.")
+
+
+        if parallel:
+            summaries = parallel_pair_rows("gp", pair_context, selected_locals, selected_remotes,
+                                           pair_indices, checkpoint=check, logger=log)
+            if summaries is None:
+                summaries = []
+                for i, j in pair_indices:
+                    check()
+                    summaries.append(evaluate_pair(selected_locals[i], selected_remotes[j], detailed=False))
 
         if contextual_mode:
             summaries.sort(key=parent_pair_sort_key, reverse=True)
@@ -4150,7 +4245,7 @@ def rank_online_grandparent_pairs(
             "common_gp_g1_races": "; ".join(common_races),
             "local_only_g1_races": "; ".join(local_only_races),
             "remote_only_g1_races": "; ".join(remote_only_races),
-            **_g1_schedule_csv_fields(g1_plan),
+            **(row.get("_g1_csv") or _g1_schedule_csv_fields(g1_plan)),
             "blue": round(row["components"]["blue"], 2),
             "pink": round(row["components"]["pink"], 2),
             "white": round(row["components"]["white_skill"], 2),
@@ -4446,6 +4541,95 @@ def _select_diverse_parent_branch_pool(
     }
 
 
+def _evaluate_online_parent_pair(context, local_parent, remote_parent, *, detailed, local_branch, remote_branch, check=None) -> dict[str, Any]:
+    """Pair evaluator with explicit, serializable job inputs for spawn workers."""
+    resolver = context["resolver"]
+    ace = context["ace"]
+    surface = context["surface"]
+    distance = context["distance"]
+    style = context["style"]
+    weight_lookup = context["weight_lookup"]
+    race_skills = context["race_skills"]
+    config = context["config"]
+    g1_bonus_value = context["g1_bonus_value"]
+    pair_thresholds = context["pair_thresholds"]
+    pair_objective_races = context["pair_objective_races"]
+    pair = evaluate_parent_pair(
+        resolver,
+        ace,
+        local_parent,
+        remote_parent,
+        surface=surface,
+        distance=distance,
+        style=style,
+        weight_lookup=weight_lookup,
+        race_skills=race_skills,
+        config=config,
+        parent_1_branch=local_branch,
+        parent_2_branch=remote_branch,
+        parent_1_origin="local",
+        parent_2_origin="remote",
+        g1_bonus_value=g1_bonus_value,
+        affinity_thresholds=pair_thresholds,
+        g1_objective_races=pair_objective_races,
+        include_g1_schedule=detailed,
+        include_details=detailed,
+        checkpoint=check,
+    )
+    row: dict[str, Any] = {
+        "score": float(pair["score"]),
+        "local_trained_id": local_parent.get("trained_chara_id"),
+        "local_card_name": local_parent.get("card_name"),
+        "local_rank_score": local_parent.get("rank_score"),
+        "local_branch_score": float(local_branch["score"]),
+        "remote_inheritance_id": (remote_parent.get("online") or {}).get("inheritance_id"),
+        "remote_card_name": remote_parent.get("card_name"),
+        "remote_rank_score": remote_parent.get("rank_score"),
+        "remote_branch_score": float(remote_branch["score"]),
+        "affinity": pair["affinity"],
+        "race_affinity_plan": pair["race_affinity_plan"],
+        "components": pair["components"],
+        "score_breakdown": pair["score_breakdown"],
+        "distance_viability": pair["distance_viability"],
+        "distance_s_summary": pair["distance_s_summary"],
+        "surface_viability": pair["surface_viability"],
+        "surface_aptitude_summary": pair["surface_aptitude_summary"],
+        "aptitude_summaries": pair["aptitude_summaries"],
+        "_local_parent": local_parent,
+        "_remote_parent": remote_parent,
+    }
+    if detailed:
+        row.update({
+            "fixed_parent": _identity(local_parent),
+            "candidate": _identity(remote_parent),
+            "component_details": pair["component_details"],
+            "local_branch": {
+                "score": local_branch["score"],
+                "affinity": local_branch["affinity"],
+                "components": local_branch["components"],
+                "score_breakdown": local_branch["score_breakdown"],
+                "distance_viability": local_branch["distance_viability"],
+                "distance_s_summary": local_branch["distance_s_summary"],
+                "surface_viability": local_branch["surface_viability"],
+                "surface_aptitude_summary": local_branch["surface_aptitude_summary"],
+            },
+            "remote_branch": {
+                "score": remote_branch["score"],
+                "affinity": remote_branch["affinity"],
+                "components": remote_branch["components"],
+                "score_breakdown": remote_branch["score_breakdown"],
+                "distance_viability": remote_branch["distance_viability"],
+                "distance_s_summary": remote_branch["distance_s_summary"],
+                "surface_viability": remote_branch["surface_viability"],
+                "surface_aptitude_summary": remote_branch["surface_aptitude_summary"],
+            },
+        })
+        row.pop("_local_parent", None)
+        row.pop("_remote_parent", None)
+    return row
+
+
+@solver_search
 def rank_online_parent_pairs(
     master_path: str | Path,
     linked_veterans_path: str | Path,
@@ -4787,88 +4971,36 @@ def rank_online_parent_pairs(
             f"{len(selected_remotes)} distants, sur les six membres visibles."
         )
 
-        def evaluate_pair(local_parent: dict[str, Any], remote_parent: dict[str, Any], *, detailed: bool) -> dict[str, Any]:
-            local_branch = branch_score(local_parent, "local")
-            remote_branch = branch_score(remote_parent, "remote")
-            pair = evaluate_parent_pair(
-                resolver,
-                ace,
-                local_parent,
-                remote_parent,
-                surface=surface,
-                distance=distance,
-                style=style,
-                weight_lookup=weight_lookup,
-                race_skills=race_skills,
-                config=config,
-                parent_1_branch=local_branch,
-                parent_2_branch=remote_branch,
-                parent_1_origin="local",
-                parent_2_origin="remote",
-                g1_bonus_value=g1_bonus_value,
-                affinity_thresholds=pair_thresholds,
-                g1_objective_races=pair_objective_races,
-                include_g1_schedule=detailed,
-                checkpoint=check,
-            )
-            row: dict[str, Any] = {
-                "score": float(pair["score"]),
-                "local_trained_id": local_parent.get("trained_chara_id"),
-                "local_card_name": local_parent.get("card_name"),
-                "local_rank_score": local_parent.get("rank_score"),
-                "local_branch_score": float(local_branch["score"]),
-                "remote_inheritance_id": (remote_parent.get("online") or {}).get("inheritance_id"),
-                "remote_card_name": remote_parent.get("card_name"),
-                "remote_rank_score": remote_parent.get("rank_score"),
-                "remote_branch_score": float(remote_branch["score"]),
-                "affinity": pair["affinity"],
-                "race_affinity_plan": pair["race_affinity_plan"],
-                "components": pair["components"],
-                "score_breakdown": pair["score_breakdown"],
-                "distance_viability": pair["distance_viability"],
-                "distance_s_summary": pair["distance_s_summary"],
-                "surface_viability": pair["surface_viability"],
-                "surface_aptitude_summary": pair["surface_aptitude_summary"],
-                "aptitude_summaries": pair["aptitude_summaries"],
-                "_local_parent": local_parent,
-                "_remote_parent": remote_parent,
-            }
-            if detailed:
-                row.update({
-                    "fixed_parent": _identity(local_parent),
-                    "candidate": _identity(remote_parent),
-                    "component_details": pair["component_details"],
-                    "local_branch": {
-                        "score": local_branch["score"],
-                        "affinity": local_branch["affinity"],
-                        "components": local_branch["components"],
-                        "score_breakdown": local_branch["score_breakdown"],
-                        "distance_viability": local_branch["distance_viability"],
-                        "distance_s_summary": local_branch["distance_s_summary"],
-                        "surface_viability": local_branch["surface_viability"],
-                        "surface_aptitude_summary": local_branch["surface_aptitude_summary"],
-                    },
-                    "remote_branch": {
-                        "score": remote_branch["score"],
-                        "affinity": remote_branch["affinity"],
-                        "components": remote_branch["components"],
-                        "score_breakdown": remote_branch["score_breakdown"],
-                        "distance_viability": remote_branch["distance_viability"],
-                        "distance_s_summary": remote_branch["distance_s_summary"],
-                        "surface_viability": remote_branch["surface_viability"],
-                        "surface_aptitude_summary": remote_branch["surface_aptitude_summary"],
-                    },
-                })
-                row.pop("_local_parent", None)
-                row.pop("_remote_parent", None)
-            return row
+        pair_context = {
+            "resolver": resolver,
+            "ace": ace,
+            "surface": surface,
+            "distance": distance,
+            "style": style,
+            "weight_lookup": weight_lookup,
+            "race_skills": race_skills,
+            "config": config,
+            "g1_bonus_value": g1_bonus_value,
+            "pair_thresholds": pair_thresholds,
+            "pair_objective_races": pair_objective_races,
+        }
 
+        def evaluate_pair(local_parent, remote_parent, *, detailed):
+            return _evaluate_online_parent_pair(
+                pair_context, local_parent, remote_parent, detailed=detailed,
+                local_branch=branch_score(local_parent, "local"),
+                remote_branch=branch_score(remote_parent, "remote"), check=check,
+            )
+
+        from uma_legacy_linker.solver_parallel import parallel_requested, parallel_pair_rows
+        parallel = parallel_requested()
+        pair_indices = []
         summaries: list[dict[str, Any]] = []
         total_possible = len(selected_locals) * len(selected_remotes)
         processed = 0
-        for local_parent in selected_locals:
+        for left_index, local_parent in enumerate(selected_locals):
             local_chara = int(local_parent.get("chara_id") or 0)
-            for remote_parent in selected_remotes:
+            for right_index, remote_parent in enumerate(selected_remotes):
                 check()
                 processed += 1
                 remote_chara = int(remote_parent.get("chara_id") or 0)
@@ -4876,12 +5008,29 @@ def rank_online_parent_pairs(
                     continue
                 if not pair_matches_card_filters(local_parent, remote_parent):
                     continue
-                summaries.append(evaluate_pair(local_parent, remote_parent, detailed=False))
-            if exhaustive_pairs and (
+                if parallel:
+                    pair_indices.append((left_index, right_index))
+                else:
+                    summaries.append(evaluate_pair(local_parent, remote_parent, detailed=False))
+            if not parallel and exhaustive_pairs and (
                 processed % max(1, len(selected_remotes) * 10) == 0
                 or processed == total_possible
             ):
                 log(f"Paires parent évaluées : {processed}/{total_possible} — {len(summaries)} valides.")
+
+
+        if parallel:
+            used_left = {i for i, _ in pair_indices}
+            used_right = {j for _, j in pair_indices}
+            pair_context["left_branches"] = [branch_score(m, "local") if i in used_left else None for i, m in enumerate(selected_locals)]
+            pair_context["right_branches"] = [branch_score(m, "remote") if j in used_right else None for j, m in enumerate(selected_remotes)]
+            summaries = parallel_pair_rows("online_parent", pair_context, selected_locals, selected_remotes,
+                                           pair_indices, checkpoint=check, logger=log)
+            if summaries is None:
+                summaries = []
+                for i, j in pair_indices:
+                    check()
+                    summaries.append(evaluate_pair(selected_locals[i], selected_remotes[j], detailed=False))
 
         if not summaries:
             raise UmaMoeError("Aucune paire parent local × parent distant valide.")
@@ -5027,7 +5176,7 @@ def rank_online_parent_pairs(
             "local_parent_only_g1": "; ".join(g1_plan.get("left_only_g1_names") or []),
             "remote_parent_only_g1_count": g1_plan.get("right_only_g1_count"),
             "remote_parent_only_g1": "; ".join(g1_plan.get("right_only_g1_names") or []),
-            **_g1_schedule_csv_fields(g1_plan),
+            **(row.get("_g1_csv") or _g1_schedule_csv_fields(g1_plan)),
             "distance_status": viability.get("key"),
             "distance_tier": viability.get("tier"),
             "distance_stars": distance_summary.get("total_stars"),

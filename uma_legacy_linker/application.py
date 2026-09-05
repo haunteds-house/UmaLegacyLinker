@@ -797,6 +797,7 @@ def run_online_search(
             ),
             top_n=max(1, int(request.top_n)),
             local_pair_mode=True,
+            checkpoint=checkpoint,
             lineage_blue_filter=request.lineage_blue_filter,
             lineage_pink_filter=request.lineage_pink_filter,
             logger=logger,
@@ -1027,6 +1028,7 @@ def run_online_search(
             g1_win_probability_cutoff=max(
                 0.0, min(float(request.g1_win_probability_cutoff), 1.0)
             ),
+            checkpoint=checkpoint,
             **common,
         )
     progress(100, "Recherche uma.moe terminée.")

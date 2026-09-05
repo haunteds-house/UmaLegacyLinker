@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uma_legacy_linker.solver_runtime import current_runtime
+
 import copy
 from typing import Any, Callable
 
@@ -472,8 +474,21 @@ def optimize_race_schedule(
     minimise the number of races when the affinity and spacing are identical.
     """
 
-    check = checkpoint or (lambda: None)
+    runtime = current_runtime()
+    check = checkpoint or (runtime.checkpoint if runtime is not None else None) or (lambda: None)
     check()
+    fast = runtime is not None and runtime.optimized
+    if runtime is not None:
+        runtime.stats["g1_solver_calls"] = runtime.stats.get("g1_solver_calls", 0) + 1
+    race_values: dict[tuple[int, int], int] = {}
+
+    def cached_race_value(index: int, position: int) -> int:
+        key = (index, min(6, position))
+        if key not in race_values:
+            # Lazy evaluation keeps invalid/unused races on the canonical path.
+            race_values[key] = _effective_race_value(races[index], position)[0]
+        return race_values[key]
+
     slot_keys = {
         index: _valid_slot_keys(race)
         for index, race in enumerate(races)
@@ -509,6 +524,7 @@ def optimize_race_schedule(
             tuple[int, int, int, int],
             tuple[int, int, int, int, int, tuple[tuple[tuple[int, int], ...], ...]],
         ] = {}
+        transition_cache: dict[tuple, tuple] = {}
         for state_index, (state, current) in enumerate(states.items(), 1):
             if state_index % 128 == 0:
                 check()
@@ -520,24 +536,31 @@ def optimize_race_schedule(
                 )
                 if budget is not None and new_affinity_race_count > budget:
                     continue
-                new_runs: list[int] = []
-                added_four = 0
-                added_three = 0
-                added_two = 0
-                mask = int(option["mask"])
-                for year_index, run in enumerate(runs):
-                    if mask & (1 << year_index):
-                        new_run = run + 1
-                        added_four += int(new_run >= 4)
-                        added_three += int(new_run >= 3)
-                        added_two += int(new_run >= 2)
-                    else:
-                        new_run = 0
-                    new_runs.append(new_run)
-                effective_bonus = sum(
-                    _effective_race_value(races[race_index], new_runs[year - 1])[0]
-                    for year, race_index in option["assignments"]
-                )
+                transition_key = (runs, id(option)) if fast else None
+                transition = transition_cache.get(transition_key) if fast else None
+                if transition is None:
+                    new_runs: list[int] = []
+                    added_four = 0
+                    added_three = 0
+                    added_two = 0
+                    mask = int(option["mask"])
+                    for year_index, run in enumerate(runs):
+                        if mask & (1 << year_index):
+                            new_run = run + 1
+                            added_four += int(new_run >= 4)
+                            added_three += int(new_run >= 3)
+                            added_two += int(new_run >= 2)
+                        else:
+                            new_run = 0
+                        new_runs.append(new_run)
+                    effective_bonus = sum(
+                        (cached_race_value(race_index, new_runs[year - 1]) if fast else _effective_race_value(races[race_index], new_runs[year - 1])[0])
+                        for year, race_index in option["assignments"]
+                    )
+                    if fast:
+                        transition_cache[transition_key] = (new_runs, added_four, added_three, added_two, effective_bonus)
+                else:
+                    new_runs, added_four, added_three, added_two, effective_bonus = transition
                 candidate = (
                     current[0] + effective_bonus,
                     current[1] + added_four,

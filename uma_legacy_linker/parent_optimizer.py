@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from uma_legacy_linker.solver_runtime import solver_search
+from uma_legacy_linker.solver_runtime import optimized_solver, current_runtime
+from uma_legacy_linker.solver_math import compiled_piecewise
+
 import copy
 import csv
 import hashlib
@@ -411,8 +415,13 @@ def _mode_weights(config: dict[str, Any], mode: str) -> dict[str, float]:
     return {}
 
 
-def _score_breakdown(components: dict[str, float], weights: dict[str, float]) -> dict[str, Any]:
+def _score_breakdown(components: dict[str, float], weights: dict[str, float], *, include_details: bool = True) -> dict[str, Any]:
     total_weight = sum(max(0.0, float(value)) for value in weights.values()) or 1.0
+    if not include_details:
+        # GP generic ranking uses rounded per-component points, then rounded total.
+        return {"total": round(sum(round(float(components.get(key, 0.0)) *
+            (max(0.0, float(weight)) / total_weight), 6)
+            for key, weight in weights.items()), 6)}
     rows: dict[str, Any] = {}
     for key, raw_weight in weights.items():
         normalized_weight = max(0.0, float(raw_weight)) / total_weight
@@ -430,6 +439,8 @@ def _score_breakdown(components: dict[str, float], weights: dict[str, float]) ->
 
 
 def _piecewise_score(raw: float, points: Iterable[Iterable[float]]) -> float:
+    if optimized_solver():
+        return compiled_piecewise(raw, points)
     ordered = sorted((float(pair[0]), float(pair[1])) for pair in points)
     if not ordered:
         return 0.0
@@ -1103,6 +1114,7 @@ def _white_generation_support_score(
     lineage_members: list[tuple[dict[str, Any], str, str]],
     weight_lookup: Callable[[str], float],
     config: dict[str, Any],
+    include_details: bool = True,
 ) -> tuple[float, dict[str, Any]]:
     """Score the incremental gene-generation support from matching white Sparks.
 
@@ -1135,16 +1147,19 @@ def _white_generation_support_score(
         lineage_bonus = bonus_per_copy * count
         contribution = profile_weight * lineage_bonus
         raw += contribution
-        details.append({
-            "name": item.get("name"),
-            "catalog_key": key,
-            "lineage_copy_count": count,
-            "roles": item.get("roles") or [],
-            "profile_weight": round(profile_weight, 6),
-            "bonus_per_lineage_copy": round(bonus_per_copy, 6),
-            "lineage_generation_bonus": round(lineage_bonus, 6),
-            "contribution": round(contribution, 6),
-        })
+        if include_details:
+            details.append({
+                "name": item.get("name"),
+                "catalog_key": key,
+                "lineage_copy_count": count,
+                "roles": item.get("roles") or [],
+                "profile_weight": round(profile_weight, 6),
+                "bonus_per_lineage_copy": round(bonus_per_copy, 6),
+                "lineage_generation_bonus": round(lineage_bonus, 6),
+                "contribution": round(contribution, 6),
+            })
+    if not include_details:
+        return _saturating_score(raw, saturation), {}
     details.sort(key=lambda item: item["contribution"], reverse=True)
     score = _saturating_score(raw, saturation)
     return score, {
@@ -1234,6 +1249,7 @@ def _blue_score(
     config: dict[str, Any],
     inheritance_affinities: dict[str, float] | None = None,
     checkpoint: Callable[[], None] | None = None,
+    include_details: bool = True,
 ) -> tuple[float, dict[str, Any]]:
     """Score guaranteed Blue Sparks plus expected Scenario-Spark stat value.
 
@@ -1279,7 +1295,8 @@ def _blue_score(
         check()
         factors = _factor_list(member, "blue_stat")
         if not factors:
-            details.append({"role": role, "name": None, "stars": 0, "quality": 0.0, "relevance": 0.0, "contribution": 0.0})
+            if include_details:
+                details.append({"role": role, "name": None, "stars": 0, "quality": 0.0, "relevance": 0.0, "contribution": 0.0})
             continue
         for factor in factors:
             check()
@@ -1289,14 +1306,15 @@ def _blue_score(
             relevance = float(stat_weights.get(name, 0.0))
             contribution = quality * relevance
             blue_raw += contribution
-            details.append({
-                "role": role,
-                "name": name,
-                "stars": stars,
-                "quality": round(quality, 4),
-                "relevance": round(relevance, 4),
-                "contribution": round(contribution, 4),
-            })
+            if include_details:
+                details.append({
+                    "role": role,
+                    "name": name,
+                    "stars": stars,
+                    "quality": round(quality, 4),
+                    "relevance": round(relevance, 4),
+                    "contribution": round(contribution, 4),
+                })
     scenario_details: list[dict[str, Any]] = []
     for member, position, role in members:
         check()
@@ -1324,30 +1342,31 @@ def _blue_score(
                 * blue_equivalent_per_proc
             )
             scenario_raw += contribution
-            scenario_details.append({
-                "role": role,
-                "position": position,
-                "factor_identity": _factor_identity(factor),
-                "factor_id": factor.get("factor_id"),
-                "factor_group_id": factor.get("factor_group_id"),
-                "name": name,
-                "stars": stars,
-                "stat_targets": stat_targets,
-                "stat_target_source": target_source,
-                "star_quality": round(quality, 6),
-                "stat_relevance_sum": round(stat_relevance, 6),
-                "inheritance_affinity": round(affinity_value, 4),
-                "base_proc_rate": round(base_rate, 8),
-                "affinity_multiplier": round(1.0 + affinity_value / 100.0, 6),
-                "proc_probability_per_event": round(probability_per_event, 8),
-                "proc_probability_over_run": round(
-                    1.0 - (1.0 - probability_per_event) ** scenario_event_count, 8
-                ),
-                "expected_proc_count": round(expected_proc_count, 8),
-                "blue_equivalent_per_proc": round(blue_equivalent_per_proc, 6),
-                "contribution": round(contribution, 8),
-                "scored": bool(stat_targets and contribution > 0.0),
-            })
+            if include_details:
+                scenario_details.append({
+                    "role": role,
+                    "position": position,
+                    "factor_identity": _factor_identity(factor),
+                    "factor_id": factor.get("factor_id"),
+                    "factor_group_id": factor.get("factor_group_id"),
+                    "name": name,
+                    "stars": stars,
+                    "stat_targets": stat_targets,
+                    "stat_target_source": target_source,
+                    "star_quality": round(quality, 6),
+                    "stat_relevance_sum": round(stat_relevance, 6),
+                    "inheritance_affinity": round(affinity_value, 4),
+                    "base_proc_rate": round(base_rate, 8),
+                    "affinity_multiplier": round(1.0 + affinity_value / 100.0, 6),
+                    "proc_probability_per_event": round(probability_per_event, 8),
+                    "proc_probability_over_run": round(
+                        1.0 - (1.0 - probability_per_event) ** scenario_event_count, 8
+                    ),
+                    "expected_proc_count": round(expected_proc_count, 8),
+                    "blue_equivalent_per_proc": round(blue_equivalent_per_proc, 6),
+                    "contribution": round(contribution, 8),
+                    "scored": bool(stat_targets and contribution > 0.0),
+                })
     raw = blue_raw + scenario_raw
     uncompressed_score = max(0.0, 100.0 * raw / slot_count)
     # Shorter distances make the target stat line easier to reach, so lineage
@@ -1355,6 +1374,9 @@ def _blue_score(
     # toward a neutral score preserves cross-profile comparability while
     # compressing the impact of good/bad blues where appropriate.
     score = max(0.0, neutral_score + influence * (uncompressed_score - neutral_score))
+    if not include_details:
+        # Viability consumes this rounded value, even without diagnostics.
+        return score, {"uncompressed_score": round(uncompressed_score, 6)}
     return score, {
         "raw": raw,
         "blue_raw": blue_raw,
@@ -1441,6 +1463,16 @@ def _poisson_binomial_distribution(
 ) -> list[float]:
     """Exact distribution for independent, non-identical Bernoulli trials."""
     check = checkpoint or _noop_checkpoint
+    runtime = current_runtime()
+    cache = None
+    cache_key = None
+    if runtime is not None and runtime.optimized:
+        check()
+        cache = runtime.caches.setdefault("pink_distributions", {})
+        cache_key = tuple(probabilities)
+        probabilities = cache_key
+        if cache_key in cache:
+            return list(cache[cache_key])
     distribution = [1.0]
     for raw_probability in probabilities:
         check()
@@ -1451,6 +1483,10 @@ def _poisson_binomial_distribution(
             updated[successes] += mass * (1.0 - probability)
             updated[successes + 1] += mass * probability
         distribution = updated
+    if cache is not None:
+        if len(cache) >= 8192:
+            del cache[next(iter(cache))]
+        cache[cache_key] = tuple(distribution)
     return distribution
 
 
@@ -1704,6 +1740,7 @@ def _future_grandparent_pink_score(
     distance: str,
     style: str,
     config: dict[str, Any],
+    include_details: bool = True,
 ) -> tuple[float, dict[str, Any]]:
     """Score a future GP's pink Spark with the intentionally simple GP model.
 
@@ -1739,13 +1776,14 @@ def _future_grandparent_pink_score(
     for member, _position, role in members:
         factors = _factor_list(member, "red_aptitude")
         if not factors:
-            details.append({
-                "role": role,
-                "name": None,
-                "stars": 0,
-                "matched_dimension": None,
-                "contribution": 0.0,
-            })
+            if include_details:
+                details.append({
+                    "role": role,
+                    "name": None,
+                    "stars": 0,
+                    "matched_dimension": None,
+                    "contribution": 0.0,
+                })
             continue
         for factor in factors:
             name = str(factor.get("name") or "")
@@ -1773,19 +1811,22 @@ def _future_grandparent_pink_score(
             if matched_dimension:
                 stars_by_dimension[matched_dimension] += stars
             raw += contribution
-            details.append({
-                "role": role,
-                "name": name,
-                "stars": stars,
-                "matched_dimension": matched_dimension,
-                "star_quality": round(quality, 4),
-                "dimension_weight": round(dimension_weight, 4),
-                "base_rank": base_rank or None,
-                "base_rank_label": APTITUDE_LABELS.get(base_rank) if base_rank else None,
-                "need_multiplier": round(need_multiplier, 4),
-                "contribution": round(contribution, 4),
-            })
+            if include_details:
+                details.append({
+                    "role": role,
+                    "name": name,
+                    "stars": stars,
+                    "matched_dimension": matched_dimension,
+                    "star_quality": round(quality, 4),
+                    "dimension_weight": round(dimension_weight, 4),
+                    "base_rank": base_rank or None,
+                    "base_rank_label": APTITUDE_LABELS.get(base_rank) if base_rank else None,
+                    "need_multiplier": round(need_multiplier, 4),
+                    "contribution": round(contribution, 4),
+                })
     score = min(100.0, 100.0 * raw / slot_count)
+    if not include_details:
+        return score, {}
     dimensions = {
         dimension: {
             "target": target_name,
@@ -1813,6 +1854,7 @@ def _future_grandparent_white_score(
     weight_lookup: Callable[[str], float],
     config: dict[str, Any],
     race_skill_map: dict[str, list[str]] | None = None,
+    include_details: bool = True,
 ) -> tuple[float, dict[str, Any]]:
     """Score direct useful factors on a future GP without affinity proc maths.
 
@@ -1844,20 +1886,21 @@ def _future_grandparent_white_score(
             quality = float(star_quality.get(str(stars), 0.0))
             contribution = profile_weight * quality * position_weight
             raw += contribution
-            details.append({
-                "role": role,
-                "position": position,
-                "source_type": "white_skill",
-                "source_factor_name": name,
-                "name": name,
-                "catalog_key": catalog_key,
-                "stars": stars,
-                "profile_weight": round(profile_weight, 6),
-                "star_quality": round(quality, 6),
-                "position_weight": round(position_weight, 6),
-                "proc_rate_ratio_vs_white": 1.0,
-                "contribution": round(contribution, 8),
-            })
+            if include_details:
+                details.append({
+                    "role": role,
+                    "position": position,
+                    "source_type": "white_skill",
+                    "source_factor_name": name,
+                    "name": name,
+                    "catalog_key": catalog_key,
+                    "stars": stars,
+                    "profile_weight": round(profile_weight, 6),
+                    "star_quality": round(quality, 6),
+                    "position_weight": round(position_weight, 6),
+                    "proc_rate_ratio_vs_white": 1.0,
+                    "contribution": round(contribution, 8),
+                })
 
         for factor in _factor_list(member, "white_race"):
             stars = int(factor.get("stars") or 0)
@@ -1870,23 +1913,26 @@ def _future_grandparent_white_score(
                 profile_weight = max(0.0, float(weight_lookup(catalog_key)))
                 contribution = profile_weight * quality * position_weight * rate_ratio
                 raw += contribution
-                details.append({
-                    "role": role,
-                    "position": position,
-                    "source_type": "white_race",
-                    "source_factor_name": race_name,
-                    "name": catalog_key,
-                    "catalog_key": catalog_key,
-                    "stars": stars,
-                    "profile_weight": round(profile_weight, 6),
-                    "star_quality": round(quality, 6),
-                    "position_weight": round(position_weight, 6),
-                    "white_base_proc_rate": round(white_rate, 8),
-                    "race_base_proc_rate": round(race_rate, 8),
-                    "proc_rate_ratio_vs_white": round(rate_ratio, 8),
-                    "contribution": round(contribution, 8),
-                })
+                if include_details:
+                    details.append({
+                        "role": role,
+                        "position": position,
+                        "source_type": "white_race",
+                        "source_factor_name": race_name,
+                        "name": catalog_key,
+                        "catalog_key": catalog_key,
+                        "stars": stars,
+                        "profile_weight": round(profile_weight, 6),
+                        "star_quality": round(quality, 6),
+                        "position_weight": round(position_weight, 6),
+                        "white_base_proc_rate": round(white_rate, 8),
+                        "race_base_proc_rate": round(race_rate, 8),
+                        "proc_rate_ratio_vs_white": round(rate_ratio, 8),
+                        "contribution": round(contribution, 8),
+                    })
     scale = float((config.get("white_saturation") or {}).get("future_grandparent", 1.0))
+    if not include_details:
+        return _saturating_score(raw, scale), {}
     details.sort(key=lambda item: item["contribution"], reverse=True)
     return _saturating_score(raw, scale), {
         "raw": raw,
@@ -1913,6 +1959,7 @@ def _pink_score(
     mode: str = "parent_branch",
     inheritance_affinities: dict[str, float] | None = None,
     checkpoint: Callable[[], None] | None = None,
+    include_details: bool = True,
 ) -> tuple[float, dict[str, Any]]:
     check = checkpoint or _noop_checkpoint
     check()
@@ -1949,16 +1996,17 @@ def _pink_score(
         check()
         factors = _factor_list(member, "red_aptitude")
         if not factors:
-            factor_rows.append({
-                "role": role,
-                "position": position,
-                "name": None,
-                "stars": 0,
-                "matched_dimension": None,
-                "inheritance_affinity": round(float(affinities.get(role, 0.0)), 4),
-                "base_proc_rate": 0.0,
-                "proc_probability_per_event": 0.0,
-            })
+            if include_details:
+                factor_rows.append({
+                    "role": role,
+                    "position": position,
+                    "name": None,
+                    "stars": 0,
+                    "matched_dimension": None,
+                    "inheritance_affinity": round(float(affinities.get(role, 0.0)), 4),
+                    "base_proc_rate": 0.0,
+                    "proc_probability_per_event": 0.0,
+                })
             continue
         for factor in factors:
             check()
@@ -1967,19 +2015,21 @@ def _pink_score(
             matched_dimension = next((key for key, target in targets.items() if name == target), None)
             affinity_value = max(0.0, float(affinities.get(role, 0.0)))
             base_rate, proc_rate = _aptitude_proc_rate(stars, affinity_value, config) if matched_dimension else (0.0, 0.0)
-            row = {
-                "role": role,
-                "position": position,
-                "name": name,
-                "stars": stars,
-                "matched_dimension": matched_dimension,
-                "inheritance_affinity": round(affinity_value, 4),
-                "base_proc_rate": round(base_rate, 8),
-                "affinity_multiplier": round(1.0 + affinity_value / 100.0, 6),
-                "proc_probability_per_event": round(proc_rate, 8),
-                "proc_probability_over_run": round(1.0 - (1.0 - proc_rate) ** event_count, 8),
-            }
-            factor_rows.append(row)
+            if include_details:
+                row = {
+                    "role": role,
+                    "position": position,
+                    "name": name,
+                    "stars": stars,
+                    "matched_dimension": matched_dimension,
+                    "inheritance_affinity": round(affinity_value, 4),
+                    "base_proc_rate": round(base_rate, 8),
+                    "affinity_multiplier": round(1.0 + affinity_value / 100.0, 6),
+                    "proc_probability_per_event": round(proc_rate, 8),
+                    "proc_probability_over_run": round(1.0 - (1.0 - proc_rate) ** event_count, 8),
+                }
+            if include_details:
+                factor_rows.append(row)
             if not matched_dimension:
                 continue
             work = dimensions_work[matched_dimension]
@@ -1988,7 +2038,8 @@ def _pink_score(
             if position == "parent":
                 work["parent_carrier_roles"].add(role)
             work["trial_probabilities"].extend([proc_rate] * event_count)
-            work["factors"].append(row)
+            if include_details:
+                work["factors"].append(row)
 
     dimensions: dict[str, dict[str, Any]] = {}
     for dimension, work in dimensions_work.items():
@@ -2078,7 +2129,7 @@ def _pink_score(
             "probability_reach_preferred": round(probability_preferred, 8),
             "probability_reach_s_quality": round(s_probability_quality, 6),
             "s_probability_curve": s_probability_curve,
-            "proc_count_distribution": [round(value, 10) for value in distribution],
+            "proc_count_distribution": [round(value, 10) for value in distribution] if include_details else [],
             "carrier_count": len(work["carrier_roles"]),
             "carrier_roles": sorted(work["carrier_roles"]),
             "parent_carrier_count": len(work["parent_carrier_roles"]),
@@ -2329,6 +2380,7 @@ def _race_scenario_score(
     config: dict[str, Any],
     saturation_key: str,
     checkpoint: Callable[[], None] | None = None,
+    include_details: bool = True,
 ) -> tuple[float, dict[str, Any]]:
     """Score the small generic stat side of Race Sparks.
 
@@ -2357,18 +2409,21 @@ def _race_scenario_score(
             granted = race_skill_map.get(name, [])
             contribution = base_per_star * star_weight * position_weight
             raw += contribution
-            details.append(
-                {
-                    "role": role,
-                    "type": "white_race",
-                    "name": name,
-                    "stars": stars,
-                    "granted_skill_keys": granted,
-                    "granted_skills_scored_in": "white_skill" if granted else None,
-                    "contribution": round(contribution, 6),
-                }
-            )
+            if include_details:
+                details.append(
+                    {
+                        "role": role,
+                        "type": "white_race",
+                        "name": name,
+                        "stars": stars,
+                        "granted_skill_keys": granted,
+                        "granted_skills_scored_in": "white_skill" if granted else None,
+                        "contribution": round(contribution, 6),
+                    }
+                )
     scale = float((config.get("race_saturation") or {}).get(saturation_key, 1.0))
+    if not include_details:
+        return _saturating_score(raw, scale), {}
     details.sort(key=lambda item: item["contribution"], reverse=True)
     return _saturating_score(raw, scale), {
         "raw": raw,
@@ -2386,6 +2441,7 @@ def _unique_score(
     config: dict[str, Any],
     saturation_key: str,
     checkpoint: Callable[[], None] | None = None,
+    include_details: bool = True,
 ) -> tuple[float, dict[str, Any]]:
     check = checkpoint or _noop_checkpoint
     check()
@@ -2399,7 +2455,8 @@ def _unique_score(
         position_weight = float(position_weights.get(position, 1.0))
         factors = _factor_list(member, "unique")
         if not factors:
-            details.append({"role": role, "name": None, "stars": 0, "star_quality": 0.0, "position_weight": position_weight, "contribution": 0.0})
+            if include_details:
+                details.append({"role": role, "name": None, "stars": 0, "star_quality": 0.0, "position_weight": position_weight, "contribution": 0.0})
             continue
         for factor in factors:
             check()
@@ -2407,15 +2464,18 @@ def _unique_score(
             quality = float(star_quality.get(str(stars), 0.0))
             contribution = quality * position_weight
             raw += contribution
-            details.append({
-                "role": role,
-                "name": factor.get("name"),
-                "stars": stars,
-                "star_quality": round(quality, 4),
-                "position_weight": position_weight,
-                "contribution": round(contribution, 6),
-            })
+            if include_details:
+                details.append({
+                    "role": role,
+                    "name": factor.get("name"),
+                    "stars": stars,
+                    "star_quality": round(quality, 4),
+                    "position_weight": position_weight,
+                    "contribution": round(contribution, 6),
+                })
     score = min(100.0, 100.0 * raw / slot_count)
+    if not include_details:
+        return score, {}
     return score, {
         "raw": raw,
         "slot_count": slot_count,
@@ -2689,6 +2749,7 @@ def evaluate_parent_pair(
     g1_bonus_value: int | None = None,
     affinity_thresholds: Iterable[Iterable[float]] | None = None,
     g1_objective_races: list[dict[str, Any]] | None = None,
+    include_details: bool = True,
     include_g1_schedule: bool = True,
     checkpoint: Callable[[], None] | None = None,
 ) -> dict[str, Any]:
@@ -2730,31 +2791,43 @@ def evaluate_parent_pair(
         checkpoint=check,
     )
 
+    preparation = None
+    if optimized_solver() and not include_details and not include_g1_schedule:
+        from uma_legacy_linker.solver_pairs import prepared_pair_context
+        preparation = prepared_pair_context(resolver, ace, config, weight_lookup, race_skills)
+
     parent_pair_base = resolver.pair(chara_1, chara_2)
-    race_affinity_plan = build_pair_g1_diagnostic(
-        parent_1,
-        parent_2,
-        left_label="parent_1",
-        right_label="parent_2",
-        left_origin=parent_1_origin,
-        right_origin=parent_2_origin,
-        target=ace,
-        objective_races=(
-            g1_objective_races
-            if g1_objective_races is not None
-            else resolver.objective_races(int(ace.get("chara_id") or 0))
-            if hasattr(resolver, "objective_races")
-            else []
-        ),
-        bonus_per_link=resolved_g1_bonus,
-        include_schedule=include_g1_schedule,
-        checkpoint=check,
-    )
+    if preparation is not None:
+        objectives = g1_objective_races if g1_objective_races is not None else resolver.objective_races(int(ace.get("chara_id") or 0)) if hasattr(resolver, "objective_races") else []
+        race_affinity_plan = preparation.g1_summary(parent_1, parent_2, objectives)
+    else:
+        race_affinity_plan = build_pair_g1_diagnostic(
+            parent_1,
+            parent_2,
+            left_label="parent_1",
+            right_label="parent_2",
+            left_origin=parent_1_origin,
+            right_origin=parent_2_origin,
+            target=ace,
+            objective_races=(
+                g1_objective_races
+                if g1_objective_races is not None
+                else resolver.objective_races(int(ace.get("chara_id") or 0))
+                if hasattr(resolver, "objective_races")
+                else []
+            ),
+            bonus_per_link=resolved_g1_bonus,
+            include_schedule=include_g1_schedule,
+            checkpoint=check,
+        )
     parent_common = list(race_affinity_plan["common_g1_names"])
     parent_pair_g1 = resolved_g1_bonus * len(parent_common)
-    inheritance_affinity_detail = _pair_inheritance_affinities(
-        resolver, int(ace.get("chara_id") or 0), parent_1, parent_2, resolved_g1_bonus
-    )
+    if preparation is not None:
+        inheritance_affinity_detail = preparation.inheritance(parent_1, parent_2, resolved_g1_bonus, parent_pair_base)
+    else:
+        inheritance_affinity_detail = _pair_inheritance_affinities(
+            resolver, int(ace.get("chara_id") or 0), parent_1, parent_2, resolved_g1_bonus
+        )
     affinity = {
         "base": int(left["affinity"]["base"]) + int(right["affinity"]["base"]) + parent_pair_base,
         "g1_bonus": int(left["affinity"]["g1_bonus"]) + int(right["affinity"]["g1_bonus"]) + parent_pair_g1,
@@ -2781,23 +2854,28 @@ def evaluate_parent_pair(
         config,
         inheritance_affinities=inheritance_affinity_detail["values"],
         checkpoint=check,
+        include_details=preparation is None,
     )
     pink, pink_detail = _pink_score(
         members, ace, surface, distance, style, config, mode="parent_pair",
         inheritance_affinities=inheritance_affinity_detail["values"],
         checkpoint=check,
+        include_details=preparation is None,
     )
-    white, white_detail = _white_score(
-        members, weight_lookup, config, "parent_pair",
-        inheritance_affinities=inheritance_affinity_detail["values"],
-        race_skill_map=race_skills,
-        checkpoint=check,
-    )
+    if preparation is not None:
+        white, white_detail = preparation.white_score(members, inheritance_affinity_detail["values"], "parent_pair", check)
+    else:
+        white, white_detail = _white_score(
+            members, weight_lookup, config, "parent_pair",
+            inheritance_affinities=inheritance_affinity_detail["values"],
+            race_skill_map=race_skills,
+            checkpoint=check,
+        )
     race, race_detail = _race_scenario_score(
-        members, weight_lookup, race_skills, config, "parent_pair", checkpoint=check
+        members, weight_lookup, race_skills, config, "parent_pair", checkpoint=check, include_details=preparation is None
     )
     unique, unique_detail = _unique_score(
-        members, config, "parent_pair", checkpoint=check
+        members, config, "parent_pair", checkpoint=check, include_details=preparation is None
     )
     components = {
         "blue": blue,
@@ -2822,7 +2900,7 @@ def evaluate_parent_pair(
         config=config,
     )
     pink_detail["distance_s"]["viability"] = pair_viability
-    component_details = {
+    component_details = {} if preparation is not None else {
         "blue": blue_detail,
         "pink": pink_detail,
         "white_skill": white_detail,
@@ -2854,9 +2932,9 @@ def evaluate_parent_pair(
         "affinity": affinity,
         "race_affinity_plan": race_affinity_plan,
         "components": components,
-        "component_details": component_details,
+        "component_details": component_details if preparation is None else {},
         "score": _weighted_total(components, weights),
-        "score_breakdown": _score_breakdown(components, weights),
+        "score_breakdown": _score_breakdown(components, weights, include_details=preparation is None),
         "distance_viability": pair_viability,
         "distance_s_summary": pink_detail["distance_s"],
         "surface_viability": pink_detail["surface_aptitude"]["viability"],
@@ -2931,6 +3009,7 @@ def _g1_schedule_csv_fields(plan: dict[str, Any] | None) -> dict[str, Any]:
     }
 
 
+@solver_search
 def optimize_parents(
     master_path: str | Path,
     linked_veterans_path: str | Path,
@@ -3111,13 +3190,19 @@ def optimize_parents(
             # Full search is cheap for the current 259-veteran export (~33k pairs).
             total_pairs = len(branch_rows) * max(0, len(branch_rows) - 1) // 2
             processed_pairs = 0
+            from uma_legacy_linker.solver_parallel import parallel_requested, parallel_pair_rows
+            parallel = parallel_requested()
+            pair_indices = []
             for left_index, left in enumerate(branch_rows):
                 v1 = left["veteran"]
-                for right in branch_rows[left_index + 1 :]:
+                for right_index, right in enumerate(branch_rows[left_index + 1 :], left_index + 1):
                     check()
                     processed_pairs += 1
                     v2 = right["veteran"]
                     if int(v1.get("chara_id") or 0) == int(v2.get("chara_id") or 0):
+                        continue
+                    if parallel:
+                        pair_indices.append((left_index, right_index))
                         continue
                     pair_rows.append(
                         evaluate_parent_pair(
@@ -3136,6 +3221,7 @@ def optimize_parents(
                             g1_bonus_value=g1_bonus_value,
                             affinity_thresholds=pair_affinity_thresholds,
                             g1_objective_races=pair_objective_races,
+                            include_details=False,
                             include_g1_schedule=False,
                             checkpoint=check,
                         )
@@ -3144,13 +3230,35 @@ def optimize_parents(
                 # UI. The time-based checkpoint above independently handles
                 # GIL yielding and cancellation responsiveness.
                 if (
-                    (left_index + 1) % 8 == 0
-                    or left_index + 1 == len(branch_rows)
+                    not parallel and ((left_index + 1) % 8 == 0
+                    or left_index + 1 == len(branch_rows))
                 ):
                     log(
                         f"Paires évaluées : {processed_pairs}/{total_pairs} — "
                         f"{len(pair_rows)} valides."
                     )
+
+
+            if parallel:
+                context = dict(resolver=resolver, ace=ace, surface=surface, distance=distance,
+                               style=style, weight_lookup=weight_lookup, race_skills=race_skills,
+                               config=config, g1_bonus_value=g1_bonus_value,
+                               pair_thresholds=pair_affinity_thresholds, pair_objective_races=pair_objective_races,
+                               left_branches=branch_rows, right_branches=branch_rows)
+                members = [row["veteran"] for row in branch_rows]
+                pair_rows = parallel_pair_rows("local_parent", context, members, members, pair_indices,
+                                               checkpoint=check, logger=log)
+                if pair_rows is None:
+                    pair_rows = []
+                    for i, j in pair_indices:
+                        check()
+                        pair_rows.append(evaluate_parent_pair(
+                            resolver, ace, members[i], members[j], surface=surface, distance=distance,
+                            style=style, weight_lookup=weight_lookup, race_skills=race_skills, config=config,
+                            parent_1_branch=branch_rows[i], parent_2_branch=branch_rows[j],
+                            g1_bonus_value=g1_bonus_value, affinity_thresholds=pair_affinity_thresholds,
+                            g1_objective_races=pair_objective_races, include_details=False,
+                            include_g1_schedule=False, checkpoint=check))
 
         pair_p95 = _quantile((row["affinity"]["total"] for row in pair_rows), 0.95)
         pair_rows.sort(key=parent_pair_sort_key, reverse=True)
@@ -3185,6 +3293,10 @@ def optimize_parents(
                     g1_objective_races=pair_objective_races,
                     checkpoint=check,
                 )
+                if optimized_solver():
+                    row.clear()
+                    row.update(hydrated)
+                    continue
                 # The three public aliases deliberately share the same plan
                 # object. Hydrate it in place so that contract remains true.
                 plan = row["race_affinity_plan"]
