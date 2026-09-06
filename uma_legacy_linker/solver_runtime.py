@@ -72,3 +72,11 @@ def solver_search(function: Callable) -> Callable:
             return function(*args, **kwargs)
 
     return wrapped
+
+
+def configured_g1_ranking() -> str:
+    """Explicit exact oracle remains available without disabling other caches."""
+    mode = os.environ.get("ULL_G1_RANKING", "e2").strip().lower()
+    if mode not in {"e2", "exact"}:
+        raise ValueError("ULL_G1_RANKING must be e2 or exact.")
+    return mode

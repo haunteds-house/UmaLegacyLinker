@@ -703,6 +703,69 @@ def optimize_race_schedule(
     }
 
 
+def estimate_race_schedule(
+    races: list[dict[str, Any]],
+    *,
+    max_affinity_races: int | None = None,
+    checkpoint: Callable[[], None] | None = None,
+) -> dict[str, Any]:
+    """E2 screening only: base cutoff, calendar, objectives and greedy budget.
+
+    This deliberately ignores streak penalties. Never export this as an exact
+    plan: retained candidates must be rescored by optimize_race_schedule.
+    """
+    runtime = current_runtime()
+    check = checkpoint or (runtime.checkpoint if runtime else None) or (lambda: None)
+    check()
+    if runtime is not None:
+        runtime.stats["g1_estimator_calls"] = runtime.stats.get("g1_estimator_calls", 0) + 1
+    budget = len(races) if max_affinity_races is None else max(0, int(max_affinity_races))
+    keys = {i: _valid_slot_keys(race) for i, race in enumerate(races)}
+    occupied = set()
+    selected = {}
+    used = 0
+    # Objectives reserve their turn even when they cannot earn affinity.
+    for i, race in enumerate(races):
+        check()
+        if race.get("mandatory_objective"):
+            occupied.update(keys[i])
+            if keys[i]:
+                selected[i] = keys[i][0]
+                used += int(int(race.get("affinity_bonus") or 0) > 0)
+    ordered = sorted(range(len(races)), key=lambda i: (
+        -int(races[i].get("affinity_bonus") or 0),
+        len(keys[i]), str(races[i].get("name") or "").casefold(), i,
+    ))
+    for i in ordered:
+        check()
+        race = races[i]
+        if race.get("mandatory_objective") or used >= budget:
+            continue
+        if int(race.get("affinity_bonus") or 0) <= 0 or race.get("independent_training_base_cutoff_passed") is False:
+            continue
+        slot = next((slot for slot in keys[i] if slot not in occupied), None)
+        if slot is not None:
+            selected[i] = slot
+            occupied.add(slot)
+            used += 1
+    scheduled, missing = [], []
+    for i, race in enumerate(races):
+        check()
+        if i in selected:
+            year, month, half = selected[i]
+            race["planned_slot"] = dict(year=year, month=month, half=half)
+            race["effective_affinity_bonus"] = _effective_race_value(race, 1)[0]
+            scheduled.append(race)
+        elif not keys[i]:
+            missing.append(race)
+    return {
+        "scheduled_races": scheduled,
+        "missing_calendar_races": missing,
+        "optimal_affinity_race_count": sum(int(r.get("effective_affinity_bonus") or 0) > 0 for r in scheduled),
+        "optimal_bonus": sum(int(r.get("effective_affinity_bonus") or 0) for r in scheduled),
+    }
+
+
 def _race_identity(race: dict[str, Any]) -> tuple[str, object]:
     for key in ("race_id", "race_instance_id"):
         value = race.get(key)
@@ -743,6 +806,7 @@ def _schedule_variant(
     include_objectives: bool,
     max_affinity_races: int | None = None,
     checkpoint: Callable[[], None] | None = None,
+    approximate: bool = False,
 ) -> dict[str, Any]:
     races = copy.deepcopy(affinity_races)
     objectives = copy.deepcopy(objective_races) if include_objectives else []
@@ -799,7 +863,7 @@ def _schedule_variant(
             }
         )
 
-    schedule = optimize_race_schedule(
+    schedule = (estimate_race_schedule if approximate else optimize_race_schedule)(
         races,
         max_affinity_races=max_affinity_races,
         checkpoint=checkpoint,
@@ -829,6 +893,8 @@ def build_pair_g1_diagnostic(
     win_probability_cutoff: float | None = None,
     max_affinity_races: int | None = None,
     include_schedule: bool = True,
+    include_trackblazer: bool = True,
+    approximate: bool = False,
     checkpoint: Callable[[], None] | None = None,
 ) -> dict[str, Any]:
     """Describe the optimal G1 plan for a trainee built from two legacies.
@@ -917,16 +983,18 @@ def build_pair_g1_diagnostic(
             races,
             resolved_objectives,
             include_objectives=True,
+            approximate=approximate,
             max_affinity_races=max_affinity_races,
             checkpoint=checkpoint,
         )
-        trackblazer_schedule = _schedule_variant(
-            races,
-            resolved_objectives,
-            include_objectives=False,
-            max_affinity_races=max_affinity_races,
-            checkpoint=checkpoint,
-        )
+        if include_trackblazer and not approximate:
+            trackblazer_schedule = _schedule_variant(
+                races,
+                resolved_objectives,
+                include_objectives=False,
+                max_affinity_races=max_affinity_races,
+                checkpoint=checkpoint,
+            )
         scheduled_count = int(standard_schedule["optimal_affinity_race_count"])
     target_identity = {
         key: target.get(key)
@@ -963,7 +1031,7 @@ def build_pair_g1_diagnostic(
         "schedule_variants": (
             {
                 "standard": standard_schedule,
-                "trackblazer": trackblazer_schedule,
+                **({"trackblazer": trackblazer_schedule} if trackblazer_schedule else {}),
             }
             if include_schedule
             else {}

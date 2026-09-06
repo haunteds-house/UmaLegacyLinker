@@ -114,14 +114,14 @@ def _worker(connection, owner, kind, context, left, right):
                     return
                 number, indices = task
                 rows = []
-                before = runtime.stats.get("g1_solver_calls", 0)
+                before = {key: runtime.stats.get(key, 0) for key in ("g1_solver_calls", "g1_estimator_calls")}
                 for i, j in indices:
                     row = _evaluate(kind, context, left, right, i, j)
                     # Reattach original objects in the coordinator, not once per pair in IPC.
                     for key in ("_gp1", "_gp2", "_local_parent", "_remote_parent"):
                         row.pop(key, None)
                     rows.append(row)
-                connection.send(("result", number, rows, runtime.stats.get("g1_solver_calls", 0) - before))
+                connection.send(("result", number, rows, {key: runtime.stats.get(key, 0) - value for key, value in before.items()}))
     except (EOFError, BrokenPipeError):
         return
     except BaseException as exc:
@@ -204,7 +204,8 @@ def parallel_pair_rows(kind, context, left, right, pairs, *, checkpoint, logger)
                 if number != active.pop(connection) or len(values) != len(chunks[number]):
                     raise RuntimeError("Lot solver incomplet ou reçu dans un ordre inattendu.")
                 buffered[number] = values
-                runtime.stats["g1_solver_calls"] = runtime.stats.get("g1_solver_calls", 0) + g1_calls
+                for key, count in g1_calls.items():
+                    runtime.stats[key] = runtime.stats.get(key, 0) + count
             if any(p.exitcode is not None for p in processes):
                 raise RuntimeError("Un processus solver s'est arrêté avant la fin du calcul.")
             while next_read in buffered:

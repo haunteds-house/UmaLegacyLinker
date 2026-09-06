@@ -4,6 +4,12 @@ This project uses feature-level semantic versioning. Small internal iterations a
 
 ## Unreleased
 
+- Generic grandparent searches now screen with a calendar/objective-aware G1
+  estimate, rescore the top 2X with the exact Standard planner, then hydrate
+  the final X with Standard/Trackblazer diagnostics. E2 exports only the exact
+  final top; `ULL_G1_RANKING=exact` retains exhaustive exact scoring and CSV.
+  Contextual searches with a fixed opposing parent remain exact.
+
 ## 1.8.1 - Desktop hardening, diagnostics and repository cleanup
 
 - Moved the Qt-free application services and scoring engines into the

@@ -3013,6 +3013,8 @@ def _final_parent_affinity_potential(
     candidate_origin: str = "remote",
     target_parent: dict[str, Any] | None = None,
     g1_win_probability_cutoff: float | None = None,
+    approximate: bool = False,
+    include_trackblazer: bool = True,
 ) -> dict[str, Any]:
     """Estimate the future parent branch in the final Ace run.
 
@@ -3075,6 +3077,8 @@ def _final_parent_affinity_potential(
         training_aptitudes=training_aptitudes,
         win_probability_cutoff=resolved_cutoff,
         max_affinity_races=budget,
+        approximate=approximate,
+        include_trackblazer=include_trackblazer,
     )
     common = list(race_affinity_plan["common_g1_names"])
     fixed_only = list(race_affinity_plan["left_only_g1_names"])
@@ -3317,6 +3321,9 @@ def _evaluate_gp_pair(context, gp1, gp2, *, detailed) -> dict[str, Any]:
         candidate_origin=("local" if local_pair_mode else "remote"),
         target_parent=target_parent,
         g1_win_probability_cutoff=resolved_g1_win_probability_cutoff,
+        approximate=not detailed and context.get("g1_ranking_mode") == "e2",
+        include_trackblazer=(detailed or (context.get("g1_ranking_mode") != "e2"
+                                         and not context.get("g1_exact_shortlist"))),
     )
     final_parent_affinity["base_full_score_at"] = final_full_score_at
     production_affinity = _full_production_affinity(
@@ -4037,7 +4044,15 @@ def rank_online_grandparent_pairs(
             + f"(jusqu’à {len(selected_locals) * len(selected_remotes)} paires avant exclusions)."
         )
 
+        from uma_legacy_linker.solver_runtime import current_runtime, configured_g1_ranking
+        runtime = current_runtime()
+        requested_g1_mode = configured_g1_ranking()
+        # Contextual GP scoring also projects a third parent's race history;
+        # keep that distinct model exact until separately validated.
+        use_e2 = optimized_solver() and requested_g1_mode == "e2" and not contextual_mode
+        ranking_started = time.perf_counter()
         pair_context = {
+            "g1_ranking_mode": "e2" if use_e2 else "exact",
             "resolver": resolver,
             "ace_chara": ace_chara,
             "target_parent_chara": target_parent_chara,
@@ -4108,24 +4123,52 @@ def rank_online_grandparent_pairs(
                     check()
                     summaries.append(evaluate_pair(selected_locals[i], selected_remotes[j], detailed=False))
 
-        if contextual_mode:
-            summaries.sort(key=parent_pair_sort_key, reverse=True)
-        else:
-            summaries.sort(
-                key=lambda row: (
-                    row["score"],
-                    row["final_parent_affinity"]["potential_total"],
-                    row["production_affinity"]["scored_value"],
-                ),
-                reverse=True,
-            )
+        sort_key = parent_pair_sort_key if contextual_mode else lambda row: (
+            row["score"], row["final_parent_affinity"]["potential_total"],
+            row["production_affinity"]["scored_value"],
+        )
         detail_count = max(1, min(int(top_n), 500))
+        evaluated_count = len(summaries)
+        screening_seconds = time.perf_counter() - ranking_started
+        rerank_started = time.perf_counter()
+        if use_e2:
+            # Preserve original enumeration order for exact stable-sort ties.
+            indexed = list(enumerate(summaries))
+            indexed.sort(key=lambda item: sort_key(item[1]), reverse=True)
+            shortlist = sorted(indexed[:2 * detail_count], key=lambda item: item[0])
+            pair_context["g1_ranking_mode"] = "exact"
+            pair_context["g1_exact_shortlist"] = True
+            log(f"Recalcul G1 exact : {len(shortlist)}/{evaluated_count} paires.")
+            summaries = [evaluate_pair(row["_gp1"], row["_gp2"], detailed=False)
+                         for _, row in shortlist]
+            del indexed, shortlist
+        summaries.sort(key=sort_key, reverse=True)
+        rerank_seconds = time.perf_counter() - rerank_started
+        if runtime is not None:
+            runtime.stats["g1_ranking"] = {
+                "mode": "e2" if use_e2 else "exact",
+                "evaluated_pairs": evaluated_count,
+                "exact_shortlist_pairs": len(summaries) if use_e2 else 0,
+                "requested_results": detail_count,
+                "shortlist_multiplier": 2 if use_e2 else None,
+                "screening_seconds": screening_seconds,
+                "reranking_seconds": rerank_seconds,
+            }
         top: list[dict[str, Any]] = []
         for summary in summaries[:detail_count]:
             top.append(evaluate_pair(summary["_gp1"], summary["_gp2"], detailed=True))
     finally:
         resolver.close()
 
+    ranking_metadata = ({
+        "g1_ranking": {
+            "mode": "e2_then_exact",
+            "shortlist_multiplier": 2,
+            "exact_shortlist_pairs": len(summaries),
+            "csv_scope": "exact_final_top",
+            "global_recall_guaranteed": False,
+        }
+    } if use_e2 else {})
     generated = datetime.now(timezone.utc).isoformat()
     raw_response_path = output_dir / "uma_moe_raw_response.json"
     write_json_with_history(
@@ -4157,7 +4200,8 @@ def rank_online_grandparent_pairs(
             "local_pool_count": len(selected_locals),
             "remote_pool_count": len(selected_remotes),
             "remote_preselection": remote_preselection_diag,
-            "evaluated_pair_count": len(summaries),
+            "evaluated_pair_count": evaluated_count,
+            **ranking_metadata,
             "profile": {
                 "surface": surface,
                 "distance": distance,
@@ -4203,7 +4247,7 @@ def rank_online_grandparent_pairs(
     write_json_with_history(rankings_json_path, payload)
 
     csv_rows: list[dict[str, Any]] = []
-    for rank, row in enumerate(summaries, 1):
+    for rank, row in enumerate(top if use_e2 else summaries, 1):
         gp1 = row["_gp1"]
         gp2 = row["_gp2"]
         online = gp2.get("online") or {}
@@ -4278,7 +4322,8 @@ def rank_online_grandparent_pairs(
             "selected_local_pool_count": len(selected_locals),
             "selected_remote_pool_count": len(selected_remotes),
             "remote_preselection": remote_preselection_diag,
-            "evaluated_pair_count": len(summaries),
+            "evaluated_pair_count": evaluated_count,
+            **ranking_metadata,
             "top_count": len(top),
             "pair_mode": (f"local_{pair_mode}" if local_pair_mode else pair_mode),
             "scoring_context": (
@@ -4329,13 +4374,13 @@ def rank_online_grandparent_pairs(
         rankings_csv_path=rankings_csv_path,
         raw_response_path=raw_response_path,
         diagnostics_path=diagnostics_path,
-        result_count=len(summaries),
+        result_count=len(top) if use_e2 else evaluated_count,
         top_results=tuple(top),
         fixed_grandparent=(_identity(fixed) if fixed is not None and not exhaustive_pairs else None),
         pair_mode=(f"local_{pair_mode}" if local_pair_mode else pair_mode),
         local_pool_count=len(selected_locals),
         remote_pool_count=len(selected_remotes),
-        evaluated_pair_count=len(summaries),
+        evaluated_pair_count=evaluated_count,
         ace=ace,
         target_parent=target_parent,
         opposing_parent=(

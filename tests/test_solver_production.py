@@ -25,6 +25,7 @@ def compare_search(operation, args, tmp_path, monkeypatch, workers):
 @pytest.mark.parametrize("workers", [1, 2, 4, "auto"])
 @pytest.mark.parametrize("kind", ["pairs", "branches", "future", "gp", "contextual_gp"])
 def test_public_search_matches_canonical(tmp_path, monkeypatch, workers, kind):
+    monkeypatch.setenv("ULL_G1_RANKING", "exact")
     args = real_file_fixture(tmp_path, count=8)
     operation = optimize_parents
     if kind in ("gp", "contextual_gp"):
