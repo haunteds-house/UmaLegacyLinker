@@ -59,7 +59,7 @@ from uma_legacy_linker.veteran_identity import (
 
 
 APP_NAME = "Uma Legacy Linker"
-APP_VERSION = "1.8.1"
+APP_VERSION = "1.9.0"
 
 LogCallback = Callable[[str], None]
 ProgressCallback = Callable[[int, str], None]
@@ -219,19 +219,6 @@ def linked_data_freshness(
     output_dir: str | Path,
 ) -> LinkFreshness:
     return link_cache_freshness(master_path, veterans_json_path, output_dir)
-
-
-def load_rankings_payload(path: str | Path) -> dict[str, Any]:
-    resolved = Path(path).expanduser().resolve()
-    try:
-        payload = json.loads(resolved.read_text(encoding="utf-8-sig"))
-    except OSError as exc:
-        raise OptimizerError(f"Classement introuvable : {resolved}") from exc
-    except json.JSONDecodeError as exc:
-        raise OptimizerError(f"Classement JSON invalide : {resolved.name}") from exc
-    if not isinstance(payload, dict):
-        raise OptimizerError("Le classement doit contenir un objet JSON.")
-    return payload
 
 
 @dataclass(frozen=True)

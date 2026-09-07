@@ -56,6 +56,60 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             )
             window.close()
 
+    def test_first_search_navigation_never_shows_a_detached_control(self) -> None:
+        from PySide6.QtCore import QEvent, QObject
+        from PySide6.QtWidgets import QWidget
+        from ui_qt.context import AppContext
+        from uma_legacy_linker.application import SettingsStore
+        from ui_qt.main_window import MainWindow
+
+        class WindowShows(QObject):
+            def __init__(self):
+                super().__init__()
+                self.detached = []
+
+            def eventFilter(self, obj, event):
+                if event.type() == QEvent.Type.Show and isinstance(obj, QWidget) and obj.isWindow():
+                    self.detached.append(type(obj).__name__)
+                return False
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store = SettingsStore(Path(temp_dir) / "config.json")
+            store.update({"output_dir": str(Path(temp_dir) / "output")})
+            window = MainWindow(AppContext(store))
+            window.show()
+            self.application.processEvents()
+            shows = WindowShows()
+            self.application.installEventFilter(shows)
+            try:
+                window.show_page("search")
+                self.application.processEvents()
+                self.assertEqual(shows.detached, [])
+                page = window._pages["search"]
+                self.assertIs(window.stack.currentWidget(), page)
+                self.assertFalse(page.section_conditions.reset_button.isWindow())
+            finally:
+                self.application.removeEventFilter(shows)
+                window.close()
+
+    def test_application_icon_supports_missing_artwork_and_png_fallback(self) -> None:
+        from PySide6.QtGui import QColor, QPixmap
+        from ui_qt.app_icon import application_icon
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            resources = Path(temp_dir)
+            self.assertTrue(application_icon(resources).isNull())
+            branding = resources / "branding"
+            branding.mkdir()
+            source = QPixmap(32, 32)
+            source.fill(QColor("#123456"))
+            self.assertTrue(source.save(str(branding / "app.png")))
+            # An unreadable optional ICO must not hide a valid PNG.
+            (branding / "app.ico").write_bytes(b"not an icon")
+            result = application_icon(resources)
+            self.assertFalse(result.isNull())
+            self.assertEqual(result.pixmap(32, 32).toImage().pixelColor(16, 16).name(), "#123456")
+
     def test_process_worker_relays_backend_without_loading_qt_in_child(self) -> None:
         from PySide6.QtCore import QThreadPool
 

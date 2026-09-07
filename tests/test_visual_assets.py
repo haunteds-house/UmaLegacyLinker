@@ -17,7 +17,6 @@ from ui_qt.asset_catalog import (
 from ui_qt.lineage_nodes import (
     build_pair_lineage_nodes,
     build_result_lineage_nodes,
-    spark_badge_totals,
 )
 
 
@@ -182,7 +181,10 @@ class VisualAssetTests(unittest.TestCase):
         )
         self.assertEqual(len(nodes), 7)
         self.assertEqual(nodes["p2-2"]["card_id"], 106001)
-        self.assertEqual(spark_badge_totals(nodes["p2-2"]), (0, 3, 0))
+        self.assertEqual(
+            [(factor["type"], factor["stars"]) for factor in nodes["p2-2"]["sparks"]],
+            [("red_aptitude", 3)],
+        )
 
     def test_older_pair_rows_degrade_to_named_placeholders(self) -> None:
         nodes = build_pair_lineage_nodes(

@@ -509,7 +509,6 @@ def _rank_percentiles(scores: dict[int, float | None]) -> dict[int, float]:
     return result
 
 
-
 def _profile_quality_metrics(
     scores: dict[int, float | None],
     percentiles: dict[int, float],
@@ -658,38 +657,6 @@ def _update_best(
     }
 
 
-def _dominance_candidates(
-    records: list[dict[str, Any]],
-    relations: dict[tuple[int, int], DominanceAccumulator],
-    dominance_mean_margin: float,
-) -> dict[int, list[tuple[int, DominanceAccumulator]]]:
-    result: dict[int, list[tuple[int, DominanceAccumulator]]] = defaultdict(list)
-    for (loser_index, winner_index), relation in relations.items():
-        parent_role_ok = relation.parent_count == 0 or relation.parent_no_worse
-        grandparent_role_ok = (
-            relation.grandparent_count == 0 or relation.grandparent_no_worse
-        )
-        if not (
-            parent_role_ok
-            and grandparent_role_ok
-            and relation.pair_support_no_worse
-            and relation.combined_count > 0
-            and relation.mean_delta >= float(dominance_mean_margin)
-        ):
-            continue
-        result[loser_index].append((winner_index, relation))
-    for loser_index, candidates in result.items():
-        candidates.sort(
-            key=lambda item: (
-                item[1].mean_delta,
-                float(records[item[0]].get("_best_parent_score", 0.0))
-                + float(records[item[0]].get("_best_grandparent_score", 0.0)),
-            ),
-            reverse=True,
-        )
-    return result
-
-
 def _role_evidence(
     profiles: list[dict[str, Any]],
     *,
@@ -733,121 +700,6 @@ def _role_evidence(
         "evaluated_context_count": len(profiles),
         "evaluated_distinct_profile_count": len(evaluated_profiles),
     }
-
-
-def classify_transfer_records(
-    records: list[dict[str, Any]],
-    relations: dict[tuple[int, int], DominanceAccumulator],
-    *,
-    elite_utility_floor: float,
-    competitive_utility_floor: float,
-    competitive_score_floor: float,
-    minimum_absolute_floor_ratio: float,
-    minimum_competitive_contexts: int,
-    minimum_distinct_profiles: int,
-    dominance_mean_margin: float,
-    spark_protection_config: dict[str, Any] | None = None,
-) -> None:
-    """Assign safe_transfer/review/likely_keep/keep in place."""
-    dominators = _dominance_candidates(records, relations, dominance_mean_margin)
-
-    def resolve(index: int, seen: set[int] | None = None) -> tuple[int, DominanceAccumulator] | None:
-        seen = set(seen or ())
-        if index in seen:
-            return None
-        seen.add(index)
-        candidates = dominators.get(index) or []
-        if not candidates:
-            return None
-        winner_index, relation = candidates[0]
-        nested = resolve(winner_index, seen)
-        if nested is None:
-            return winner_index, relation
-        final_winner_index = nested[0]
-        for direct_winner_index, direct_relation in candidates:
-            if direct_winner_index == final_winner_index:
-                return final_winner_index, direct_relation
-        return winner_index, relation
-
-    for index, record in enumerate(records):
-        parent_profiles = list(record.get("_parent_profiles") or [])
-        gp_profiles = list(record.get("_grandparent_profiles") or [])
-        parent_evidence = _role_evidence(
-            parent_profiles,
-            elite_utility_floor=elite_utility_floor,
-            competitive_utility_floor=competitive_utility_floor,
-            competitive_score_floor=competitive_score_floor,
-            minimum_absolute_floor_ratio=minimum_absolute_floor_ratio,
-            minimum_competitive_contexts=minimum_competitive_contexts,
-            minimum_distinct_profiles=minimum_distinct_profiles,
-        )
-        gp_evidence = _role_evidence(
-            gp_profiles,
-            elite_utility_floor=elite_utility_floor,
-            competitive_utility_floor=competitive_utility_floor,
-            competitive_score_floor=competitive_score_floor,
-            minimum_absolute_floor_ratio=minimum_absolute_floor_ratio,
-            minimum_competitive_contexts=minimum_competitive_contexts,
-            minimum_distinct_profiles=minimum_distinct_profiles,
-        )
-        parent_competitive = bool(parent_evidence["elite"] or parent_evidence["repeated"])
-        grandparent_competitive = bool(gp_evidence["elite"] or gp_evidence["repeated"])
-        parent_plausible = parent_evidence["competitive_context_count"] > 0
-        gp_plausible = gp_evidence["competitive_context_count"] > 0
-        record["parent_competitive"] = parent_competitive
-        record["grandparent_competitive"] = grandparent_competitive
-        record["parent_evidence"] = parent_evidence
-        record["grandparent_evidence"] = gp_evidence
-
-        resolved = resolve(index)
-        if resolved is not None:
-            winner_index, relation = resolved
-            winner = records[winner_index]
-            record["dominated_by"] = {
-                "trained_chara_id": winner.get("trained_chara_id"),
-                "card_name": winner.get("card_name"),
-                "uma_name": winner.get("uma_name"),
-                "rank": winner.get("rank"),
-                "rank_score": winner.get("rank_score"),
-                "stats": winner.get("stats") or {},
-                "grandparent_1": winner.get("grandparent_1"),
-                "grandparent_2": winner.get("grandparent_2"),
-                "sparks": winner.get("sparks") or {},
-                **_dominance_evidence(relation),
-            }
-            protection = compare_spark_heritage(
-                record.get("_spark_heritage"),
-                winner.get("_spark_heritage"),
-                spark_protection_config,
-            )
-            record["spark_protection"] = protection
-            if protection.get("applied"):
-                record["status"] = str(protection.get("verdict_floor") or "review")
-                record["reason_code"] = str(
-                    protection.get("primary_reason_code")
-                    or "protected_repeated_white_spark"
-                )
-            else:
-                record["status"] = "safe_transfer"
-                record["reason_code"] = "strictly_dominated_same_card"
-        elif parent_competitive or grandparent_competitive:
-            record["status"] = "keep"
-            record["reason_code"] = (
-                "strong_grandparent_value"
-                if grandparent_competitive and not parent_competitive
-                else "strong_parent_value"
-                if parent_competitive and not grandparent_competitive
-                else "strong_value_in_multiple_roles"
-            )
-            record["dominated_by"] = None
-        elif parent_plausible or gp_plausible:
-            record["status"] = "likely_keep"
-            record["reason_code"] = "narrow_or_single_context_niche"
-            record["dominated_by"] = None
-        else:
-            record["status"] = "review"
-            record["reason_code"] = "no_meaningful_role_detected"
-            record["dominated_by"] = None
 
 
 def _protection_rank(level: str | None) -> int:

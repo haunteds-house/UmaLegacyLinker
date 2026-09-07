@@ -1,247 +1,100 @@
-# Uma Legacy Linker user guide
+# Desktop workflow
 
-This guide covers the complete desktop workflow. For a short installation path and project overview, start with the [README](../README.md).
+For installation, see the [README](../README.md). This page covers operation;
+formulas and model limits belong in [Scoring](SCORING.md), and editable profiles
+in [Scoring configuration](SCORING_CONFIGURATION.md).
 
-## 1. Prepare the required data
+## Prepare and link
 
-Uma Legacy Linker needs two inputs generated from the same current game version:
+On **Data**, select the current `master.mdb`, the local collection export
+(`data.json` or `trained_chara_data.json`) and an output directory. Select
+**Link an existing export**. Alternatively, configure a separate UmaExtractor or
+umadump executable and select **Extract my collection**. Exporters and game data
+are not bundled; see [Third-party tools](THIRD_PARTY.md).
 
-| Input | Purpose |
+Linking resolves costumes, factors, stars, skills, G1 wins and frozen ancestry.
+It writes `veterans_legacy_linked.json` and supporting catalogues, leaving the
+input files untouched. The source fingerprints determine whether linked data is
+ready or stale. Relink after either source changes; **Relink anyway** forces a rebuild.
+
+## Search
+
+Set the shared Ace, parent to produce, race profile, course conditions and
+scoring profiles. Rotation is derived from the MDB course layout. Collapsing the
+context rail preserves summaries of the effective settings.
+
+| Result family | Use |
 | --- | --- |
-| `master.mdb` | Resolves characters, costumes, skills, races, affinities and course data |
-| `data.json` or `trained_chara_data.json` | Provides the local veteran collection and its frozen lineages |
+| Final parent pairs | Compare two local parents as a complete six-member lineage |
+| Individual parents | Compare parent branches as complementary halves of a pair |
+| Future grandparents | Compare local material for producing a future parent |
+| Remote parents | Pair a local parent with uma.moe candidates |
+| Remote GPs | Pair a local GP with remote candidates, or use a local-only second pool |
 
-The game database is normally detected from common Windows and Steam locations. If detection fails, select it manually on the Data page.
+The toolbar follows the selected family. Switching families preserves their
+independent results. **Ctrl+Enter** runs the current page's primary action.
+Shared retrieval constraints and per-mode pairing options live in the context rail.
+Configure the uma.moe API URL and optional key under **Settings**. Previously
+saved remote JSON can be ranked offline through the import action.
 
-### Collection exporters
+Retrieval is capped at 2,000 candidates per search. Parent discovery combines
+aptitude and broad/White cohorts before scoring; constraints and pool limits
+still determine which candidates are considered. Verify a remote Friend ID's
+availability in game before starting a career.
 
-The application does not include a game-memory reader. It supports exports created by:
+Generic GP-pair searches use E2 screening followed by exact shortlist rescoring.
+Their JSON and CSV contain only the final top; exhaustive GP mode retains the
+all-pairs CSV. A fixed opposing parent uses the projected final-pair model with
+unknown future-parent Sparks left empty. See [GP ranking](SCORING.md#104-generic-gp-screening-and-exact-reranking)
+for the exact scope and [execution settings](ARCHITECTURE.md#solver-execution)
+for `ULL_G1_RANKING` and worker overrides.
 
-- [UmaExtractor](https://github.com/xancia/UmaExtractor), which writes `data.json`;
-- [umadump](https://github.com/Werseter/umadump), which writes `trained_chara_data.json`.
+## Inspect, compare and revisit
 
-You can select an existing export or configure either tool under **Extractor** and select **Extract my collection**. The launcher recognises the backend from its filename; umadump is invoked once from the selected output directory.
+Select a row to inspect its scores, factor sources, aptitude probabilities and
+G1 evidence. The lineage inspector and calendar have independent 75–200% zoom;
+Ctrl+wheel changes zoom and Ctrl+0 resets it. Optional artwork can be disabled or
+cleared; missing images do not affect ranking.
 
-umadump currently leaves `succession_trained_chara_id_1/2` at zero. As a result, Transfer Helper cannot populate the informational “referenced by” column from that export. Scoring remains available because the complete frozen parent and grandparent Sparks are present in `succession_chara_array`.
+The Standard G1 schedule includes mandatory character objectives. Trackblazer
+shows the variant without them. Inspect conflicts, missing race metadata and
+streak penalties before using a projected schedule.
 
-These extractors are independent projects with their own requirements, licences and warnings. Tools that read a running game process are used at your own discretion.
+Compare two candidates within one family, or matching identities between the
+current and previous retained run. Numeric deltas are `right - left`; both sides
+keep their original diagnostics. History retains one predecessor of each supported
+main output, with generation time, schema and available input hashes.
 
-## 2. Link the collection
+A freshly computed result is **current** for its inputs. A relevant input change
+makes it **stale**. A disk result is **loaded**, without asserting equivalence to
+current inputs. Rerun that family when a current result is needed.
 
-On **Data**:
+## Transfer Helper and profiles
 
-1. select the current `master.mdb`;
-2. select the collection export;
-3. choose an output directory;
-4. select **Link an existing export**.
+Transfer Helper is a work in progress. It evaluates same-costume portfolios and
+never transfers a veteran in game. **Protected** copies have a lock or memo; **Keep** copies are required by
+the portfolio. **Recommended transfer** can rely on collective coverage.
+**Strictly safe transfer** requires exhaustive mode and one retained replacement
+that passes the individual checks. Inspect the evidence and score deltas before
+acting. **Review** is the fallback when portfolio coverage cannot be established.
+Missing local ancestry IDs can limit reference diagnostics even when
+frozen lineage factors are available for scoring.
 
-The linker resolves:
+The Weights page edits overrides over bundled defaults. **Save profile** persists
+and activates the draft. Structural weights and White priorities are separate.
+For unexpected results, inspect the run's `active_parent_scoring.json` and
+`active_skill_priorities.json` before editing generated weight files. See
+[Configuration](SCORING_CONFIGURATION.md) for merge rules and diagnostic outputs.
 
-- costume and character identities;
-- Blue, Pink, Green, White and Race Sparks;
-- Spark stars and granted skills;
-- learned skills and G1 victories;
-- parents, grandparents and available local training identifiers.
+## Troubleshooting
 
-It writes an enriched `veterans_legacy_linked.json` and the supporting catalogues to the output directory. The original database and collection export are read-only inputs.
-
-The application fingerprints the source files. If either input changes, the existing linked result becomes stale and must be regenerated. **Relink anyway** is available for recovery and diagnostics when a forced rebuild is needed.
-
-## 3. Configure the shared Search context
-
-Search keeps one live context for local and online calculations:
-
-- target Ace;
-- parent being produced;
-- surface, distance and running style;
-- exact racecourse, course layout and conditions when relevant;
-- structural scoring profile;
-- White Skill priority profile.
-
-Rotation is derived from the selected MDB course layout. The context rail can be collapsed without hiding its effective values: each section header retains its current summary and modified state.
-
-The result area contains five persistent families:
-
-1. final parent pairs;
-2. individual parent candidates;
-3. future grandparents;
-4. uma.moe remote parents;
-5. uma.moe remote GPs.
-
-Each family keeps its latest result independently. Changing an input marks only the result families that consume that input as stale.
-
-## 4. Run local lineage searches
-
-### Final parent pairs
-
-Use this when both direct parents are selected from the linked local collection. Every candidate is evaluated as a complete six-member lineage: two parents and four grandparents.
-
-The ranking combines:
-
-- initial aptitude ranks and estimated `P(A)` / `P(S)`;
-- individual modern affinity across the lineage;
-- distance-aware Blue Spark value;
-- probability-aware White Spark inheritance;
-- G1 compatibility and course-specific Green Skills.
-
-### Individual parents
-
-Use this to identify strong direct-parent branches before committing to a full pair. A parent is presented with its own two grandparents and scored in the active Ace/race context.
-
-### Future grandparents
-
-Use this while producing a new parent. Generic future-GP ranking deliberately uses a pre-production model because the final lineage does not exist yet.
-
-An optional fixed opposing branch makes the calculation exact: every candidate GP pair is inserted under the future parent and evaluated against that complete known branch with the final-pair engine. Unknown Sparks belonging to the future parent itself remain empty rather than being invented.
-
-## 5. Search public parents through uma.moe
-
-Configure the API URL and optional remembered API key under **Settings**. Search options remain on the Search context rail and are divided into:
-
-- constraints shared by both remote modes;
-- parent-search pairing and pool settings;
-- future-GP pairing, fixed-local and opposing-branch settings.
-
-Two modes are available:
-
-- a remote final parent paired with a local parent;
-- a remote grandparent paired with a local GP.
-
-Friend IDs can be copied from the result table. Always confirm that a Friend ID is still active before beginning a career.
-
-### Retrieval budget
-
-Online retrieval is capped at 2,000 candidates per search. Final-parent discovery distributes that budget between Distance, target-surface when needed, and broad White-preferred cohorts. Results are merged and deduplicated before exact local × remote scoring.
-
-These cohorts guide discovery; they are not a substitute for the local scoring engine. Explicit hard filters are applied to every cohort and revalidated after normalisation.
-
-If the known local lineage already provides the required target-surface readiness, the automatic surface cohort is omitted and its budget is returned to the remaining discovery pools. Contextual future-GP searches similarly subtract known coverage from the fixed opposing branch and locked local GP before allocating the retrieval budget.
-
-## 6. Read and compare results
-
-The table gives the ranking overview. The detail pane explains the selected candidate through:
-
-- score and affinity;
-- aptitude targets, starting ranks and `P(S)`;
-- direct and inherited Spark contribution;
-- White inheritance probability across the configured Inspiration Events;
-- shared and one-sided G1 victories;
-- an executable G1 schedule when enough MDB data is available.
-
-Every parent, pair and grandparent result can be opened in the top-down lineage inspector. Artwork and skill icons are visual aids only; identifiers, text labels and score diagnostics remain available if an asset cannot be downloaded.
-
-Search can compare two candidates from the same result family. The comparison preserves both original diagnostics and reports numeric deltas as `right - left`. Cross-family comparisons are rejected rather than guessed.
-
-### Result history and freshness
-
-The application retains the current and immediately previous main result for each supported Search/Transfer output. History entries display their source file, generation time, schema and available input fingerprints.
-
-Result states are explicit:
-
-- **current** — generated from the effective inputs now selected;
-- **loaded** — opened from disk without claiming current-input equivalence;
-- **stale** — a consumed input changed after the calculation;
-- **running** or **empty** — no completed current result is available.
-
-## 7. Use the G1 planner
-
-The planner builds a one-race-per-turn schedule across the Junior, Classic and Senior years.
-
-- A race shared by both selected branches can create two future `+3` affinity links (`+6`).
-- A one-sided race creates one `+3` link.
-- Fixed character objectives are locked into the standard schedule.
-- **Schedule for Trackblazer** shows the affinity-only variant without those objectives.
-- Objective conflicts and unavoidable streaks of four or more races remain visible as risks instead of being silently removed.
-
-For future-grandparent searches, a race keeps its full projected value only if the future parent's configured Independent Training win chance reaches the cutoff after streak penalties.
-
-## 8. Use Transfer Helper safely
-
-Transfer Helper analyses duplicate veterans but performs no game action. It cannot edit the collection export or delete a veteran.
-
-The permanent baseline covers Turf Sprint/Mile/Medium/Long and Dirt Sprint/Mile/Medium across Front, Pace and Backline profiles. The default fast mode restricts analysis to Aces with natural B or better in surface, distance and style. Optional Champion Meeting, Team Trials and generic profiles can add evidence without replacing the permanent baseline.
-
-The analyser builds a small same-costume portfolio that remains within the configured score tolerance of the best copy in each competitive context. It also protects direct 3-star aptitude Sparks, valuable White Sparks, repeated or difficult skills and configured Spark packages.
-
-### Verdicts
-
-| Verdict | Meaning |
+| Symptom | Check |
 | --- | --- |
-| **Protected** | The copy is locked in game or carries a memo |
-| **Keep** | The copy is required by the retained collection portfolio |
-| **Strictly safe transfer** | One same-costume, same-Unique replacement dominates every viable checked context and preserves protected heritage |
-| **Recommended transfer** | The copy is redundant at collection level, potentially covered by different retained copies in different contexts |
-| **Review** | Available evidence is incomplete or does not justify a stronger verdict |
+| Linked data is stale | Select the intended MDB/export and relink on Data |
+| Remote search is empty | Read the log; inspect hard filters, URL/key and network errors |
+| Result is loaded/stale | Rerun the selected family against current inputs |
+| Artwork is missing | Check optional artwork settings and network access; text remains usable |
+| Windows application does not start from the ZIP | Extract the complete archive with its runtime files |
 
-Only exhaustive mode can emit **Strictly safe transfer**. Fast-mode redundancies remain recommendations.
-
-The detail view exposes the relevant contexts, score envelopes, strict replacement when one exists, retained cover per context and complete Spark comparison. Alternate costumes are never treated as interchangeable.
-
-## 9. Edit weights without replacing defaults
-
-The Weights page stores only user overrides. Bundled defaults remain under `resources/` and new settings can be introduced by later releases without replacing the entire user profile.
-
-Useful adjustments include:
-
-- increasing the Long Stamina preference;
-- reducing Blue Spark influence for Sprint;
-- changing the Distance-S utility curve;
-- adjusting the thresholds that compensate for a Distance-B start;
-- changing target-surface rank requirements for low-natural-aptitude Aces.
-
-Structural scoring and White Skill priorities are separate inputs:
-
-- `parent_scoring_overrides.json` contains structural scoring overrides;
-- `skill_priorities_custom.json` contains per-skill White priorities;
-- `active_parent_scoring.json` and `active_skill_priorities.json` record the effective profiles used by a run.
-
-See [White Skill priorities](SKILL_PRIORITIES.md) for the accepted full and partial JSON formats. The formulas and exact workflow differences are documented in [Scoring](SCORING.md).
-
-## 10. Artwork, cache and offline behaviour
-
-The lineage inspector can request costume artwork, White Skill icons and G1 banners from GameTora. Images are not bundled with the source or Windows release.
-
-Downloaded files are stored in a bounded per-user cache. They remain available offline, and online artwork loading can be disabled or the cache cleared from the inspector. Missing artwork falls back to a generated card and does not affect scoring.
-
-## 11. Configuration and secrets
-
-General preferences are stored in:
-
-```text
-%APPDATA%\UmaLegacyLinker\config.json
-```
-
-On Windows, a remembered uma.moe API key is encrypted for the current account with DPAPI and stored separately under `%APPDATA%\UmaLegacyLinker`. It is never written to `config.json`. The `UMA_MOE_API_KEY` environment variable takes priority when set.
-
-On Linux and macOS, the optional key file is stored under `${XDG_CONFIG_HOME:-~/.config}/UmaLegacyLinker/uma_moe_api_key.dat` with restricted directory and file permissions, but without platform encryption.
-
-## 12. Troubleshooting
-
-### Search says the linked data is stale
-
-Confirm that `master.mdb` and the collection export belong to the same current game version, then return to Data and link again.
-
-### An online search returns no candidate
-
-Check the uma.moe API URL/key, network access and hard filters. A valid empty cohort is different from an API failure; the application reports the corresponding diagnostic in the log.
-
-### A result is marked loaded or stale
-
-Loaded means the result came from disk. Stale means at least one effective input used by that result family has changed. Re-run the visible result family to obtain a current result.
-
-### Artwork is missing
-
-Confirm that online artwork is enabled and that GameTora is reachable. Artwork availability never changes the underlying result.
-
-### A Windows build will not start from inside the ZIP
-
-Extract the complete `UmaLegacyLinkerQt-win64.zip` first. The application is a PyInstaller `onedir` bundle and requires its adjacent runtime files.
-
-## Related documentation
-
-- [Scoring model](SCORING.md)
-- [White Skill priority format](SKILL_PRIORITIES.md)
-- [Generated/manual White weights](WEIGHTS_FORMAT.md)
-- [Desktop architecture and visual QA](QT_UI.md)
-- [Performance and process isolation](PERFORMANCE.md)
-- [Third-party tools and services](THIRD_PARTY.md)
+Settings and API-key storage are described in [Architecture](ARCHITECTURE.md#inputs-persistence-and-resources).
+The [release guide](RELEASING.md) covers source tests and Windows packaging.

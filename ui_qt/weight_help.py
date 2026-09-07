@@ -47,7 +47,7 @@ def _scope(path: Sequence[str], language: str) -> str:
         "blue_neutral_score",
         "scenario_inheritance",
     }:
-        return "Blue Sparks"
+        return _pick(language, "Sparks bleues", "Blue Sparks")
     if path and path[0] in {
         "white_inheritance",
         "white_saturation",

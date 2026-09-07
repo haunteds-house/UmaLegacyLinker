@@ -444,21 +444,3 @@ def _attach_existing_visual_diagnostics(
             )
 
         node["sparks"].sort(key=_spark_display_key)
-
-
-def spark_badge_totals(node: dict[str, Any]) -> tuple[int, int, int]:
-    blue = 0
-    pink = 0
-    other = 0
-    for factor in node.get("sparks") or []:
-        if not isinstance(factor, dict):
-            continue
-        stars = max(0, _integer(factor.get("stars")) or 0)
-        factor_type = str(factor.get("type") or "other")
-        if factor_type == "blue_stat":
-            blue += stars
-        elif factor_type == "red_aptitude":
-            pink += stars
-        else:
-            other += stars
-    return blue, pink, other

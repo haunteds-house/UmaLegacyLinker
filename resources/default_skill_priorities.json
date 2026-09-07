@@ -1,77 +1,224 @@
 {
   "schema_version": 3,
-  "description": "Manual white-spark priorities for parent selection. Values deliberately combine strategic usefulness with practical acquisition scarcity: strong but ubiquitous support-card skills stay modest, while rare and build-defining Sparks receive the highest scores. No separate rarity multiplier is applied.",
+  "description": "Temporary competitive default White-Spark priorities for the Grand Live CM19-CM22 window (September-December 2026). It intentionally specializes the four expected competitive profile pairs Turf/Medium (CM19), Turf/Long (CM20), Turf/Sprint (CM21), and Dirt/Mile (CM22) using exact-course mechanics plus probable Standard-deck access as a light-to-moderate scarcity signal. Gameplay and mechanical compatibility are evaluated first: an incompatible or badly timed skill stays low regardless of rarity. Direct hints on expected meta supports never make a defining skill guaranteed and therefore only lightly/moderately discount inheritance; reliable White/Gold support chains may discount more, but core skills are not zeroed. Outside those four profile pairs, the July 2026 / Grand Live generic baseline is retained. Values represent the strategic value of obtaining a skill as a White Spark, not raw in-race strength. No separate rarity multiplier is applied. This default is deliberately time-bounded and should be reworked after CM22.",
   "default_weight": 0.02,
   "skills": {
     "tail_held_high": {
-      "base": 0.92,
+      "base": 0.62,
       "style": {
-        "front_runner": 0.72,
-        "pace_chaser": 0.9,
-        "late_surger": 0.96,
-        "end_closer": 0.96
+        "front_runner": 0.55,
+        "pace_chaser": 0.62,
+        "late_surger": 0.65,
+        "end_closer": 0.65
       },
-      "notes": "Rare, sought-after general mid-race speed; high parent value despite broad applicability."
+      "notes": "Strong general mid-race velocity, but not rare enough to dominate build-defining acceleration or exact-course targets.",
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": [
+              "medium",
+              "long",
+              "sprint"
+            ],
+            "style": "end_closer"
+          },
+          "operation": "override",
+          "value": 0.56,
+          "reason": "CM19-CM21 End: strong general speed, but Mr. C.B. direct hint materially reduces scarcity because missing it is survivable."
+        },
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile",
+            "style": "end_closer"
+          },
+          "operation": "override",
+          "value": 0.56,
+          "reason": "CM22 End: Mr. C.B. direct hint gives a normal scarcity discount; skill remains useful."
+        }
+      ]
     },
     "playtime_s_over": {
-      "base": 0.88,
+      "base": 0.34,
       "style": {
-        "front_runner": 0.7,
-        "pace_chaser": 0.9,
-        "late_surger": 0.92,
-        "end_closer": 0.92
-      }
+        "front_runner": 0.34,
+        "pace_chaser": 0.36,
+        "late_surger": 0.34,
+        "end_closer": 0.34
+      },
+      "notes": "Strong general velocity, deliberately discounted in this Grand Live default because Light Hello's chain provides the See Ya Later! / Playtime's Over! family very reliably. Inheritance still has convenience and hint-level value, so it is not zeroed."
     },
     "uma_stan": {
-      "base": 1.08,
-      "style": {
-        "front_runner": 0.22,
-        "pace_chaser": 0.95,
-        "late_surger": 1.15,
-        "end_closer": 1.18
-      },
+      "base": 0.5,
       "distance": {
-        "sprint": 0.82,
-        "mile": 0.98,
-        "medium": 1.12,
-        "long": 1.18
+        "sprint": 0.28,
+        "mile": 0.48,
+        "medium": 0.62,
+        "long": 0.78
       },
-      "notes": "Rare and potentially multi-proc; intentionally one of the strongest non-Front parent Sparks.",
+      "style": {
+        "front_runner": 0.1,
+        "pace_chaser": 0.42,
+        "late_surger": 0.62,
+        "end_closer": 0.7
+      },
+      "notes": "PDM/positioning support with a positive distance gradient. CM19-CM22 overrides below intentionally reflect Position Keep exposure; no meaningful Standard Grand Live natural route was identified.",
       "profiles": [
         {
           "match": {
             "style": "front_runner"
           },
           "operation": "cap",
+          "value": 0.18,
+          "reason": "Front remains a poor practical Uma Stan profile even on longer distances; distance averaging must not erase the style penalty."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "medium",
+            "style": "pace_chaser"
+          },
+          "operation": "override",
+          "value": 0.7,
+          "reason": "CM19 Kyoto 2200: long Position Keep exposure gives Uma Stan meaningful Pace value and Standard has no reliable route."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "medium",
+            "style": "late_surger"
+          },
+          "operation": "override",
+          "value": 0.78,
+          "reason": "CM19 Kyoto 2200: strong scarce backline positioning/PDM asset."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "medium",
+            "style": "end_closer"
+          },
+          "operation": "override",
+          "value": 0.82,
+          "reason": "CM19 Kyoto 2200: strong scarce backline positioning/PDM asset."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "long",
+            "style": "pace_chaser"
+          },
+          "operation": "override",
+          "value": 0.9,
+          "reason": "CM20 Nakayama 2500: Uma Stan is structurally at its best because Position Keep exposure is long."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "long",
+            "style": "late_surger"
+          },
+          "operation": "override",
+          "value": 0.98,
+          "reason": "CM20 Nakayama 2500: premium naturally-scarce Long backline asset."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "long",
+            "style": "end_closer"
+          },
+          "operation": "override",
+          "value": 1.0,
+          "reason": "CM20 Nakayama 2500: premium naturally-scarce Long backline asset."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "sprint",
+            "style": "pace_chaser"
+          },
+          "operation": "override",
           "value": 0.3,
-          "reason": "Front remains a poor practical Uma Stan profile even on longer distances; do not let distance averaging erase the style penalty."
+          "reason": "CM21 Chukyo 1200: short Position Keep makes the hidden PDM value much smaller."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "sprint",
+            "style": "late_surger"
+          },
+          "operation": "override",
+          "value": 0.38,
+          "reason": "CM21 Chukyo 1200: modest value relative to race-defining Sprint acceleration."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "sprint",
+            "style": "end_closer"
+          },
+          "operation": "override",
+          "value": 0.42,
+          "reason": "CM21 Chukyo 1200: modest value relative to race-defining Sprint acceleration."
+        },
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile",
+            "style": "pace_chaser"
+          },
+          "operation": "override",
+          "value": 0.58,
+          "reason": "CM22 Tokyo Dirt 1600: useful positioning/PDM asset with no Standard natural route."
+        },
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile",
+            "style": "late_surger"
+          },
+          "operation": "override",
+          "value": 0.68,
+          "reason": "CM22 Tokyo Dirt 1600: good naturally-scarce backline asset."
+        },
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile",
+            "style": "end_closer"
+          },
+          "operation": "override",
+          "value": 0.72,
+          "reason": "CM22 Tokyo Dirt 1600: good naturally-scarce backline asset."
         }
       ]
     },
     "slipstream": {
-      "base": 0.76,
+      "base": 0.58,
       "style": {
-        "front_runner": 0.3,
-        "pace_chaser": 0.78,
-        "late_surger": 0.82,
-        "end_closer": 0.82
+        "front_runner": 0.25,
+        "pace_chaser": 0.58,
+        "late_surger": 0.64,
+        "end_closer": 0.64
       }
     },
     "nimble_navigator": {
-      "base": 1.02,
+      "base": 0.58,
+      "distance": {
+        "sprint": 0.42,
+        "mile": 0.55,
+        "medium": 0.68,
+        "long": 0.7
+      },
       "style": {
         "front_runner": 0.02,
-        "pace_chaser": 0.88,
-        "late_surger": 1.08,
-        "end_closer": 1.1
+        "pace_chaser": 0.55,
+        "late_surger": 0.68,
+        "end_closer": 0.7
       },
-      "distance": {
-        "sprint": 0.7,
-        "mile": 0.9,
-        "medium": 1.06,
-        "long": 1.1
-      },
-      "notes": "Rare traffic insurance and gold-skill discount; poor for Front, premium for backliners.",
+      "notes": "Traffic insurance for non-Front styles. Long-biased but track-dependent. Standard support access is treated as a modulation, not a hard zero.",
       "profiles": [
         {
           "match": {
@@ -79,44 +226,147 @@
           },
           "operation": "cap",
           "value": 0.08,
-          "reason": "Front is rarely traffic-blocked in the relevant way; do not let a long-distance bonus erase the style penalty."
+          "reason": "Front is rarely traffic-blocked in the relevant way; distance must not erase the style penalty."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "medium",
+            "style": "pace_chaser"
+          },
+          "operation": "override",
+          "value": 0.62,
+          "reason": "CM19: strong traffic insurance; Fine Motion direct hint gives only a moderate scarcity discount."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "medium",
+            "style": [
+              "late_surger",
+              "end_closer"
+            ]
+          },
+          "operation": "override",
+          "value": 0.72,
+          "reason": "CM19: strong backline insurance; no chain route is assumed."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "long",
+            "style": "pace_chaser"
+          },
+          "operation": "override",
+          "value": 0.62,
+          "reason": "CM20: mechanically very strong, but Yukino Gold + Fine access makes the family comparatively reliable in the Standard Pace deck."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "long",
+            "style": "late_surger"
+          },
+          "operation": "override",
+          "value": 0.82,
+          "reason": "CM20: strong Long backline insurance without assuming the Pace/End Yukino route."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "long",
+            "style": "end_closer"
+          },
+          "operation": "override",
+          "value": 0.62,
+          "reason": "CM20: mechanically very strong, but Yukino Gold largely solves the family in the Standard End deck."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "sprint",
+            "style": [
+              "pace_chaser",
+              "late_surger",
+              "end_closer"
+            ]
+          },
+          "operation": "override",
+          "value": 0.4,
+          "reason": "CM21: short final geometry makes traffic insurance less valuable; Fine hint access further moderates scarcity."
+        },
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile",
+            "style": "pace_chaser"
+          },
+          "operation": "override",
+          "value": 0.5,
+          "reason": "CM22: useful Mile traffic insurance with Fine direct-hint access."
+        },
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile",
+            "style": [
+              "late_surger",
+              "end_closer"
+            ]
+          },
+          "operation": "override",
+          "value": 0.58,
+          "reason": "CM22: useful backline traffic insurance, below the course-defining acceleration targets."
         }
       ]
     },
     "ramp_up": {
-      "base": 0.72,
+      "base": 0.52,
       "style": {
-        "front_runner": 0.22,
-        "pace_chaser": 0.72,
-        "late_surger": 0.78,
-        "end_closer": 0.78
+        "front_runner": 0.48,
+        "pace_chaser": 0.55,
+        "late_surger": 0.58,
+        "end_closer": 0.58
       }
     },
     "corner_adept": {
-      "base": 0.35,
-      "notes": "Useful but ubiquitous, notably guaranteed by commonly played Kitasan Black Speed."
+      "base": 0.46,
+      "distance": {
+        "sprint": 0.42,
+        "mile": 0.46,
+        "medium": 0.5,
+        "long": 0.56
+      },
+      "notes": "Reliable efficient velocity with double-proc upside on longer courses, moderated by common support-card access."
     },
     "straightaway_adept": {
-      "base": 0.3,
-      "notes": "Useful but ubiquitous, notably guaranteed by commonly played Kitasan Black Speed."
+      "base": 0.5,
+      "distance": {
+        "sprint": 0.45,
+        "mile": 0.5,
+        "medium": 0.54,
+        "long": 0.6
+      },
+      "notes": "Universal high-priority velocity after the duration buff, moderated by common support-card access."
     },
     "corner_recovery": {
       "base": 0.28,
       "distance": {
         "sprint": 0.08,
-        "mile": 0.16,
-        "medium": 0.25,
-        "long": 0.4
+        "mile": 0.2,
+        "medium": 0.38,
+        "long": 0.55
       }
     },
     "straightaway_recovery": {
-      "base": 0.28,
+      "base": 0.32,
       "distance": {
-        "sprint": 0.05,
-        "mile": 0.13,
-        "medium": 0.2,
-        "long": 0.35
-      }
+        "sprint": 0.08,
+        "mile": 0.2,
+        "medium": 0.4,
+        "long": 0.58
+      },
+      "notes": "Reliable mid-race recovery after the July balance adjustment; value scales with stamina pressure, but Long builds normally budget a reliable Gold recovery."
     },
     "focus": {
       "base": 0.2,
@@ -148,54 +398,158 @@
     },
     "straightaway_acceleration": {
       "base": 0.3,
-      "notes": "Course-dependent and not inherently rare; exact-course overrides should raise it only when valid."
+      "notes": "Course-dependent acceleration; exact track geometry should dominate its final value."
     },
     "corner_acceleration": {
       "base": 0.18,
-      "notes": "Highly course-dependent and normally a modest generic parent target."
+      "notes": "Highly course-dependent acceleration; exact track geometry should dominate its final value."
     },
     "homestretch_haste": {
-      "base": 0.12
+      "base": 0.55,
+      "notes": "Reliably activates in the first half of the last leg after the balance update, making the duration useful on nearly every build."
     },
     "groundwork": {
       "base": 0.1,
       "style": {
-        "front_runner": 1.25,
+        "front_runner": 1.15,
         "pace_chaser": 0.38,
         "late_surger": 0.1,
         "end_closer": 0.06
       },
-      "notes": "Rare, build-defining Front acceleration. Premium assumes the lineage can also supply enough early triggers."
+      "notes": "Build-defining Front opening acceleration. Direct hints only lightly reduce inheritance value; a reliable chain route may reduce it more.",
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "medium",
+            "style": "front_runner"
+          },
+          "operation": "override",
+          "value": 1.02,
+          "reason": "CM19: required Front opening tool; Maruzensky is only a direct-hint route, so the default keeps a high Spark value."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "long",
+            "style": "front_runner"
+          },
+          "operation": "override",
+          "value": 1.02,
+          "reason": "CM20: required Front opening tool; Maruzensky direct hint is not reliable enough to plan around."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "sprint",
+            "style": "front_runner"
+          },
+          "operation": "override",
+          "value": 0.74,
+          "reason": "CM21: mechanically critical, but Sakura Bakushin O chain White plus Maruzensky hint makes natural access substantially more reliable."
+        },
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile",
+            "style": "front_runner"
+          },
+          "operation": "override",
+          "value": 1.02,
+          "reason": "CM22: required Front opening tool; Maruzensky direct hint only lightly reduces scarcity."
+        }
+      ]
     },
     "prudent_positioning": {
       "base": 0.08,
       "style": {
-        "front_runner": 0.95,
+        "front_runner": 0.9,
         "pace_chaser": 0.26,
         "late_surger": 0.08,
         "end_closer": 0.06
       },
-      "notes": "Rare and valuable chiefly as part of the Front lane-control / Groundwork package."
+      "notes": "Rare Front lane-control / Groundwork package component.",
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": [
+              "medium",
+              "long",
+              "sprint"
+            ],
+            "style": "front_runner"
+          },
+          "operation": "override",
+          "value": 0.98,
+          "reason": "CM19-CM21: no reliable Standard route identified; premium Front lineage asset."
+        },
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile",
+            "style": "front_runner"
+          },
+          "operation": "override",
+          "value": 0.98,
+          "reason": "CM22: no reliable Standard route identified; premium Front lineage asset."
+        }
+      ]
     },
     "dodging_danger": {
       "base": 0.06,
       "style": {
-        "front_runner": 0.82,
+        "front_runner": 0.78,
         "pace_chaser": 0.2,
         "late_surger": 0.06,
         "end_closer": 0.04
       },
-      "notes": "Valuable in the complete Front positioning package; substantially weaker in isolation."
+      "notes": "Valuable Front lane-control component. Kitasan direct hints are treated as light access, not a guarantee.",
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "medium",
+            "style": "front_runner"
+          },
+          "operation": "override",
+          "value": 0.9,
+          "reason": "CM19 Standard sample does not assume Kitasan; naturally-scarce Front movement remains premium."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": [
+              "long",
+              "sprint"
+            ],
+            "style": "front_runner"
+          },
+          "operation": "override",
+          "value": 0.8,
+          "reason": "CM20/21: Kitasan direct hint is probable access but not reliable enough to erase Spark value."
+        },
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile",
+            "style": "front_runner"
+          },
+          "operation": "override",
+          "value": 0.8,
+          "reason": "CM22: Kitasan direct hint is a light scarcity discount only."
+        }
+      ]
     },
     "ignited_spirit_wit": {
       "base": 0.06,
       "style": {
-        "front_runner": 1.15,
+        "front_runner": 0.78,
         "pace_chaser": 0.18,
         "late_surger": 0.06,
         "end_closer": 0.06
       },
-      "notes": "Scenario-limited and premium for Front lane control; overlaps partly with Prudent Positioning."
+      "notes": "Scenario-limited Front lane-control component; rarity alone does not justify top priority."
     },
     "leader_s_pride": {
       "base": 0.22,
@@ -224,7 +578,7 @@
         "late_surger": 0.08,
         "end_closer": 0.06
       },
-      "notes": "Good routine Front speed, with limited scarcity premium."
+      "notes": "Good routine Front speed with limited scarcity premium."
     },
     "front_runner_savvy": {
       "base": 0.03,
@@ -238,11 +592,12 @@
     "second_wind": {
       "base": 0.05,
       "style": {
-        "front_runner": 0.1,
+        "front_runner": 0.3,
         "pace_chaser": 0.05,
         "late_surger": 0.03,
         "end_closer": 0.03
-      }
+      },
+      "notes": "Late-race Front acceleration after the balance update, but still a random supplementary gamble."
     },
     "keeping_the_lead": {
       "base": 0.05,
@@ -257,11 +612,53 @@
       "base": 0.04,
       "style": {
         "front_runner": 0.0,
-        "pace_chaser": 1.02,
+        "pace_chaser": 1.1,
         "late_surger": 0.0,
         "end_closer": 0.0
       },
-      "notes": "Rare and often decisive Pace acceleration; course overrides may still adjust reliability."
+      "notes": "First-half late-race Pace acceleration. CM19-CM22 overrides deliberately follow distance-window reliability and only lightly discount Tachyon direct-hint access when the skill is defining.",
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "medium",
+            "style": "pace_chaser"
+          },
+          "operation": "override",
+          "value": 0.52,
+          "reason": "CM19: situational Medium acceleration; Tachyon direct hint can moderately reduce scarcity because the timing is not defining."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "long",
+            "style": "pace_chaser"
+          },
+          "operation": "override",
+          "value": 0.1,
+          "reason": "CM20: Long random late window is too wide; gameplay weakness dominates accessibility."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "sprint",
+            "style": "pace_chaser"
+          },
+          "operation": "override",
+          "value": 1.02,
+          "reason": "CM21: meta Sprint acceleration; Tachyon direct hint is not reliable enough to justify a strong cap."
+        },
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile",
+            "style": "pace_chaser"
+          },
+          "operation": "override",
+          "value": 0.94,
+          "reason": "CM22: strong Mile acceleration; Tachyon direct hint only lightly reduces lineage value."
+        }
+      ]
     },
     "straight_descent": {
       "base": 0.14,
@@ -271,7 +668,49 @@
         "late_surger": 0.24,
         "end_closer": 0.2
       },
-      "notes": "Course-dependent downhill acceleration; valuable only when the slope aligns with acceleration phase."
+      "notes": "Slope-placement skill: exact course geometry dominates. The CM19 Pace override intentionally keeps high value despite probable Nishino access.",
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "medium",
+            "style": "pace_chaser"
+          },
+          "operation": "override",
+          "value": 0.92,
+          "reason": "CM19 Kyoto 2200: downhill overlaps the late/spurt transition for near-perfect Pace acceleration. Nishino Wit/Determined Descent is a probable Standard route, so apply only a moderate default discount rather than a hard cap."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "long",
+            "style": "pace_chaser"
+          },
+          "operation": "override",
+          "value": 0.1,
+          "reason": "CM20: downhill ends well before the 1667 m transition; poor acceleration timing."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "sprint",
+            "style": "pace_chaser"
+          },
+          "operation": "override",
+          "value": 0.16,
+          "reason": "CM21: most of the long downhill is too early; only a small tail overlaps late race."
+        },
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile",
+            "style": "pace_chaser"
+          },
+          "operation": "override",
+          "value": 0.1,
+          "reason": "CM22: downhill ends roughly 300 m before the transition; poor acceleration value."
+        }
+      ]
     },
     "prepared_to_pass": {
       "base": 0.12,
@@ -281,17 +720,39 @@
         "late_surger": 0.0,
         "end_closer": 0.0
       },
-      "notes": "Useful Pace speed but relatively accessible and strongly timing-dependent."
+      "notes": "Useful Pace speed, but accessible and timing-dependent.",
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "medium",
+            "style": "pace_chaser"
+          },
+          "operation": "override",
+          "value": 0.28,
+          "reason": "CM19: useful final-corner speed, but Fine Motion chain-family access materially lowers lineage scarcity."
+        },
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile",
+            "style": "pace_chaser"
+          },
+          "operation": "override",
+          "value": 0.3,
+          "reason": "CM22: useful final-corner speed/carryover, with Fine Motion chain-family access."
+        }
+      ]
     },
     "ignited_spirit_pwr": {
-      "base": 0.68,
+      "base": 0.28,
       "style": {
         "front_runner": 0.16,
-        "pace_chaser": 0.92,
-        "late_surger": 1.0,
-        "end_closer": 1.0
+        "pace_chaser": 0.34,
+        "late_surger": 0.42,
+        "end_closer": 0.42
       },
-      "notes": "Scenario-limited and strategically strong; retains a real rarity premium."
+      "notes": "Scenario-limited supplementary acceleration; rarity does not justify outranking reliable core acceleration."
     },
     "pace_chaser_savvy": {
       "base": 0.03,
@@ -304,17 +765,17 @@
     },
     "moxie": {
       "base": 0.08,
-      "style": {
-        "front_runner": 0.0,
-        "pace_chaser": 0.28,
-        "late_surger": 0.0,
-        "end_closer": 0.0
-      },
       "distance": {
         "sprint": 0.06,
         "mile": 0.14,
         "medium": 0.28,
         "long": 0.38
+      },
+      "style": {
+        "front_runner": 0.0,
+        "pace_chaser": 0.28,
+        "late_surger": 0.0,
+        "end_closer": 0.0
       },
       "notes": "Useful recovery but generally covered by Pace decks; modest parent premium."
     },
@@ -332,46 +793,126 @@
       "style": {
         "front_runner": 0.0,
         "pace_chaser": 0.0,
-        "late_surger": 1.08,
+        "late_surger": 1.1,
         "end_closer": 0.0
       },
-      "notes": "Rare, high-impact Late acceleration and a genuine lineage differentiator."
+      "notes": "First-half late-race Late acceleration. CM19-CM22 overrides follow the same distance-window logic as Head-On; direct meta-card hints only lightly discount critical acceleration.",
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "medium",
+            "style": "late_surger"
+          },
+          "operation": "override",
+          "value": 0.52,
+          "reason": "CM19: situational Medium acceleration; scarcity cannot rescue mediocre timing."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "long",
+            "style": "late_surger"
+          },
+          "operation": "override",
+          "value": 0.1,
+          "reason": "CM20: Long random late window is too wide; poor primary acceleration."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "sprint",
+            "style": "late_surger"
+          },
+          "operation": "override",
+          "value": 1.02,
+          "reason": "CM21: meta Sprint acceleration; Ruby direct hint is not reliable enough to justify a strong cap."
+        },
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile",
+            "style": "late_surger"
+          },
+          "operation": "override",
+          "value": 0.94,
+          "reason": "CM22: strong Mile acceleration; Ruby direct hint only lightly reduces lineage value."
+        }
+      ]
     },
     "ignited_spirit_guts": {
-      "base": 0.48,
+      "base": 0.22,
       "style": {
         "front_runner": 0.12,
-        "pace_chaser": 0.54,
-        "late_surger": 0.64,
-        "end_closer": 0.64
+        "pace_chaser": 0.24,
+        "late_surger": 0.3,
+        "end_closer": 0.3
       },
-      "notes": "Rare scenario Spark, but mechanically below Ignited Spirit PWR."
+      "notes": "Scenario-limited short acceleration; filler after reliable acceleration and velocity are covered."
     },
     "highlander": {
-      "base": 0.16,
-      "style": {
-        "front_runner": 0.1,
-        "pace_chaser": 0.24,
-        "late_surger": 0.62,
-        "end_closer": 0.58
-      },
+      "base": 0.12,
       "distance": {
-        "sprint": 0.1,
-        "mile": 0.18,
-        "medium": 0.38,
-        "long": 0.62
+        "sprint": 0.04,
+        "mile": 0.12,
+        "medium": 0.24,
+        "long": 0.34
       },
-      "notes": "Rare uphill acceleration. Its scarcity matters, while exact-course overrides should lift valid courses further."
+      "style": {
+        "front_runner": 0.06,
+        "pace_chaser": 0.16,
+        "late_surger": 0.36,
+        "end_closer": 0.36
+      },
+      "notes": "Uphill acceleration with no useful universal distance curve; CM19-CM22 profile rules intentionally let slope placement dominate.",
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "medium"
+          },
+          "operation": "override",
+          "value": 0.18,
+          "reason": "CM19: uphill ends before the spurt transition; only unreliable carryover is possible."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "long"
+          },
+          "operation": "override",
+          "value": 0.1,
+          "reason": "CM20: relevant uphills are too early or too late for primary acceleration."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "sprint"
+          },
+          "operation": "override",
+          "value": 0.96,
+          "reason": "CM21: uphill begins ~70 m after the transition while Sprint acceleration is still ongoing; course-defining acceleration."
+        },
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile"
+          },
+          "operation": "override",
+          "value": 0.8,
+          "reason": "CM22: uphill begins ~33 m after the transition; strong secondary acceleration across styles."
+        }
+      ]
     },
     "position_pilfer": {
       "base": 0.04,
       "style": {
         "front_runner": 0.0,
         "pace_chaser": 0.0,
-        "late_surger": 0.7,
+        "late_surger": 0.8,
         "end_closer": 0.0
       },
-      "notes": "Strong and comparatively scarce Late mid-race positioning, but below the defining acceleration Sparks."
+      "notes": "Reliable and comparatively scarce Late mid-race positioning, below defining acceleration Sparks."
     },
     "outer_swell": {
       "base": 0.04,
@@ -407,9 +948,51 @@
         "front_runner": 0.0,
         "pace_chaser": 0.0,
         "late_surger": 0.0,
-        "end_closer": 0.82
+        "end_closer": 0.68
       },
-      "notes": "Rare and meta-defining on valid courses; exact-course overrides may lift it to the top tier."
+      "notes": "End acceleration whose value is dominated by whether a straight begins at spurt start. Mr. C.B. is only a direct-hint route, so critical-skill scarcity remains meaningful.",
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "medium",
+            "style": "end_closer"
+          },
+          "operation": "override",
+          "value": 0.12,
+          "reason": "CM19: spurt starts on Corner 3 and the next straight is delayed to ~1797 m; poor primary acceleration."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "long",
+            "style": "end_closer"
+          },
+          "operation": "override",
+          "value": 1.05,
+          "reason": "CM20: spurt transition is on a straight, allowing immediate activation; CB direct hint only lightly discounts a defining accel."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "sprint",
+            "style": "end_closer"
+          },
+          "operation": "override",
+          "value": 1.05,
+          "reason": "CM21: spurt starts exactly at the final straight; ideal activation timing."
+        },
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile",
+            "style": "end_closer"
+          },
+          "operation": "override",
+          "value": 0.92,
+          "reason": "CM22: final straight starts only ~32 m after the transition, so the skill remains strong despite slight delay."
+        }
+      ]
     },
     "end_closer_savvy": {
       "base": 0.03,
@@ -426,22 +1009,23 @@
         "front_runner": 0.0,
         "pace_chaser": 0.0,
         "late_surger": 0.0,
-        "end_closer": 0.12
-      }
+        "end_closer": 0.42
+      },
+      "notes": "Respectable End final-straight velocity, discounted for lobby-dependent activation."
     },
     "standing_by": {
       "base": 0.04,
-      "style": {
-        "front_runner": 0.0,
-        "pace_chaser": 0.0,
-        "late_surger": 0.0,
-        "end_closer": 0.24
-      },
       "distance": {
         "sprint": 0.05,
         "mile": 0.12,
         "medium": 0.24,
         "long": 0.35
+      },
+      "style": {
+        "front_runner": 0.0,
+        "pace_chaser": 0.0,
+        "late_surger": 0.0,
+        "end_closer": 0.24
       }
     },
     "after_school_stroll": {
@@ -452,16 +1036,23 @@
         "late_surger": 0.0,
         "end_closer": 0.2
       },
-      "notes": "Course-dependent recovery; useful but not a defining parent Spark."
+      "notes": "Course-dependent recovery; useful but not defining."
     },
     "pressure": {
       "base": 0.04,
+      "distance": {
+        "sprint": 0.0,
+        "mile": 0.0,
+        "medium": 0.0,
+        "long": 0.35
+      },
       "style": {
         "front_runner": 0.0,
         "pace_chaser": 0.0,
         "late_surger": 0.0,
-        "end_closer": 0.08
-      }
+        "end_closer": 0.28
+      },
+      "notes": "Long End velocity with a small acceleration component; still secondary."
     },
     "early_start": {
       "base": 0.03,
@@ -473,7 +1064,7 @@
       }
     },
     "ignited_spirit_spd": {
-      "base": 0.38,
+      "base": 0.34,
       "notes": "Scenario-limited but only moderate mechanically; rarity alone does not make it a top target."
     },
     "ignited_spirit_sta": {
@@ -489,12 +1080,12 @@
     "sprinting_gear": {
       "base": 0.03,
       "distance": {
-        "sprint": 0.38,
+        "sprint": 0.45,
         "mile": 0.0,
         "medium": 0.0,
         "long": 0.0
       },
-      "notes": "Useful Sprint acceleration, but commonly available enough to carry only a modest scarcity premium."
+      "notes": "Late-race Sprint acceleration gamble; useful but not reliable enough for top tier."
     },
     "gap_closer": {
       "base": 0.03,
@@ -523,10 +1114,10 @@
       "style": {
         "front_runner": 0.44,
         "pace_chaser": 0.44,
-        "late_surger": 0.2,
-        "end_closer": 0.12
+        "late_surger": 0.0,
+        "end_closer": 0.0
       },
-      "notes": "Good Mile speed but routinely covered by relevant support decks."
+      "notes": "Good Mile speed for Front and Pace only, routinely covered by relevant support decks."
     },
     "speed_eater": {
       "base": 0.03,
@@ -542,7 +1133,7 @@
         "late_surger": 0.08,
         "end_closer": 0.06
       },
-      "notes": "Comparatively distinctive Mile Front skill; retains a meaningful parent premium."
+      "notes": "Distinctive Mile Front skill; retains meaningful parent premium."
     },
     "acceleration": {
       "base": 0.03,
@@ -552,7 +1143,7 @@
         "medium": 0.0,
         "long": 0.0
       },
-      "notes": "Course-dependent Mile acceleration; exact-course validation should dominate its final value."
+      "notes": "Course-dependent Mile acceleration; exact-course validation should dominate."
     },
     "up_tempo": {
       "base": 0.03,
@@ -568,7 +1159,7 @@
         "late_surger": 0.18,
         "end_closer": 0.12
       },
-      "notes": "Good Medium speed, but common enough in Medium/Pace support pools to remain a modest parent target."
+      "notes": "Good Medium speed, common enough in relevant support pools to remain modest."
     },
     "rosy_outlook": {
       "base": 0.03,
@@ -600,9 +1191,9 @@
         "sprint": 0.0,
         "mile": 0.0,
         "medium": 0.0,
-        "long": 0.32
+        "long": 0.55
       },
-      "notes": "Solid Long recovery, but common enough to be a secondary parent target."
+      "notes": "Reliable universal Long recovery, moderated by common access and normal Gold-recovery planning."
     },
     "feature_act": {
       "base": 0.03,
@@ -612,7 +1203,7 @@
         "medium": 0.0,
         "long": 0.54
       },
-      "notes": "Useful and less routine Long positioning speed; meaningful but not defining."
+      "notes": "Useful less-routine Long positioning speed; meaningful but not defining."
     },
     "stamina_eater": {
       "base": 0.12,
@@ -622,7 +1213,327 @@
         "medium": 0.22,
         "long": 0.46
       },
-      "notes": "Niche recovery/debuff with real Long value, but not a generic high-priority Spark."
+      "notes": "Niche recovery/debuff with real Long value, not a generic high-priority Spark."
+    },
+    "leap_forward": {
+      "base": 0.02,
+      "distance": {
+        "sprint": 1.0,
+        "mile": 1.0,
+        "medium": 0.0,
+        "long": 0.0
+      },
+      "style": {
+        "front_runner": 0.0,
+        "pace_chaser": 0.0,
+        "late_surger": 1.1,
+        "end_closer": 1.1
+      },
+      "notes": "Hard-gated Sprint/Mile backline acceleration. CM19/20 remain mechanically incompatible; CM21/22 keep substantial value despite Ruby Gold-chain access.",
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "sprint",
+            "style": [
+              "late_surger",
+              "end_closer"
+            ]
+          },
+          "operation": "override",
+          "value": 0.76,
+          "reason": "CM21: strong/meta acceleration. Daiichi Ruby Gold chain greatly reduces scarcity, but the default does not zero a defining skill family."
+        },
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile",
+            "style": [
+              "late_surger",
+              "end_closer"
+            ]
+          },
+          "operation": "override",
+          "value": 0.78,
+          "reason": "CM22: strong/meta Mile acceleration. Ruby Gold-chain access is a substantial but not absolute discount."
+        }
+      ]
+    },
+    "latch_on": {
+      "base": 0.02,
+      "distance": {
+        "sprint": 0.5,
+        "mile": 0.6,
+        "medium": 0.58,
+        "long": 0.52
+      },
+      "style": {
+        "front_runner": 0.0,
+        "pace_chaser": 0.58,
+        "late_surger": 0.62,
+        "end_closer": 0.0
+      },
+      "notes": "Useful second-half passing velocity for Pace and Late; solid but not build-defining."
+    },
+    "unyielding_spirit": {
+      "base": 0.02,
+      "distance": {
+        "sprint": 0.0,
+        "mile": 0.58,
+        "medium": 0.0,
+        "long": 0.0
+      },
+      "notes": "Useful Mile overtake and positioning velocity across styles."
+    },
+    "full_throttle": {
+      "base": 0.02,
+      "distance": {
+        "sprint": 0.35,
+        "mile": 0.55,
+        "medium": 0.65,
+        "long": 0.7
+      },
+      "style": {
+        "front_runner": 0.0,
+        "pace_chaser": 0.0,
+        "late_surger": 0.68,
+        "end_closer": 0.0
+      },
+      "notes": "Powerful Late velocity after stamina-cost reduction; requires an explicit stamina budget."
+    },
+    "pedal_to_the_metal": {
+      "base": 0.02,
+      "distance": {
+        "sprint": 0.32,
+        "mile": 0.42,
+        "medium": 0.52,
+        "long": 0.58
+      },
+      "style": {
+        "front_runner": 0.0,
+        "pace_chaser": 0.0,
+        "late_surger": 0.5,
+        "end_closer": 0.0
+      },
+      "notes": "Late final-straight passing velocity with meaningful course/timing sensitivity."
+    },
+    "a_small_breather": {
+      "base": 0.02,
+      "distance": {
+        "sprint": 0.08,
+        "mile": 0.2,
+        "medium": 0.4,
+        "long": 0.55
+      },
+      "style": {
+        "front_runner": 0.0,
+        "pace_chaser": 0.0,
+        "late_surger": 0.44,
+        "end_closer": 0.0
+      },
+      "notes": "Reliable Late mid-race recovery; useful only when the race actually needs recovery."
+    },
+    "be_still": {
+      "base": 0.02,
+      "distance": {
+        "sprint": 0.08,
+        "mile": 0.2,
+        "medium": 0.4,
+        "long": 0.55
+      },
+      "style": {
+        "front_runner": 0.0,
+        "pace_chaser": 0.0,
+        "late_surger": 0.0,
+        "end_closer": 0.44
+      },
+      "notes": "Reliable End recovery after positional condition relaxation."
+    },
+    "levelheaded": {
+      "base": 0.02,
+      "distance": {
+        "sprint": 0.08,
+        "mile": 0.2,
+        "medium": 0.4,
+        "long": 0.55
+      },
+      "style": {
+        "front_runner": 0.0,
+        "pace_chaser": 0.0,
+        "late_surger": 0.0,
+        "end_closer": 0.42
+      },
+      "notes": "End recovery made substantially more reliable by the nearby-runner condition."
+    },
+    "fighting_spirit": {
+      "base": 0.02,
+      "style": {
+        "front_runner": 0.0,
+        "pace_chaser": 0.0,
+        "late_surger": 0.54,
+        "end_closer": 0.0
+      },
+      "notes": "Good Late mid-race velocity, but challenge condition remains track-dependent."
+    },
+    "fearless": {
+      "base": 0.02,
+      "style": {
+        "front_runner": 0.0,
+        "pace_chaser": 0.0,
+        "late_surger": 0.38,
+        "end_closer": 0.0
+      },
+      "notes": "Improved Late velocity gamble, below core skills."
+    },
+    "take_the_chance": {
+      "base": 0.02,
+      "distance": {
+        "sprint": 0.0,
+        "mile": 0.0,
+        "medium": 0.72,
+        "long": 0.0
+      },
+      "style": {
+        "front_runner": 0.0,
+        "pace_chaser": 0.0,
+        "late_surger": 0.72,
+        "end_closer": 0.72
+      },
+      "notes": "Reliable first-half late-race acceleration for Medium Late and End after the balance update."
+    },
+    "productive_plan": {
+      "base": 0.02,
+      "distance": {
+        "sprint": 0.0,
+        "mile": 0.72,
+        "medium": 0.0,
+        "long": 0.0
+      },
+      "style": {
+        "front_runner": 0.72,
+        "pace_chaser": 0.72,
+        "late_surger": 0.0,
+        "end_closer": 0.0
+      },
+      "notes": "Reliable early Mile velocity for Front/Pace. CM22 assumes probable Taiki access and therefore discounts lineage scarcity without zeroing it.",
+      "profiles": [
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile",
+            "style": [
+              "front_runner",
+              "pace_chaser"
+            ]
+          },
+          "operation": "override",
+          "value": 0.48,
+          "reason": "CM22: strong Mile skill, but Taiki direct hint plus Mile Maven chain makes natural access very common in the expected Standard deck."
+        }
+      ]
+    },
+    "all_i_ve_got": {
+      "base": 0.38,
+      "style": {
+        "front_runner": 0.28,
+        "pace_chaser": 0.4,
+        "late_surger": 0.52,
+        "end_closer": 0.55
+      },
+      "notes": "Worthwhile three-second final-straight velocity, especially for backliners, but not mandatory."
+    },
+    "steadfast": {
+      "base": 0.02,
+      "distance": {
+        "sprint": 0.0,
+        "mile": 0.0,
+        "medium": 0.42,
+        "long": 0.0
+      },
+      "style": {
+        "front_runner": 0.42,
+        "pace_chaser": 0.42,
+        "late_surger": 0.0,
+        "end_closer": 0.0
+      },
+      "notes": "Solid Medium defensive skill for Front/Pace, secondary to proactive acceleration/velocity."
+    },
+    "racing_spirit_speed": {
+      "base": 0.32,
+      "notes": "Short random mid-race scenario velocity; usable, but randomness/cost keep it below efficient core whites."
+    },
+    "racing_spirit_stamina": {
+      "base": 0.24,
+      "distance": {
+        "sprint": 0.12,
+        "mile": 0.3,
+        "medium": 0.38,
+        "long": 0.42
+      },
+      "notes": "Final-spurt scenario velocity with stamina cost and late-activation risk. CM20 can value it somewhat more when stamina is explicitly budgeted.",
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "long"
+          },
+          "operation": "override",
+          "value": 0.46,
+          "reason": "CM20: Long stamina budget makes the trade more tolerable and Standard has no identified GL route; still secondary to defining acceleration."
+        }
+      ]
+    },
+    "racing_spirit_power": {
+      "base": 0.18,
+      "style": {
+        "front_runner": 0.05,
+        "pace_chaser": 0.18,
+        "late_surger": 0.42,
+        "end_closer": 0.45
+      },
+      "notes": "Backliner final-spurt overtake velocity; conditional and expensive."
+    },
+    "racing_spirit_guts": {
+      "base": 0.2,
+      "style": {
+        "front_runner": 0.14,
+        "pace_chaser": 0.22,
+        "late_surger": 0.3,
+        "end_closer": 0.3
+      },
+      "notes": "Short dueling acceleration; supplementary scenario factor."
+    },
+    "racing_spirit_wit": {
+      "base": 0.4,
+      "notes": "General scenario velocity after two second-half activations; useful but more expensive than efficient standard whites."
+    },
+    "racing_spirit_mood": {
+      "base": 0.28,
+      "distance": {
+        "sprint": 0.22,
+        "mile": 0.28,
+        "medium": 0.38,
+        "long": 0.5
+      },
+      "notes": "Good-mood passive adding Stamina/Guts/Wit; rises with race length but remains condition-dependent."
+    },
+    "past_my_limits": {
+      "base": 0.34,
+      "notes": "URA scenario final-spurt target-speed skill; useful coverage but not proven/scarce enough for high priority."
+    },
+    "ignited_spirit_speed": {
+      "base": 0.34,
+      "notes": "Catalog alias for Ignited Spirit SPD; kept below efficient general velocity."
+    },
+    "ignited_spirit_power": {
+      "base": 0.28,
+      "style": {
+        "front_runner": 0.16,
+        "pace_chaser": 0.34,
+        "late_surger": 0.42,
+        "end_closer": 0.42
+      },
+      "notes": "Catalog alias for Ignited Spirit PWR; aligned and deliberately below reliable core acceleration."
     },
     "top_pick": {
       "base": 0.02,
@@ -636,7 +1547,7 @@
         "late_surger": 0.08,
         "end_closer": 0.06
       },
-      "notes": "Good Dirt Front skill, yet still below rare meta-defining lineage targets."
+      "notes": "Good Dirt Front skill, still below rare defining lineage targets."
     },
     "dirt_savvy": {
       "base": 0.02,
@@ -647,7 +1558,7 @@
     },
     "triple_7s": {
       "base": 0.08,
-      "notes": "Low generic value; exact Christmas Oguri timing profiles should override it sharply upward."
+      "notes": "Low default value; exact Christmas Oguri timing builds should override it sharply upward."
     },
     "lay_low": {
       "base": 0.18
@@ -712,112 +1623,112 @@
     "front_runner_corners": {
       "base": 0.0,
       "style": {
-        "front_runner": 0.35
-      },
-      "notes": "Good matching-style speed, but common in relevant support decks."
-    },
-    "pace_chaser_corners": {
-      "base": 0.0,
-      "style": {
-        "pace_chaser": 0.35
-      },
-      "notes": "Good matching-style speed, but common in relevant support decks."
-    },
-    "late_surger_corners": {
-      "base": 0.0,
-      "style": {
-        "late_surger": 0.35
-      },
-      "notes": "Good matching-style speed, but common in relevant support decks."
-    },
-    "end_closer_corners": {
-      "base": 0.0,
-      "style": {
-        "end_closer": 0.35
+        "front_runner": 0.48
       },
       "notes": "Good matching-style speed, but common in relevant support decks."
     },
     "front_runner_straightaways": {
       "base": 0.0,
       "style": {
-        "front_runner": 0.3
+        "front_runner": 0.44
+      },
+      "notes": "Good matching-style speed, but common in relevant support decks."
+    },
+    "pace_chaser_corners": {
+      "base": 0.0,
+      "style": {
+        "pace_chaser": 0.48
       },
       "notes": "Good matching-style speed, but common in relevant support decks."
     },
     "pace_chaser_straightaways": {
       "base": 0.0,
       "style": {
-        "pace_chaser": 0.3
+        "pace_chaser": 0.44
+      },
+      "notes": "Good matching-style speed, but common in relevant support decks."
+    },
+    "late_surger_corners": {
+      "base": 0.0,
+      "style": {
+        "late_surger": 0.48
       },
       "notes": "Good matching-style speed, but common in relevant support decks."
     },
     "late_surger_straightaways": {
       "base": 0.0,
       "style": {
-        "late_surger": 0.3
+        "late_surger": 0.44
+      },
+      "notes": "Good matching-style speed, but common in relevant support decks."
+    },
+    "end_closer_corners": {
+      "base": 0.0,
+      "style": {
+        "end_closer": 0.48
       },
       "notes": "Good matching-style speed, but common in relevant support decks."
     },
     "end_closer_straightaways": {
       "base": 0.0,
       "style": {
-        "end_closer": 0.3
+        "end_closer": 0.44
       },
       "notes": "Good matching-style speed, but common in relevant support decks."
     },
     "sprint_corners": {
       "base": 0.0,
       "distance": {
-        "sprint": 0.35
-      },
-      "notes": "Good matching-distance speed, but common in relevant support decks."
-    },
-    "mile_corners": {
-      "base": 0.0,
-      "distance": {
-        "mile": 0.35
-      },
-      "notes": "Good matching-distance speed, but common in relevant support decks."
-    },
-    "medium_corners": {
-      "base": 0.0,
-      "distance": {
-        "medium": 0.35
-      },
-      "notes": "Good matching-distance speed, but common in relevant support decks."
-    },
-    "long_corners": {
-      "base": 0.0,
-      "distance": {
-        "long": 0.35
+        "sprint": 0.52
       },
       "notes": "Good matching-distance speed, but common in relevant support decks."
     },
     "sprint_straightaways": {
       "base": 0.0,
       "distance": {
-        "sprint": 0.3
+        "sprint": 0.48
+      },
+      "notes": "Good matching-distance speed, but common in relevant support decks."
+    },
+    "mile_corners": {
+      "base": 0.0,
+      "distance": {
+        "mile": 0.52
       },
       "notes": "Good matching-distance speed, but common in relevant support decks."
     },
     "mile_straightaways": {
       "base": 0.0,
       "distance": {
-        "mile": 0.3
+        "mile": 0.48
+      },
+      "notes": "Good matching-distance speed, but common in relevant support decks."
+    },
+    "medium_corners": {
+      "base": 0.0,
+      "distance": {
+        "medium": 0.52
       },
       "notes": "Good matching-distance speed, but common in relevant support decks."
     },
     "medium_straightaways": {
       "base": 0.0,
       "distance": {
-        "medium": 0.3
+        "medium": 0.48
+      },
+      "notes": "Good matching-distance speed, but common in relevant support decks."
+    },
+    "long_corners": {
+      "base": 0.0,
+      "distance": {
+        "long": 0.52
       },
       "notes": "Good matching-distance speed, but common in relevant support decks."
     },
     "long_straightaways": {
       "base": 0.0,
       "distance": {
-        "long": 0.3
+        "long": 0.48
       },
       "notes": "Good matching-distance speed, but common in relevant support decks."
     },
@@ -827,7 +1738,7 @@
         "dirt": 0.4,
         "turf": 0.0
       },
-      "notes": "Useful Dirt speed and slightly scarcer than generic distance/style corners, but still not a defining Spark."
+      "notes": "Useful Dirt speed and slightly scarcer than generic distance/style corners, but not defining."
     },
     "dirt_straightaways": {
       "base": 0.0,
@@ -835,7 +1746,7 @@
         "dirt": 0.34,
         "turf": 0.0
       },
-      "notes": "Useful Dirt speed and slightly scarcer than generic distance/style straights, but still not a defining Spark."
+      "notes": "Useful Dirt speed and slightly scarcer than generic distance/style straights, but not defining."
     },
     "spring_runner": {
       "base": 0.04
@@ -844,55 +1755,301 @@
       "base": 0.04
     },
     "fall_runner": {
-      "base": 0.04
+      "base": 0.04,
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "medium"
+          },
+          "operation": "override",
+          "value": 0.07,
+          "reason": "CM19 Autumn/Fall is active; Fine Motion access keeps the premium modest."
+        }
+      ]
     },
     "winter_runner": {
-      "base": 0.04
+      "base": 0.04,
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "long"
+          },
+          "operation": "override",
+          "value": 0.09,
+          "reason": "CM20 Winter is active; Yukino access in some Standard decks gives a modest discount."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "sprint"
+          },
+          "operation": "override",
+          "value": 0.11,
+          "reason": "CM21 Winter is active and Standard coverage is less universal."
+        },
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile"
+          },
+          "operation": "override",
+          "value": 0.11,
+          "reason": "CM22 Winter is active and remains useful across styles."
+        }
+      ]
     },
     "left_handed": {
-      "base": 0.04
+      "base": 0.04,
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "sprint"
+          },
+          "operation": "override",
+          "value": 0.12,
+          "reason": "CM21 Left is active and has useful +Speed value."
+        },
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile"
+          },
+          "operation": "override",
+          "value": 0.12,
+          "reason": "CM22 Left is active and has useful +Speed value."
+        }
+      ]
     },
     "right_handed": {
-      "base": 0.04
+      "base": 0.04,
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "medium"
+          },
+          "operation": "override",
+          "value": 0.08,
+          "reason": "CM19 Right. Fine Motion commonly exposes the green, so only a small lineage premium remains."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "long"
+          },
+          "operation": "override",
+          "value": 0.08,
+          "reason": "CM20 Right. Common support access keeps the inheritance premium modest."
+        }
+      ]
     },
     "firm_conditions": {
-      "base": 0.03
+      "base": 0.03,
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "medium"
+          },
+          "operation": "override",
+          "value": 0.07,
+          "reason": "CM19 Firm is active but common support access keeps the premium low."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "sprint"
+          },
+          "operation": "override",
+          "value": 0.08,
+          "reason": "CM21 Firm is active; useful cheap Power green, still secondary."
+        }
+      ]
     },
     "wet_conditions": {
-      "base": 0.03
+      "base": 0.03,
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "long"
+          },
+          "operation": "override",
+          "value": 0.08,
+          "reason": "CM20 Good qualifies; useful Power green but secondary."
+        },
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile"
+          },
+          "operation": "override",
+          "value": 0.08,
+          "reason": "CM22 Soft qualifies; Taiki access in Front/Pace keeps the default premium modest."
+        }
+      ]
     },
     "standard_distance": {
-      "base": 0.03
+      "base": 0.03,
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "sprint"
+          },
+          "operation": "override",
+          "value": 0.08,
+          "reason": "CM21 1200 m is standard distance; secondary Stamina green."
+        },
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile"
+          },
+          "operation": "override",
+          "value": 0.08,
+          "reason": "CM22 1600 m is standard distance; secondary Stamina green."
+        }
+      ]
     },
     "non_standard_distance": {
-      "base": 0.03
+      "base": 0.03,
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "medium"
+          },
+          "operation": "override",
+          "value": 0.13,
+          "reason": "CM19 2200 m non-standard distance is active and remains useful."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "long"
+          },
+          "operation": "override",
+          "value": 0.13,
+          "reason": "CM20 2500 m non-standard distance is active and remains useful."
+        }
+      ]
     },
     "sunny_days": {
-      "base": 0.02
+      "base": 0.02,
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "medium"
+          },
+          "operation": "override",
+          "value": 0.04,
+          "reason": "CM19 Sunny is active; small Guts green only."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "sprint"
+          },
+          "operation": "override",
+          "value": 0.04,
+          "reason": "CM21 Sunny is active; small Guts green only."
+        }
+      ]
     },
     "cloudy_days": {
-      "base": 0.02
+      "base": 0.02,
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "long"
+          },
+          "operation": "override",
+          "value": 0.04,
+          "reason": "CM20 Cloudy is active; small Guts green only."
+        }
+      ]
     },
     "rainy_days": {
       "base": 0.02
     },
     "snowy_days": {
-      "base": 0.02
+      "base": 0.02,
+      "profiles": [
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile"
+          },
+          "operation": "override",
+          "value": 0.08,
+          "reason": "CM22 Snow is active; Bourbon access for Front reduces scarcity there but not across all styles."
+        }
+      ]
     },
     "tokyo_racecourse": {
-      "base": 0.03
+      "base": 0.03,
+      "profiles": [
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile"
+          },
+          "operation": "override",
+          "value": 0.1,
+          "reason": "CM22 Tokyo is active; useful but secondary Stamina green."
+        }
+      ]
     },
     "nakayama_racecourse": {
-      "base": 0.03
+      "base": 0.03,
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "long"
+          },
+          "operation": "override",
+          "value": 0.11,
+          "reason": "CM20 Nakayama is active; Yukino hint access in Pace/End is not treated as a guarantee across all styles."
+        }
+      ]
     },
     "hanshin_racecourse": {
       "base": 0.03
     },
     "kyoto_racecourse": {
-      "base": 0.03
+      "base": 0.03,
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "medium"
+          },
+          "operation": "override",
+          "value": 0.14,
+          "reason": "CM19 Kyoto Racecourse is active and remains a genuine inheritance target."
+        }
+      ]
     },
     "chukyo_racecourse": {
-      "base": 0.03
+      "base": 0.03,
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "sprint"
+          },
+          "operation": "override",
+          "value": 0.1,
+          "reason": "CM21 Chukyo is active; useful but secondary Stamina green."
+        }
+      ]
     },
     "sapporo_racecourse": {
       "base": 0.03
@@ -923,6 +2080,217 @@
     },
     "maverick": {
       "base": 0.02
+    },
+    "downhill_speedster": {
+      "base": 0.02,
+      "notes": "Slope-dependent target-speed skill. Exact downhill placement, not distance alone, drives value.",
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "medium"
+          },
+          "operation": "override",
+          "value": 0.82,
+          "reason": "CM19: 1375-1525 downhill can roll late and carry target speed into the 1467 m transition; strong exact-course upside with no Standard chain route identified."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "long"
+          },
+          "operation": "override",
+          "value": 0.12,
+          "reason": "CM20: downhill ends well before the transition; little decisive carryover."
+        },
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "sprint"
+          },
+          "operation": "override",
+          "value": 0.18,
+          "reason": "CM21: very long downhill mostly occurs too early; only the tail end is relevant."
+        },
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile"
+          },
+          "operation": "override",
+          "value": 0.1,
+          "reason": "CM22: downhill ends far before the transition; low decisive value."
+        }
+      ]
+    },
+    "restraint": {
+      "base": 0.42,
+      "notes": "Good consistency/movement lineage asset with no identified Standard Grand Live route; useful but intentionally below race-defining acceleration."
+    },
+    "scramble": {
+      "base": 0.02,
+      "distance": {
+        "sprint": 0.0,
+        "mile": 0.0,
+        "medium": 0.0,
+        "long": 0.78
+      },
+      "style": {
+        "front_runner": 0.0,
+        "pace_chaser": 0.0,
+        "late_surger": 0.78,
+        "end_closer": 0.0
+      },
+      "notes": "Late/Long last-spurt acceleration with a small endurance cost; hard-gated before scarcity.",
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "long",
+            "style": "late_surger"
+          },
+          "operation": "override",
+          "value": 0.66,
+          "reason": "CM20: defining Late/Long acceleration package, but Symboli Kris S Gold-chain family makes natural Standard access strong; keep meaningful inheritance value without over-capping."
+        }
+      ]
+    },
+    "1_500_000_cc": {
+      "base": 0.03,
+      "style": {
+        "front_runner": 0.0,
+        "pace_chaser": 0.0,
+        "late_surger": 0.4,
+        "end_closer": 0.0
+      },
+      "notes": "Late uphill velocity; exact slope placement matters more than distance.",
+      "profiles": [
+        {
+          "match": {
+            "surface": "turf",
+            "distance": "long",
+            "style": "late_surger"
+          },
+          "operation": "override",
+          "value": 0.36,
+          "reason": "CM20: useful uphill speed but not defining; Kris S direct hint gives a moderate scarcity discount."
+        }
+      ]
+    },
+    "muddy": {
+      "base": 0.02,
+      "surface": {
+        "turf": 0.0,
+        "dirt": 0.24
+      },
+      "notes": "Dirt-only Soft/Heavy +Speed green; exact ground condition must match.",
+      "profiles": [
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile"
+          },
+          "operation": "override",
+          "value": 0.56,
+          "reason": "CM22 Soft Dirt activates Muddy; excellent cheap +Speed green, still below defining acceleration."
+        }
+      ]
+    },
+    "solid_steps": {
+      "base": 0.02,
+      "surface": {
+        "turf": 0.0,
+        "dirt": 0.26
+      },
+      "notes": "Dirt-only +Speed green gated by raw Power; strong when threshold is met, but build-dependent.",
+      "profiles": [
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile"
+          },
+          "operation": "override",
+          "value": 0.42,
+          "reason": "CM22 Dirt: good +Speed passive when the Power threshold is met; secondary to acceleration."
+        }
+      ]
+    },
+    "rapid_gain": {
+      "base": 0.02,
+      "surface": {
+        "turf": 0.0,
+        "dirt": 0.34
+      },
+      "style": {
+        "front_runner": 0.0,
+        "pace_chaser": 0.0,
+        "late_surger": 0.46,
+        "end_closer": 0.46
+      },
+      "notes": "Dirt backline whole-late random acceleration; usable but timing is less reliable than dedicated accel skills.",
+      "profiles": [
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile",
+            "style": [
+              "late_surger",
+              "end_closer"
+            ]
+          },
+          "operation": "override",
+          "value": 0.48,
+          "reason": "CM22: useful secondary Dirt acceleration with no Standard meta route identified; randomness prevents a scarcity-only top score."
+        }
+      ]
+    },
+    "got_the_spirit": {
+      "base": 0.02,
+      "surface": {
+        "turf": 0.0,
+        "dirt": 0.34
+      },
+      "style": {
+        "front_runner": 0.46,
+        "pace_chaser": 0.46,
+        "late_surger": 0.0,
+        "end_closer": 0.0
+      },
+      "notes": "Dirt front-half whole-late random acceleration; useful fallback, below better-timed acceleration.",
+      "profiles": [
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile",
+            "style": [
+              "front_runner",
+              "pace_chaser"
+            ]
+          },
+          "operation": "override",
+          "value": 0.46,
+          "reason": "CM22: usable secondary Dirt acceleration with no Standard meta route identified; gameplay timing remains the limiting factor."
+        }
+      ]
+    },
+    "forward_march": {
+      "base": 0.02,
+      "surface": {
+        "turf": 0.0,
+        "dirt": 0.38
+      },
+      "notes": "Dirt whole-late acceleration plus lane-speed utility; broad but random timing keeps it secondary.",
+      "profiles": [
+        {
+          "match": {
+            "surface": "dirt",
+            "distance": "mile"
+          },
+          "operation": "override",
+          "value": 0.42,
+          "reason": "CM22: cheap broadly usable Dirt late acceleration/lane movement with no Standard meta route identified; below dedicated Head-On/Slick/Leap/Spurt timing."
+        }
+      ]
     }
   }
 }

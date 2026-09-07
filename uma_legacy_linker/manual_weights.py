@@ -109,8 +109,8 @@ def _profile_weight(entry: dict[str, Any], surface: str, distance: str, style: s
             dimension_values.append(value)
             reasons.append(f"{dimension}:{current}={value:.3f}")
     if dimension_values:
-        # Explicit zero is a hard incompatibility. Otherwise combine multiple profile
-        # dimensions instead of letting the last one silently overwrite the others.
+        # Combine dimensions before applying the more specific profile rules. A zero
+        # dimension sets this intermediate value to zero; a later rule can raise it.
         base = 0.0 if any(value <= 0.0 for value in dimension_values) else sum(dimension_values) / len(dimension_values)
         reasons.append(f"combined_dimensions={base:.3f}")
     for rule in entry.get("profiles") or []:

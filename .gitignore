@@ -27,3 +27,4 @@ UmaLegacyLinker*.zip
 *.prof
 
 # Test modules are project source code and are intentionally not ignored.
+.venv-release/

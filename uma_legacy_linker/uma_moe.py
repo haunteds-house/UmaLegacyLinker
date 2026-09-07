@@ -645,21 +645,11 @@ class OnlineParentSearchResult:
     api_operation: dict[str, Any] | None
 
 
-@dataclass(frozen=True)
-class ApiOperation:
-    method: str
-    path: str
-    score: int
-    operation: dict[str, Any]
-    path_item: dict[str, Any]
-
-
 class UmaMoeApiClient:
-    """Small stdlib-only client with OpenAPI runtime discovery.
+    """Structured v3 search client with OpenAPI parameter verification.
 
-    uma.moe exposes public API documentation. The concrete API can evolve, so this
-    client deliberately discovers the search operation from the current OpenAPI
-    document instead of hardcoding a single endpoint forever.
+    Search uses an explicit endpoint and parameter mapping. OpenAPI discovery
+    verifies optional capabilities; it does not infer requests from name fragments.
     """
 
     def __init__(
@@ -892,158 +882,6 @@ class UmaMoeApiClient:
                 return node
             current = current.get(part.replace("~1", "/").replace("~0", "~"))
         return current if current is not None else node
-
-    # NOTE (2026-07): no longer called by search(). Matching parameters by name
-    # substring proved unsafe in practice (see search()'s docstring) — it silently
-    # corrupted search_type and injected spurious min_*_count filters. Kept here
-    # only in case a future uma.moe endpoint change requires re-deriving the
-    # request shape; do not wire it back into search() without hand-verifying the
-    # exact parameter list first, the way main_parent_pink_sparks was verified.
-    def discover_search_operations(self) -> list[ApiOperation]:
-        spec, _url = self.discover_openapi()
-        result: list[ApiOperation] = []
-        positive = {
-            "inherit": 100,
-            "legacy": 90,
-            "parent": 85,
-            "factor": 55,
-            "spark": 55,
-            "uql": 50,
-            "database": 40,
-            "search": 35,
-            "record": 20,
-        }
-        negative = {
-            "club": -100,
-            "circle": -100,
-            "activity": -100,
-            "rankings": -80,
-            "support card": -60,
-            "timeline": -60,
-        }
-        for path, path_item in (spec.get("paths") or {}).items():
-            if not isinstance(path_item, dict):
-                continue
-            for method in ("get", "post"):
-                operation = path_item.get(method)
-                if not isinstance(operation, dict):
-                    continue
-                haystack = " ".join(
-                    str(value)
-                    for value in (
-                        path,
-                        operation.get("operationId", ""),
-                        operation.get("summary", ""),
-                        operation.get("description", ""),
-                        " ".join(operation.get("tags") or []),
-                    )
-                ).lower()
-                score = sum(weight for token, weight in positive.items() if token in haystack)
-                score += sum(weight for token, weight in negative.items() if token in haystack)
-                if score > 0:
-                    result.append(ApiOperation(method.upper(), str(path), score, operation, path_item))
-        result.sort(key=lambda item: item.score, reverse=True)
-        return result
-
-    def _server_base(self, spec: dict[str, Any]) -> str:
-        servers = spec.get("servers") or []
-        if servers and isinstance(servers[0], dict) and servers[0].get("url"):
-            url = str(servers[0]["url"])
-            if url.startswith("/"):
-                return self.origin + url.rstrip("/")
-            return url.rstrip("/")
-        return self.origin
-
-    def _operation_request(
-        self,
-        op: ApiOperation,
-        *,
-        uql: str,
-        limit: int,
-        page: int = 0,
-    ) -> tuple[str, dict[str, Any], Any]:
-        spec, _ = self.discover_openapi()
-        parameters: list[dict[str, Any]] = []
-        for source in (op.path_item.get("parameters") or [], op.operation.get("parameters") or []):
-            if isinstance(source, dict):
-                parameters.append(source)
-            elif isinstance(source, list):
-                parameters.extend(item for item in source if isinstance(item, dict))
-        query: dict[str, Any] = {}
-        path_values: dict[str, Any] = {}
-
-        def default_for_schema(schema: dict[str, Any]) -> Any:
-            schema = self._resolve_ref(spec, schema) or {}
-            for key in ("default", "example", "const"):
-                if key in schema:
-                    return schema[key]
-            enum = schema.get("enum") or []
-            return enum[0] if enum else None
-
-        for parameter in parameters:
-            parameter = self._resolve_ref(spec, parameter) or {}
-            name = str(parameter.get("name") or "")
-            location = str(parameter.get("in") or "query")
-            schema = self._resolve_ref(spec, parameter.get("schema") or {}) or {}
-            lname = name.lower()
-            value: Any = None
-            if lname in {"uql", "q", "query", "search", "filter", "where"} or any(token in lname for token in ("uql", "query", "search")):
-                value = uql
-            elif any(token in lname for token in ("limit", "count", "size", "take", "per_page", "pagesize")):
-                value = limit
-            elif any(token in lname for token in ("offset", "skip")):
-                value = page * limit
-            elif lname in {"page", "page_number", "pagenumber"}:
-                value = page
-            else:
-                value = default_for_schema(schema)
-            if value is None and parameter.get("required"):
-                # Do not invent IDs. This operation is probably not the general search endpoint.
-                raise UmaMoeError(f"Paramètre requis non résolu pour {op.method} {op.path}: {name}")
-            if value is not None:
-                (path_values if location == "path" else query)[name] = value
-
-        url_path = op.path
-        for name, value in path_values.items():
-            url_path = url_path.replace("{" + name + "}", urllib.parse.quote(str(value), safe=""))
-        url = self._server_base(spec) + (url_path if url_path.startswith("/") else "/" + url_path)
-
-        body = None
-        if op.method == "POST":
-            request_body = op.operation.get("requestBody") or {}
-            content = request_body.get("content") or {}
-            media = content.get("application/json") or next(iter(content.values()), {})
-            schema = self._resolve_ref(spec, media.get("schema") or {}) or {}
-            if schema.get("type") == "string":
-                body = uql
-            else:
-                properties = schema.get("properties") or {}
-                body = {}
-                for name, raw_schema in properties.items():
-                    raw_schema = self._resolve_ref(spec, raw_schema) or {}
-                    lname = str(name).lower()
-                    value = None
-                    if lname in {"uql", "q", "query", "search", "filter", "where"} or any(token in lname for token in ("uql", "query", "search")):
-                        value = uql
-                    elif any(token in lname for token in ("limit", "count", "size", "take", "per_page", "pagesize")):
-                        value = limit
-                    elif any(token in lname for token in ("offset", "skip")):
-                        value = page * limit
-                    elif lname in {"page", "page_number", "pagenumber"}:
-                        value = page
-                    elif "exclude" in lname and raw_schema.get("type") == "boolean":
-                        value = False
-                    else:
-                        value = default_for_schema(raw_schema)
-                    if value is not None:
-                        body[name] = value
-                required = set(schema.get("required") or [])
-                unresolved = [name for name in required if name not in body]
-                if unresolved:
-                    raise UmaMoeError(
-                        f"Corps requis non résolu pour {op.method} {op.path}: {', '.join(unresolved)}"
-                    )
-        return url, query, body
 
     @staticmethod
     def _contains_candidate_records(payload: Any) -> bool:
@@ -4393,7 +4231,6 @@ def rank_online_grandparent_pairs(
         ),
         api_operation=api_operation,
     )
-
 
 
 def _has_complete_parent_branch(member: dict[str, Any]) -> bool:

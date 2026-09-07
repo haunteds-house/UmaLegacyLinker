@@ -196,6 +196,11 @@ class ProcessFunctionWorker(QRunnable):
                     except (EOFError, BrokenPipeError):
                         break
                     terminal_received = self._relay_message(message) or terminal_received
+                    # run_process_task closes its endpoint immediately after a
+                    # terminal protocol message. Polling again can raise
+                    # BrokenPipeError on Windows (WinError 109).
+                    if terminal_received:
+                        break
                     continue
                 if not process.is_alive():
                     while receiver.poll():

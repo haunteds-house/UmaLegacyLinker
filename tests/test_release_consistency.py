@@ -173,11 +173,23 @@ class ReleaseConsistencyTests(unittest.TestCase):
             r'if __name__ == "__main__":\s+freeze_support\(\)\s+raise SystemExit\(main\(\)\)',
         )
 
+    def test_qt_entrypoint_sets_windows_taskbar_identity_before_qapplication(self) -> None:
+        entrypoint = (ROOT / "qt_app.py").read_text(encoding="utf-8")
+
+        self.assertIn("SetCurrentProcessExplicitAppUserModelID", entrypoint)
+        self.assertIn('"Rom1foucher.UmaLegacyLinker"', entrypoint)
+        self.assertLess(
+            entrypoint.index("_set_windows_app_user_model_id()"),
+            entrypoint.index("application = QApplication(sys.argv)"),
+        )
+
     def test_release_docs_and_dependencies_are_qt_only(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         spec = (ROOT / "UmaLegacyLinkerQt.spec").read_text(encoding="utf-8")
 
-        self.assertTrue((ROOT / "docs" / "QT_UI.md").is_file())
+        self.assertTrue((ROOT / "docs" / "ARCHITECTURE.md").is_file())
+        self.assertNotIn('"WEIGHTS_UI_DESIGN.md"', spec)
+        self.assertNotIn('"QT_UI.md"', spec)
         self.assertFalse((ROOT / "docs" / "QT_UI_PREVIEW.md").exists())
         self.assertNotIn("QT_UI_PREVIEW.md", readme)
         self.assertNotIn("QT_UI_PREVIEW.md", spec)

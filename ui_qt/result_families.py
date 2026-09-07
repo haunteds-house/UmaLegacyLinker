@@ -20,7 +20,7 @@ cards had grown.
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Any, Callable
+from typing import Any
 
 from uma_legacy_linker.output_history import OutputProvenance
 
@@ -340,15 +340,3 @@ def local_kind_for_family(family: str) -> str:
 
 def online_mode_for_family(family: str) -> str:
     return "parent" if family == ONLINE_PARENT else "grandparent"
-
-
-def run_callable(
-    family: str,
-    start_local: Callable[[str], None],
-    start_online: Callable[..., None],
-) -> Callable[[], None]:
-    if family in LOCAL_FAMILIES:
-        kind = local_kind_for_family(family)
-        return lambda: start_local(kind)
-    mode = online_mode_for_family(family)
-    return lambda: start_online(mode)

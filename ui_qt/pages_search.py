@@ -656,9 +656,11 @@ class SearchPage(QWidget):
     def _summary_avatar(self, card_id: int) -> QPixmap:
         """Return a cached circular avatar, reserving its slot while loading."""
 
+        placeholder = QPixmap(SUMMARY_AVATAR_SIZE, SUMMARY_AVATAR_SIZE)
+        placeholder.fill(Qt.GlobalColor.transparent)
         url = trainee_image_url(card_id)
         if not url:
-            return QPixmap()
+            return placeholder
         self._summary_image_urls.add(url)
         source = self._image_repository.pixmap(url)
         if source is not None:
@@ -666,8 +668,6 @@ class SearchPage(QWidget):
 
         # Keep the text aligned while the async repository fetches the image;
         # the image_ready signal refreshes the summary once the portrait lands.
-        placeholder = QPixmap(SUMMARY_AVATAR_SIZE, SUMMARY_AVATAR_SIZE)
-        placeholder.fill(Qt.GlobalColor.transparent)
         return placeholder
 
     def _summary_profile_icons(self, profile: dict[str, str]) -> tuple[QPixmap, ...]:
@@ -710,31 +710,31 @@ class SearchPage(QWidget):
 
         objective_rows: list[SummaryVisualRow] = []
         objective_lines: list[str] = []
-        if ace_id:
-            text = (
-                f"{t('Ace visé')}: "
-                + self._compact_ace_summary(ace_id, self.ace_combo.currentText())
-            )
-            objective_lines.append(text)
-            objective_rows.append(SummaryVisualRow(text, (self._summary_avatar(ace_id),)))
-        if target_id:
-            text = (
-                f"{t('Parent à produire')}: "
-                + self._compact_ace_summary(
-                    target_id, self.target_combo.currentText()
-                )
-            )
-            objective_lines.append(text)
-            objective_rows.append(SummaryVisualRow(text, (self._summary_avatar(target_id),)))
+
+        ace_text = (
+            self._compact_ace_summary(ace_id, self.ace_combo.currentText())
+            if ace_id
+            else "—"
+        )
+        text = f"{t('Ace visé')}: {ace_text}"
+        objective_lines.append(text)
+        objective_rows.append(SummaryVisualRow(text, (self._summary_avatar(ace_id),)))
+
+        target_text = (
+            self._compact_ace_summary(target_id, self.target_combo.currentText())
+            if target_id
+            else "—"
+        )
+        text = f"{t('Parent à produire')}: {target_text}"
+        objective_lines.append(text)
+        objective_rows.append(SummaryVisualRow(text, (self._summary_avatar(target_id),)))
+
         results_text = f"{t('Résultats')}: {state.top_n}"
         objective_lines.append(results_text)
         objective_rows.append(SummaryVisualRow(results_text))
-        if ace_id:
-            self.section_objective.set_visual_summary(
-                objective_rows, plain_text="\n".join(objective_lines)
-            )
-        else:
-            self.section_objective.set_summary(t("Aucun Ace sélectionné"))
+        self.section_objective.set_visual_summary(
+            objective_rows, plain_text="\n".join(objective_lines)
+        )
 
         profile_text = f"{t('Profil')}: {profile_summary(profile, self.context.language)}"
         race_text = f"{t('Course')}: {self.race_editor.current_course_label()}"

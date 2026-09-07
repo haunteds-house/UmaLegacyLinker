@@ -6,16 +6,21 @@ from PyInstaller.utils.hooks import copy_metadata
 project_root = Path.cwd()
 resources_dir = project_root / "resources"
 data_files = [
+    (str(project_root / "LICENSE"), "."),
     (str(resources_dir / "default_course_overrides.json"), "resources"),
     (str(resources_dir / "default_manual_adjustments.json"), "resources"),
     (str(resources_dir / "default_parent_scoring.json"), "resources"),
     (str(resources_dir / "default_skill_priorities.json"), "resources"),
     (str(project_root / "docs" / "THIRD_PARTY.md"), "docs"),
-    (str(project_root / "docs" / "QT_UI.md"), "docs"),
-    (str(project_root / "docs" / "WEIGHTS_UI_DESIGN.md"), "docs"),
 ]
 for icon_file in sorted((resources_dir / "icons").glob("*.svg")):
     data_files.append((str(icon_file), "resources/icons"))
+branding_dir = resources_dir / "branding"
+windows_icon = branding_dir / "app.ico"
+for filename in ("app.ico", "app.png"):
+    branding_file = branding_dir / filename
+    if branding_file.is_file():
+        data_files.append((str(branding_file), "resources/branding"))
 for distribution in ("PySide6", "PySide6_Essentials", "shiboken6"):
     try:
         data_files += copy_metadata(distribution)
@@ -46,7 +51,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -54,6 +59,7 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     version=str(project_root / "windows_version_info_qt.txt"),
+    icon=str(windows_icon) if windows_icon.is_file() else None,
 )
 
 coll = COLLECT(
@@ -61,7 +67,7 @@ coll = COLLECT(
     a.binaries,
     a.datas,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     name="UmaLegacyLinkerQt",
 )

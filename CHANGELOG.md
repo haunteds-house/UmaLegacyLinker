@@ -4,158 +4,61 @@ This project uses feature-level semantic versioning. Small internal iterations a
 
 ## Unreleased
 
-- Generic grandparent searches now screen with a calendar/objective-aware G1
-  estimate, rescore the top 2X with the exact Standard planner, then hydrate
-  the final X with Standard/Trackblazer diagnostics. E2 exports only the exact
-  final top; `ULL_G1_RANKING=exact` retains exhaustive exact scoring and CSV.
-  Contextual searches with a fixed opposing parent remain exact.
+## 1.9.0 - Desktop hardening and faster lineage searches
 
-## 1.8.1 - Desktop hardening, diagnostics and repository cleanup
+### Added
 
-- Moved the Qt-free application services and scoring engines into the
-  `uma_legacy_linker` package while keeping `qt_app.py` and `cli.py` as stable
-  root entry points. Bundled default profiles and SVG icons now live under
-  `resources/`, with one source/frozen-path contract shared by the application,
-  tests and PyInstaller build.
-- Reworked the repository landing documentation around the actual user journey:
-  Windows download and checksum verification, first launch, data linking, the
-  five Search result families, Transfer Helper safety and the verified project
-  layout now appear before contributor details. Moved the operational depth to
-  a dedicated user guide, while release-version commands remain in the release
-  checklist so the README cannot advertise a stale tag.
-- Kept the five Search result-family tabs fixed in place instead of exposing horizontal tab scrolling. The bar now expands the five families evenly across the available width, preserving the clearer tab styling while avoiding scroll arrows/overflow behaviour that looked like a layout bug.
-- Replaced Search result-family status glyphs with Qt-painted status icons so Windows font fallback can no longer turn them into broken symbols. The result-family bar now has a dedicated tab treatment with visible inactive surfaces, hover feedback and a stronger selected state, making the five persistent result views read as tabs rather than loose labels.
-- Simplified the shared race context by removing manual Right/Left selection. Rotation is now derived from the selected MDB racecourse/course layout (`race_course_set.turn`), with ambiguous or straight-only layouts left unspecified; the derived value still reaches scoring and remains visible in the collapsed condition summary. Search result tables now reuse the existing async GameTora portrait cache and show 32 px trainee avatars beside local/remote parent, grandparent and future-candidate names.
-- Increased the entire Search context visual set after live readability review: trainee portraits now render at 32 px in selectors and 36 px in collapsed summaries, while weather, season and running-style badges render at 24 px in controls and 26 px in summaries.
-- Refined the remaining Search context badges against the in-game selectors: weather now uses the outlined sun/cloud/umbrella/snowman silhouettes, season uses the coloured `Spr`/`Sum`/`Fall`/`Wint` discs, and both badge families are larger in the compact rail. Search trainee portraits were increased again to 28 px in selectors and 32 px in collapsed summaries so character identity remains visible at a glance.
-- Refined the Search shared-context visuals after live review: collapsed summaries now prioritise larger trainee portraits and larger in-game-style running-style badges for readability, while the non-canonical Turf/Dirt badges were removed from both the summaries and the shared profile controls. Weather and season badges remain because they map cleanly to the game’s own visual language.
-- Added fixed-palette Turf/Dirt, weather, season and running-style badges to
-  the shared lineage controls. These domain icons preserve their own colours
-  instead of being theme-tinted; ground condition remains text-only because no
-  matching in-game visual convention is available. The same badges now remain
-  visible in collapsed Shared context summaries instead of disappearing with
-  the controls.
-- Added cached GameTora trainee portraits to the Search rail's Target Ace and
-  Parent-to-produce selectors and to their collapsed Shared context rows. The
-  existing async image repository is reused, tall standing art is top-biased
-  into a compact circular face avatar, and the summary refreshes when an async
-  portrait download completes.
-- Restored the complete Windows release quality gate after the UI audit stack:
-  semantic Spark labels are reflected in the rich-text contracts, all current
-  expert labels have explicit English coverage, lazy pages are constructed
-  before narrow-layout assertions, icon-only tool buttons no longer generate
-  false text-overflow failures, and the JSON re-ranking action fits beside the
-  expanded Search context rail.
-- Added explicit side-by-side comparison without changing any stored score or
-  verdict. Search can compare any two candidates from its active result family;
-  Search and Transfer Helper can compare stable identities across the current
-  and previous retained runs; Transfer Helper can compare a selected veteran
-  with each complete retained replacement/coverage record. Both sides preserve
-  their original diagnostics and provenance, while a shared table reports the
-  numeric `right - left` deltas. Cross-family and unidentifiable before/after
-  matches are rejected rather than guessed.
-- Exposed the retained output history in Search and Transfer Helper. Their
-  History menus now list the current run and the single predecessor already
-  maintained by `uma_legacy_linker/output_history.py`; loading either generation records its
-  exact file, generation time, schema, source and available input SHA-256
-  fingerprints in a visible provenance badge and tooltip. This is navigation
-  to one prior state only, not side-by-side result comparison, and does not
-  change scoring or output retention.
-- Isolated local lineage optimisation, uma.moe pairing and Transfer Helper
-  analysis in one spawned backend process per run. Qt remains in the GUI
-  process while a lightweight pool thread supervises typed IPC for logs,
-  progress, results, errors and cancellation; ordinary data/extractor I/O
-  keeps the existing thread worker. The boundary is spawn-safe for the frozen
-  Windows build and does not alter scoring or result order.
-- Fixed the PySide6 6.8 OpenType-tag binding used by tabular numerals. Passing
-  the raw `"tnum"` string raised during lazy page construction, making Search
-  and Transfer navigation appear inert and crashing the Weights page; the
-  helper now supplies the required strongly typed `QFont.Tag`.
-- Replaced iteration-count yielding in local and uma.moe parent-pair searches
-  with one shared 10 ms monotonic checkpoint. The same deadline now reaches
-  branch evaluation, Blue/Pink/White/Race/Unique scoring hot loops and G1
-  planning, so the engine regularly reaches its external scheduling or
-  cancellation callback without sleeping in every iteration. Ranking formulas,
-  scores and result ordering are unchanged.
-- Replaced the Unicode glyphs used as icons in primary navigation, the Search
-  context-rail toggle and the lineage inspector's affinity tag with vendored,
-  theme-tinted Lucide SVGs. Those glyphs depended on the host's font-fallback
-  chain and could render as an unrelated character (observed as a bare "j") when
-  the active UI font lacked them.
-- Removed the Umalator v2 batch importer from the desktop Settings page. The
-  scoring engine has not used Umalator since V9 (manual White Skill priorities
-  drive ranking instead); the CLI diagnostic path (`--umalator-batch`) and the
-  underlying `simulator_weights` engine are unaffected. The Settings page now
-  covers uma.moe integration only.
-- Unified Qt stylesheets, painted canvases and rich-text diagnostics on one
-  named point-size scale derived from a 10 pt base. Removed the 5 px layout
-  workaround from contribution bars, eliminated hard-coded rich-text font
-  families and raised every painted label to the 8 pt readability floor. This
-  establishes the shared typography substrate required by the upcoming
-  lineage and calendar zoom work.
-- Added independent 75–200% zoom to the lineage tree and G1 calendar, with
-  visible controls, Ctrl+wheel, Ctrl+0 and per-view persistence. Pointer hit
-  testing now follows transformed canvas coordinates, fractional Windows DPI
-  scaling is preserved explicitly, and race banners remain capped at their
-  native bitmap resolution at every zoom level.
-- Kept lineage Spark hover targets at the WCAG 2.2 minimum of 24 rendered
-  pixels throughout the 75–200% zoom range. Sub-100% views now enlarge the
-  chip's logical row just enough to preserve one non-overlapping tooltip target;
-  the skill icon remains decorative inside that target.
-- Standardised local-veteran identity as `Card name · evaluation score` in
-  selectors, ranking tables, diagnostics and Transfer Helper exports. Internal
-  training IDs remain available as technical keys and table tooltips, but are
-  hidden by default and no longer promoted as search terms. Portfolio coverage
-  now carries the score, rank and Spark summary needed to render that identity.
-- Rebuilt the Transfer Helper detail as a verifiable decision record: parent
-  and future-grandparent verdict evidence now includes competitive/evaluated
-  contexts, distinct profiles and elite counts; every Spark is compared against
-  the strict replacement or retained portfolio; protected heritage stays
-  visible even when preserved; and all replacement aggregates, stats and
-  lineage fields are rendered. The detail pane now honours the documented
-  520 px readability floor.
-- Added Transfer Helper score deltas for every viable parent and future-GP
-  context. Strict verdicts compare the candidate with their single retained
-  replacement; collective recommendations compare it with the best retained
-  copy independently in each context, so local regressions remain visible
-  without inventing a universal replacement. JSON format 5 carries the full
-  rows and extrema, while CSV, text summaries and the Qt diagnostic expose the
-  corresponding aggregates and tightest/most-favourable profiles. Scoring,
-  thresholds, portfolio selection and verdicts are unchanged.
-- Extended freshness and display-state handling beyond the Search result tabs.
-  Transfer Helper now labels reports as empty, running, current, loaded or
-  stale, shows their generation time and invalidates them when an effective
-  scope, data or scoring input changes. Expert disclosure sections, active
-  result family, detail visibility, splitter positions, table sorting, column
-  order/width and optional columns are restored across sessions; result-table
-  headers expose a right-click column chooser. Display preferences use their
-  own `ui_*` keys and do not alter scoring configuration.
-- Enabled the OpenType tabular-numeral feature on Transfer Helper, local and
-  uma.moe result tables, and the numeric curve editor. Columns now keep every
-  digit on the same advance for vertical comparison without replacing the
-  application typeface with a monospace font or changing stored values.
-- Reduced the default Transfer Helper table to its eight operational columns;
-  grandparent rank, reference count and technical ID remain available from the
-  persisted header menu. Mixed `top x%` rank labels now sort by their underlying
-  numeric percentile instead of lexicographically. The i18n release check also
-  rejects orphaned exact and fragment entries and exits non-zero on any issue.
-- Made every backend error actionable at the UI and CLI boundaries. Precise
-  engine diagnostics and Qt tracebacks remain available, while the visible
-  message now adds one recovery step tailored to network/API, linked-data,
-  file, configuration or empty-search failures. Messages that already tell the
-  user what to do are left unchanged.
-- Raised structural and Spark-chip boundaries to the WCAG 2.2 non-text
-  contrast floor of 3:1, while keeping text contrast unchanged. Every Spark
-  chip now carries an explicit semantic label instead of relying on hue, and
-  keyboard focus is styled for checkboxes, tabs, tables, detail browsers and
-  sliders. Dedicated non-Qt tests guard the contrast and labelling contracts.
-- Replaced tooltip-based accessibility-name guessing with explicit bilingual
-  Qt names, descriptions and label buddies for semantic controls, composite
-  path pickers, result tables, diagnostics, weight editors and dense lineage
-  views. Dynamic names now follow language, result family and selected weight;
-  a Windows Qt smoke test verifies the runtime accessibility tree.
+- License project-owned material under GPL-3.0-only and include the licence text
+  in the Windows bundle.
+- Side-by-side candidate and current/previous-run comparisons with original
+  diagnostics, provenance and numeric deltas.
+- Navigation to the retained predecessor of Search and Transfer Helper outputs.
+- Independent lineage/calendar zoom, persisted expert views and table state,
+  cached trainee portraits and painted domain/status icons.
+- Application artwork for source and Windows builds, with a multiresolution
+  Windows ICO and a transparent 512 px PNG fallback in `resources/branding/`.
+
+### Changed
+
+- Isolate CPU-heavy desktop operations in a spawned backend, with typed IPC,
+  cooperative cancellation and bounded termination. Pair searches can use an
+  ordered spawn pool with up to four workers automatically.
+- Prepare reusable numeric inputs, cache curves/G1 transitions per search and
+  defer detailed diagnostics to retained candidates, preserving canonical
+  accumulation order and exact-mode ranking semantics.
+- Screen generic GP pairs with the E2 G1 estimate, rescore up to twice the
+  requested result count with the exact Standard planner, and build complete
+  Standard/Trackblazer details only for finalists. Export exact finalist rows
+  in JSON and CSV; retain exhaustive ranking/all-pairs CSV through
+  `ULL_G1_RANKING=exact`. Global top recall is not guaranteed by screening.
+  Fixed-opposing-parent GP searches remain exact.
+- Group Qt-free services/engines under `uma_legacy_linker/` and bundled profiles
+  and icons under `resources/`, keeping `cli.py` and `qt_app.py` stable.
+- Expand Transfer Helper replacement and portfolio evidence, per-context score
+  deltas, source identity and protected-Spark diagnostics.
+- Improve linked-data freshness, extractor guidance, shared Search context,
+  numeric typography, accessibility, bilingual errors and weight editing.
+- Consolidate technical documentation into architecture, scoring, configuration,
+  release and third-party contracts. Refresh the README with demonstrations and
+  setup instructions. Remove superseded design/performance notes and
+  unused request-discovery/UI helpers and the obsolete Transfer classifier.
+  Migrate its safety regressions to production portfolio classification.
+- Keep Umalator as a CLI diagnostic; remove its unused desktop import control.
+- Package the Windows executable and its bundled binaries without UPX
+  compression. The download is larger and the shipped binaries keep their
+  original bytes.
+
+### Fixed
+
+- Correct the PySide6 6.8 OpenType-tag call that could break lazy page creation.
+- Replace font-dependent navigation glyphs with bundled SVG icons.
+- Parent the Search conditions reset button before making it visible, preventing
+  a temporary top-level window during page construction.
+- Translate the exact G1 reranking progress message in English.
 
 ## 1.8.0 - Search workspace redesign and uma.moe retrieval overhaul
+
+Published as a GitHub prerelease under tag `v1.8.0`; no stable 1.8.0 was published.
 
 - The desktop launcher (`run.bat`) no longer leaves a blank console window open behind the app for the whole session; it now starts through the windowed Python interpreter when one is available.
 - The weight editor's mode_weights rows for the final-pair score keep their own wording instead of silently falling back to the shorter label `course_conditions` overrides use for the same field names.

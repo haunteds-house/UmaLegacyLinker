@@ -7,7 +7,12 @@ import unittest
 from pathlib import Path
 
 from uma_legacy_linker.spark_protection import build_spark_heritage, compare_spark_heritage
-from uma_legacy_linker.transfer_helper import DominanceAccumulator, classify_transfer_records
+from uma_legacy_linker.transfer_helper import (
+    DominanceAccumulator,
+    _select_portfolio,
+    _strict_retained_replacement,
+    classify_portfolio_records,
+)
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
@@ -251,7 +256,7 @@ class SparkProtectionTests(unittest.TestCase):
             [signal["reason_code"] for signal in nimble["protection_signals"]],
         )
 
-    def test_classification_keeps_dominator_but_applies_protection_floor(self) -> None:
+    def test_strict_replacement_rejects_degraded_protected_heritage(self) -> None:
         candidate_heritage = self.heritage(
             veteran(
                 whites=[("Nimble Navigator", 3)],
@@ -287,21 +292,95 @@ class SparkProtectionTests(unittest.TestCase):
             minimum_delta=4.0,
             maximum_delta=4.0,
         )
-        classify_transfer_records(
+        replacement = _strict_retained_replacement(
+            0, {1}, records, {(0, 1): relation},
+            dominance_mean_margin=1.0, spark_protection_config=self.protection,
+        )
+        self.assertIsNone(replacement)
+
+    def _classified_verdict(self, candidate_whites: list[tuple[str, int]]) -> dict:
+        """Run production selection/classification for one outclassed candidate."""
+
+        def record(trained_id: int, heritage: dict, score: float, utility: float) -> dict:
+            return {
+                "trained_chara_id": trained_id,
+                "card_name": f"Card {trained_id}",
+                "uma_name": "Test Uma",
+                "sparks": {},
+                "_spark_heritage": heritage,
+                "_parent_profiles": [
+                    {
+                        "score": score,
+                        "percentile": 10.0,
+                        "utility": utility,
+                        "course_key": "course_a",
+                        "context_key": "course_a",
+                    }
+                ],
+                "_grandparent_profiles": [],
+            }
+
+        records = [
+            record(
+                1,
+                self.heritage(
+                    veteran(
+                        whites=candidate_whites,
+                        gp1=member(whites=[("Nimble Navigator", 2)]),
+                    )
+                ),
+                40.0,
+                0.50,
+            ),
+            record(
+                2,
+                self.heritage(veteran(gp1=member(whites=[("Nimble Navigator", 2)]))),
+                80.0,
+                0.95,
+            ),
+        ]
+        groups = {"fixture": [0, 1]}
+        veterans = [{"factors": {"by_type": {}}} for _ in records]
+        relation = DominanceAccumulator(
+            parent_sum_delta=40.0,
+            parent_count=1,
+            minimum_delta=40.0,
+            maximum_delta=40.0,
+        )
+        selected, requirements = _select_portfolio(
+            groups,
             records,
-            {(0, 1): relation},
-            elite_utility_floor=0.92,
-            competitive_utility_floor=0.82,
+            veterans,
             competitive_score_floor=67.5,
+            competitive_utility_floor=0.82,
             minimum_absolute_floor_ratio=0.80,
-            minimum_competitive_contexts=3,
-            minimum_distinct_profiles=2,
+            regret_tolerance=2.5,
+            spark_protection_config=self.protection,
+        )
+        classify_portfolio_records(
+            records,
+            groups,
+            selected,
+            requirements,
+            {(0, 1): relation},
             dominance_mean_margin=1.0,
             spark_protection_config=self.protection,
         )
-        self.assertEqual(records[0]["status"], "likely_keep")
-        self.assertEqual(records[0]["dominated_by"]["trained_chara_id"], 2)
-        self.assertTrue(records[0]["spark_protection"]["applied"])
+        return records[0]
+
+    def test_protected_white_keeps_an_outclassed_veteran_out_of_transfers(self) -> None:
+        # A veteran outclassed on every scored context is still retained when it
+        # is the only holder of a protected direct White. The paired control
+        # below keeps this from passing for an unrelated reason.
+        protected = self._classified_verdict([("Nimble Navigator", 3)])
+        self.assertEqual(protected["status"], "keep")
+        self.assertEqual(protected["reason_code"], "required_by_collection_portfolio")
+        self.assertIsNone(protected["dominated_by"])
+
+        unprotected = self._classified_verdict([])
+        self.assertEqual(unprotected["status"], "safe_transfer")
+        self.assertEqual(unprotected["reason_code"], "strictly_dominated_same_card")
+        self.assertEqual(unprotected["dominated_by"]["trained_chara_id"], 2)
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 
 from tests.check_i18n import FRENCH_MARKERS
 from uma_legacy_linker.i18n import EXACT_EN, scoring_label, translate_text
+from uma_legacy_linker.output_history import read_json_output_revision
 from uma_legacy_linker.parent_optimizer import OptimizerError
 from uma_legacy_linker.scoring_config import iter_leaf_paths, read_json_object
 from uma_legacy_linker.application import (
@@ -20,7 +21,6 @@ from uma_legacy_linker.application import (
     TransferRequest,
     VeteranOption,
     collection_size,
-    load_rankings_payload,
     materialize_skill_priorities,
     run_online_search,
     run_link,
@@ -389,8 +389,8 @@ class QtUiCoreTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "ranking.json"
             path.write_text("[]", encoding="utf-8")
-            with self.assertRaisesRegex(OptimizerError, "objet JSON"):
-                load_rankings_payload(path)
+            with self.assertRaisesRegex(ValueError, "objet JSON"):
+                read_json_output_revision(path)
 
     def test_result_diagnostic_escapes_names_and_keeps_score(self) -> None:
         row = {

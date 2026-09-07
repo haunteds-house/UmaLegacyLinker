@@ -10,7 +10,6 @@ from uma_legacy_linker.transfer_helper import (
     _select_portfolio,
     _update_group_dominance_for_scores,
     classify_portfolio_records,
-    classify_transfer_records,
     comparison_group_key,
 )
 
@@ -40,6 +39,29 @@ def test_role_evidence_keeps_verdict_denominators() -> None:
     assert evidence["evaluated_context_count"] == 6
     assert evidence["evaluated_distinct_profile_count"] == 3
 
+
+def classify_fixture_portfolio(records, relations, **options):
+    """Run production selection/classification for one same-costume fixture."""
+    for record in records:
+        for role in ("parent", "grandparent"):
+            for profile in record.get(f"_{role}_profiles", []):
+                profile.setdefault("context_key", profile.get("course_key", "fixture"))
+    groups = {"fixture": list(range(len(records)))}
+    veterans = [{"factors": {"by_type": {}}} for _ in records]
+    protection = options.get("spark_protection_config", {})
+    selected, requirements = _select_portfolio(
+        groups, records, veterans,
+        competitive_score_floor=options["competitive_score_floor"],
+        competitive_utility_floor=options["competitive_utility_floor"],
+        minimum_absolute_floor_ratio=options["minimum_absolute_floor_ratio"],
+        regret_tolerance=2.5,
+        spark_protection_config=protection,
+    )
+    classify_portfolio_records(
+        records, groups, selected, requirements, relations,
+        dominance_mean_margin=options["dominance_mean_margin"],
+        spark_protection_config=protection,
+    )
 
 class TransferHelperClassificationTests(unittest.TestCase):
     @staticmethod
@@ -94,15 +116,12 @@ class TransferHelperClassificationTests(unittest.TestCase):
             parent_count=4,
             grandparent_count=4,
         )
-        classify_transfer_records(
+        classify_fixture_portfolio(
             records,
             {(0, 1): relation, (1, 0): reverse},
-            elite_utility_floor=0.92,
             competitive_utility_floor=0.82,
             competitive_score_floor=67.5,
             minimum_absolute_floor_ratio=0.80,
-            minimum_competitive_contexts=3,
-            minimum_distinct_profiles=2,
             dominance_mean_margin=1.0,
         )
         self.assertEqual(records[0]["status"], "safe_transfer")
@@ -125,15 +144,12 @@ class TransferHelperClassificationTests(unittest.TestCase):
         relation.update_parent(70.0, 75.0, 0.75, context)
         relation.update_grandparent(72.0, 77.0, 0.75, context)
 
-        classify_transfer_records(
+        classify_fixture_portfolio(
             records,
             {(0, 1): relation},
-            elite_utility_floor=0.92,
             competitive_utility_floor=0.82,
             competitive_score_floor=67.5,
             minimum_absolute_floor_ratio=0.80,
-            minimum_competitive_contexts=3,
-            minimum_distinct_profiles=2,
             dominance_mean_margin=1.0,
         )
 
@@ -164,19 +180,16 @@ class TransferHelperClassificationTests(unittest.TestCase):
                 maximum_delta=mean_delta + 1,
             )
 
-        classify_transfer_records(
+        classify_fixture_portfolio(
             records,
             {
                 (0, 1): relation(3.0, 0.5),
                 (0, 2): relation(7.0, 2.0),
                 (1, 2): relation(4.0, 1.0),
             },
-            elite_utility_floor=0.92,
             competitive_utility_floor=0.82,
             competitive_score_floor=67.5,
             minimum_absolute_floor_ratio=0.80,
-            minimum_competitive_contexts=3,
-            minimum_distinct_profiles=2,
             dominance_mean_margin=1.0,
         )
         self.assertEqual(records[0]["dominated_by"]["trained_chara_id"], 3)
@@ -186,38 +199,33 @@ class TransferHelperClassificationTests(unittest.TestCase):
 
     def test_bad_parent_but_good_grandparent_is_kept(self) -> None:
         records = [
-            self.record(1, parent_score=20, gp_score=82, parent_percentile=90, gp_percentile=4)
+            self.record(1, parent_score=20, gp_score=82, parent_percentile=90, gp_percentile=4),
+            self.record(2, parent_score=90, gp_score=20, parent_percentile=2, gp_percentile=95),
         ]
-        classify_transfer_records(
+        classify_fixture_portfolio(
             records,
             {},
-            elite_utility_floor=0.92,
             competitive_utility_floor=0.82,
             competitive_score_floor=67.5,
             minimum_absolute_floor_ratio=0.80,
-            minimum_competitive_contexts=3,
-            minimum_distinct_profiles=2,
             dominance_mean_margin=1.0,
         )
         self.assertEqual(records[0]["status"], "keep")
-        self.assertEqual(records[0]["reason_code"], "strong_grandparent_value")
+        self.assertEqual(records[0]["reason_code"], "required_by_collection_portfolio")
 
-    def test_low_ceiling_without_replacement_is_review_only(self) -> None:
+    def test_low_ceiling_last_copy_is_retained_by_identity(self) -> None:
         records = [
             self.record(1, parent_score=35, gp_score=42, parent_percentile=70, gp_percentile=65)
         ]
-        classify_transfer_records(
+        classify_fixture_portfolio(
             records,
             {},
-            elite_utility_floor=0.92,
             competitive_utility_floor=0.82,
             competitive_score_floor=67.5,
             minimum_absolute_floor_ratio=0.80,
-            minimum_competitive_contexts=3,
-            minimum_distinct_profiles=2,
             dominance_mean_margin=1.0,
         )
-        self.assertEqual(records[0]["status"], "review")
+        self.assertEqual(records[0]["status"], "keep")
         self.assertIsNone(records[0]["dominated_by"])
 
 
@@ -300,43 +308,34 @@ class TransferHelperGlobalViabilityTests(unittest.TestCase):
             minimum_delta=8.0,
             maximum_delta=8.0,
         )
-        classify_transfer_records(
+        classify_fixture_portfolio(
             records,
             {(0, 1): relation},
-            elite_utility_floor=0.92,
             competitive_utility_floor=0.82,
             competitive_score_floor=67.5,
             minimum_absolute_floor_ratio=0.80,
-            minimum_competitive_contexts=3,
-            minimum_distinct_profiles=2,
             dominance_mean_margin=1.0,
         )
         self.assertEqual(records[0]["status"], "safe_transfer")
         self.assertEqual(records[0]["dominated_by"]["trained_chara_id"], 2)
 
 
-    def test_single_narrow_niche_is_only_likely_keep(self) -> None:
+    def test_single_narrow_niche_is_preserved_by_portfolio(self) -> None:
         record = TransferHelperClassificationTests.record(1, parent_score=68, gp_score=40, parent_percentile=12, gp_percentile=80)
         record["_parent_profiles"] = [
             {"score": 68, "percentile": 12, "utility": 0.84, "course_key": "course_a"},
             {"score": 40, "percentile": 60, "utility": 0.55, "course_key": "course_b"},
         ]
         record["_grandparent_profiles"] = []
-        classify_transfer_records(
+        classify_fixture_portfolio(
             [record],
             {},
-            elite_utility_floor=0.92,
             competitive_utility_floor=0.82,
             competitive_score_floor=67.5,
             minimum_absolute_floor_ratio=0.80,
-            minimum_competitive_contexts=3,
-            minimum_distinct_profiles=2,
             dominance_mean_margin=1.0,
         )
-        self.assertEqual(record["status"], "likely_keep")
-
-
-
+        self.assertEqual(record["status"], "keep")
 
 
 class TransferHelperSparkSnapshotTests(unittest.TestCase):

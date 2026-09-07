@@ -1,770 +1,583 @@
-# Modèle de score — état courant
+# Scoring contract
 
-La source de vérité est `resources/default_parent_scoring.json` pour les pondérations et les courbes,
-et `resources/default_skill_priorities.json` pour la valeur des white skills par profil. Ce document
-décrit le modèle fourni par défaut ; toutes les valeurs restent modifiables sans toucher au
-code. Le schéma complet et les règles de fusion des overrides individuels sont documentés
-dans [`SKILL_PRIORITIES.md`](SKILL_PRIORITIES.md). L'historique des évolutions est dans
-`CHANGELOG.md`.
+This document describes how UmaLegacyLinker ranks inheritance candidates. It is a contract for maintainers and for anyone interpreting the exported diagnostics; it is not a claim that the game exposes these scores.
 
-## Personnalisation dans l'application
+The code and the resolved JSON profiles are authoritative:
 
-L'onglet **Pondérations** expose les composantes globales, les blues, le modèle d'aptitudes
-roses, les whites, les courbes d'affinité, les conditions de course, la génération de genes,
-le classement uma.moe et le Transfer Helper.
+- `uma_legacy_linker/parent_optimizer.py` implements local parent branches, final parent pairs, and individual future-grandparent scoring;
+- `uma_legacy_linker/uma_moe.py` normalizes remote candidates, plans retrieval, and ranks remote parent or grandparent pairs;
+- `uma_legacy_linker/g1_race_planning.py` builds G1 schedules and applies the Independent Training cutoff;
+- `uma_legacy_linker/transfer_helper.py` reuses the scoring primitives to evaluate a collection;
+- `resources/default_parent_scoring.json` defines structural weights, curves, and thresholds;
+- `resources/default_skill_priorities.json` and its resolved override define contextual White Skill priorities.
 
-Les réglages utilisateur sont enregistrés comme un diff récursif par rapport à
-`resources/default_parent_scoring.json`, puis fusionnés avec le profil courant à chaque calcul. Une mise
-à jour qui ajoute de nouveaux paramètres reste donc compatible avec un ancien profil. Les
-anciens profils contenant `mode_weights.parent_final` sont automatiquement répartis entre
-`parent_branch` et `parent_pair`; les anciennes heuristiques roses V31 sont ignorées au profit
-du modèle V32.
+See [Scoring configuration](SCORING_CONFIGURATION.md) for profile merging, validation, generated catalogs, and the deprecated Umalator diagnostic.
 
-Les poids d'une même formule sont normalisés par le moteur : ils peuvent être exprimés en
-fractions, pourcentages ou proportions arbitraires, sans obligation de totaliser 1 ou 100.
-Les profils effectifs sont copiés dans le dossier de sortie sous les noms
-`active_parent_scoring.json` et `active_skill_priorities.json`.
+## 1. Scope and terminology
 
-## Pondérations par mode
+Four different concepts must remain separate:
 
-### Branche parent
+| Concept               | Meaning                                                                                                   |
+|-----------------------|-----------------------------------------------------------------------------------------------------------|
+| Initial aptitude gain | Deterministic rank gain from the total matching Pink Spark stars at the start of a run                    |
+| Spark proc            | One inheritance roll from an existing Pink, White, Race, or Scenario Spark during an Inspiration Event    |
+| `P(A)` / `P(S)`       | Probability of accumulating enough Pink procs to reach the corresponding aptitude rank during the Ace run |
+| Spark generation      | Chance that a newly trained veteran receives a new Spark; this is not an inheritance-proc probability     |
 
-| Composante | Poids |
-|---|---:|
-| White skills | 47 % |
-| Aptitude de distance | 22 % |
-| Aptitude du terrain cible | 7 % |
-| Aptitude de style | 3 % |
-| Unique verte | 9 % |
-| Blues | 8 % |
-| Race Sparks | 4 % |
+The application ranks contextual utility. A score is meaningful only for the Ace, surface, distance, style, course conditions, and resolved profiles with which it was computed. Scores from unrelated contexts are not calibrated performance predictions.
 
-Une branche est une moitié de solution. Elle n'est pas éliminée parce qu'elle manque de
-distance : l'autre branche peut compenser. Son affinité globale est calculée et affichée comme
-diagnostic, mais n'est plus une composante additive du score parent.
+The model uses four evaluation contexts:
 
-### Paire de parents finale
+| Context            |                                                        Visible factors | Purpose                                             |
+|--------------------|-----------------------------------------------------------------------:|-----------------------------------------------------|
+| Parent branch      |                                       Parent plus its two grandparents | Rank one half of a future final pair                |
+| Final parent pair  |                               Two parents plus their four grandparents | Rank the complete lineage used by the Ace           |
+| Future grandparent | Candidate's own factors; its current lineage only for White generation | Rank material used to produce a future parent       |
+| Transfer Helper    |         Repeated branch and future-GP evaluations across many profiles | Preserve a useful same-costume collection portfolio |
 
-| Composante | Poids |
-|---|---:|
-| White skills | 35 % |
-| Aptitude de distance | 29 % |
-| Aptitude du terrain cible | 5 % |
-| Aptitude de style | 2 % |
-| Blues | 20 % |
-| Unique verte | 5 % |
-| Race Sparks | 4 % |
+Only a complete final parent pair receives a final Distance viability verdict. A branch can be complementary, and a future GP represents only one of six eventual lineage members.
 
-Le tri est lexicographique : le statut de distance est évalué avant le score pondéré. Une
-paire qui commence la run à Distance A est donc toujours prioritaire sur une paire Distance B
-non compensée, même si cette dernière possède davantage de whites.
+## 2. Shared score mechanics
 
-À statut distance identique, le terrain vérifie ensuite son minimum configuré, B par défaut.
-Les départs B et A restent dans le même palier : le **score pondéré global** les départage et
-une très bonne lignée peut donc compenser B face à A. Un départ sous B est classé derrière les
-paires qui atteignent ce minimum, mais même un excellent terrain ne peut jamais rattraper un
-statut de distance inférieur. La préférence A est aussi intégrée au score via la composante
-terrain ; elle n'est pas un gate supplémentaire.
+### 2.1 Weighted totals
 
-Le score pondéré reste prioritaire sur la probabilité brute de S. `P(S)` est déjà intégrée au
-score via une courbe saturante ; elle ne doit donc pas écraser de bien meilleures whites ou
-blues pour un écart marginal proche du plafond pratique.
+Component weights are normalized inside every formula:
 
-La recherche uma.moe ne dépend plus d'un unique échantillon principalement ordonné par les
-préférences White. Le même plafond de 2 000 records est partagé entre trois cohortes
-configurables : distance, terrain cible et recherche large/Whites. Pour une aptitude terrain F
-visant B, le besoin final est 10★ ; la cohorte terrain demande par défaut au moins 5★ sur la
-branche distante afin de rechercher des moitiés de paire plausibles sans imposer ce seuil au
-classement final. Les résultats sont fusionnés et dédupliqués.
-
-La cohorte Surface peut être désactivée pour une recherche depuis l'onglet uma.moe, ou par le
-réglage `uma_moe_parent_search.retrieval.surface_cohort_enabled` du profil actif. Cela ne coupe
-jamais la composante de score Surface : seule la réservation d'appels API Dirt/Turf disparaît.
-En mode paire manuelle, le plan soustrait aussi les Sparks du parent local verrouillé avant de
-créer les cohortes. Si cette branche suffit déjà à démarrer en A, aucune cohorte Surface n'est
-émise et une éventuelle ancienne contrainte stricte Surface sur le Main distant est ignorée.
-
-Avant le produit cartésien local × distant, des places sont également réservées aux branches
-riches en distance et en terrain. Cette présélection diversifiée évite qu'une branche nécessaire
-à la combinaison finale disparaisse simplement parce que son score White individuel est moins
-élevé. Sous le minimum terrain, le score mesure maintenant la progression en étoiles vers B et
-la probabilité d'atteindre B par Inspiration ; 0★ et 7★ ne partagent donc plus artificiellement
-le même plancher.
-
-L'affinité globale ◎/〇/△ n'est pas pondérée. Les liens utiles sont déjà intégrés directement
-dans les probabilités de proc des aptitudes roses.
-
-### Futur grand-parent
-
-| Composante | Poids |
-|---|---:|
-| Génération white (`white_generation`) | 21 % |
-| Affinité de la future branche | 15 % |
-| Pink propre | 25 % |
-| White skills propres | 13 % |
-| Blue propre | 13 % |
-| Potentiel de G1 | 11 % |
-| Unique verte propre | 2 % |
-
-Un futur GP n'est qu'un des six membres de la future lignée. Une mauvaise rose y est donc
-pénalisante sans devenir rédhibitoire. Le score reprend le modèle simple historique : qualité
-des étoiles et pertinence distance/terrain/style, sans calcul de rang initial, de proc ou de
-`P(S)`. Le futur autre parent et la branche finale ne sont pas encore connus.
-
-### Paires GP1 + GP2 via uma.moe
-
-La recherche en ligne utilise exactement `mode_weights.future_grandparent`, comme la recherche
-locale et le Transfer Helper. Il n'existe plus de seconde table de poids propre à uma.moe.
-
-Pour une paire de GP, les mêmes composantes sont adaptées au contexte :
-
-- `affinity` mesure la base exacte `pair(Ace,parent) + triple(...,GP1) + triple(...,GP2)` ;
-- `g1_potential` mesure le bonus G1 réalisable relativement au budget de courses prévu ;
-- pinks, blues, whites et uniques portent uniquement sur GP1/GP2 ;
-- `white_generation` porte sur leurs lignées actuelles, qui servent à fabriquer le parent.
-
-La compatibilité complète du run de fabrication reste calculée, mais uniquement comme diagnostic
-et départage secondaire. Elle n'est pas une composante cachée du score.
-
-### Parent opposé fixé — score marginal exact
-
-La recherche GP accepte optionnellement une branche de parent opposée complète, locale ou importée.
-Dans ce mode, le modèle heuristique précédent ne classe plus les paires finales : l'application
-construit le parent à produire avec GP1 + GP2, laisse ses propres Sparks encore inconnues vides,
-puis appelle `evaluate_parent_pair(Ace, parent projeté, parent opposé)`.
-
-Le score recalcule donc sur les six membres visibles :
-
-- les rangs initiaux et `P(A)` / `P(S)` des aptitudes ;
-- les probabilités cumulées des whites, avec rendement décroissant des doublons ;
-- les blues, les Scenario Sparks intégrées aux blues, les uniques et les Race Sparks ;
-- les six coefficients individuels d'affinité ;
-- les cinq liens G1 de la paire finale.
-
-Le parent à produire n'existant pas encore, son historique G1 est projeté dans la limite du budget
-configuré : les courses communes à deux ou trois membres visibles sont choisies d'abord, puis une
-part configurable des courses à lien unique. Cette hypothèse est exposée dans les diagnostics.
-Les parents actuels de GP1/GP2 restent exclus de la lignée finale et ne servent qu'au diagnostic
-`white_generation` de la run intermédiaire.
-
-Avant le scoring final, l'échantillonnage API soustrait les étoiles déjà apportées par le parent
-opposé. Avec un GP local verrouillé, ses propres Sparks sont également soustraites, mais jamais
-celles de ses parents, qui sont hors de la lignée finale. Le budget d'une dimension déjà couverte
-est réalloué principalement à la Distance, puis à la recherche large. Les whites déjà présentes
-sont seulement dépriorisées dans l'UQL/API ; elles ne sont jamais blacklistées et conservent leur
-valeur probabiliste exacte au classement final.
-
-## Blues
-
-Le socle Blue reste volontairement simple. Pour les six facteurs Blue garantis, le score combine :
-
-```text
-qualité du nombre d'étoiles × pertinence de la stat pour la distance
+``` text
+weighted_score =
+    sum(component_score[k] * max(0, weight[k]))
+    / sum(max(0, weight[k]))
 ```
 
-Puis ce score est rapproché d'une valeur neutre selon l'importance des blues sur la distance :
+Changing all weights by the same factor has no effect. Components absent from the selected mode do not contribute, even if they are computed for diagnostics.
 
-```text
-score final = 50 + influence_distance × (score brut - 50)
+Piecewise curves use linear interpolation between configured points and hold their first or last value outside the defined interval.
+
+Several components use exponential saturation:
+
+``` text
+saturating_score(raw, scale) = 100 * (1 - exp(-raw / scale))
 ```
 
-Influence fournie : Sprint `0,45`, Mile `0,65`, Medium `0,90`, Long `1,00`.
-Les mauvaises blues différencient donc peu les lignées en Sprint/Mile, où la statline visée
-est généralement plus facile à atteindre, mais restent nettement plus structurantes en
-Medium/Long.
+### 2.2 Default structural weights
 
-Préférences fournies :
+These defaults explain the relative structure of the shipped profile. Exact values belong in `resources/default_parent_scoring.json`.
 
-| Distance | Speed | Stamina | Power | Guts | Wit |
-|---|---:|---:|---:|---:|---:|
-| Sprint | 0,65 | 0,05 | 1,00 | 0,35 | 0,45 |
-| Mile | 0,65 | 0,25 | 1,00 | 0,40 | 0,50 |
-| Medium | 0,65 | 1,00 | 0,80 | 0,45 | 0,50 |
-| Long | 0,65 | 1,00 | 0,75 | 0,45 | 0,50 |
+| Component                | Parent branch | Final pair |        Future GP |
+|--------------------------|--------------:|-----------:|-----------------:|
+| Distance                 |           22% |        29% | included in Pink |
+| Target surface           |            7% |         5% | included in Pink |
+| Running style            |            3% |         2% | included in Pink |
+| Pink (combined)          |             — |          — |              25% |
+| White skills             |           47% |        35% |              13% |
+| Blue stats               |            8% |        20% |              13% |
+| Race Spark stat value    |            4% |         4% |                — |
+| Unique                   |            9% |         5% |               2% |
+| Future-branch affinity   |             — |          — |              15% |
+| G1 potential             |             — |          — |              11% |
+| White generation support |             — |          — |              21% |
 
-Barème fourni :
+The parent and final-pair affinity scores are diagnostic. Their component mappings do not include `affinity`; proc estimates instead use the individual affinity of each carrier.
 
-- 1★ : 0,12 — mauvais, à compenser ;
-- 2★ : 0,78 — acceptable ;
-- 3★ : 1,00 — meilleur, sans être obligatoire.
+## 3. Compatibility and individual inheritance affinity
 
-Aucun calcul d'affinité individuel ni multiplicateur parent/GP n'est appliqué aux Blue Sparks
-elles-mêmes. Leur fort taux de transmission ne justifie pas cette complexité.
+The project uses the modern compatibility model:
 
-### Bonus attendu des Scenario Sparks
+- only shared G1 wins contribute race compatibility;
+- every shared G1 adds `+3` per visible lineage link;
+- G2, G3, and titles do not contribute;
+- the parent-to-parent link is included in a complete final pair;
+- base compatibility for a character repeated as its own grandparent is zero.
 
-Les Scenario Sparks ne reçoivent plus une valeur générique indépendante de leurs effets. Elles
-sont ajoutées comme bonus au numérateur Blue, sans créer de slot supplémentaire :
+For Ace `A`, parents `P1` and `P2`, and `P1`'s grandparents `G11` and `G12`, the coefficient used for factors carried by `P1` is:
 
-```text
-p_par_événement = taux_3/6/9 % × (1 + affinité_individuelle / 100)
-nombre_attendu_de_procs = 2 × p_par_événement
-bonus_scénario = qualité_blue(étoiles) × somme(pertinence des stats données)
-                 × nombre_attendu_de_procs × équivalent_blue_par_proc
-```
-
-`équivalent_blue_par_proc` vaut `1,0` par défaut : un proc est assimilé à une Blue Spark du
-même rang pour chacune des stats données. Ce choix représente la forte récompense d'un proc
-(10, 20 ou 30 points par stat, avec une distribution favorisée par les étoiles) sans inventer
-une distribution exacte non connue. Contrairement à un diviseur fixe, le rendement attendu
-augmente avec l'affinité réelle du porteur et tient compte des deux Inspiration Events.
-
-Les effets sont lus dans `succession_factor_effect` depuis le `master.mdb`. L'identité d'un
-Scenario Spark repose sur `factor_group_id`, puis `factor_id`, et jamais sur le seul nom normalisé :
-des variantes comme `Racing Spirit PWR` et `Racing Spirit PWR+` restent donc distinctes. Les anciens exports
-restent compatibles grâce aux quatre noms Global connus :
-
-| Scenario Spark | Stats données |
-|---|---|
-| URA Finale | Speed + Stamina |
-| Unity Cup | Power + Wit |
-| Climax Scenario | Stamina + Guts |
-| Our Grand Concert / Grand Live | Speed + Guts |
-
-Comme il s'agit d'un bonus en plus des six slots Blue, la composante Blue peut volontairement
-dépasser 100. Une lignée de six Blues 3★ parfaites reste à 100 au score brut avant Scenario Sparks ; un ou
-plusieurs facteurs scénario pertinents représentent alors un high roll supplémentaire. Cette
-contribution s'applique aussi au classement heuristique des futurs GP, avec leur affinité
-disponible ou une estimation conservatrice lorsqu'elle est inconnue.
-
-## Modèle probabiliste des aptitudes roses
-
-Le même moteur est utilisé pour la distance, le terrain et le style. Son interprétation est
-cependant beaucoup plus stricte pour la distance.
-
-### Rang au début de la run
-
-Les étoiles correspondant à l'aptitude ciblée donnent :
-
-| Étoiles cumulées | Rangs gagnés au départ |
-|---:|---:|
-| 0 | +0 |
-| 1–3 | +1 |
-| 4–6 | +2 |
-| 7–9 | +3 |
-| 10+ | +4 |
-
-Le rang initial est plafonné à A. Exemple pour une aptitude naturelle C :
-
-- 3★ donnent B au départ ;
-- 4★ donnent A au départ.
-
-### Affinités individuelles modernes
-
-Le symbole global ◎/〇/△ est seulement diagnostique. Le moteur calcule un coefficient propre
-à chacun des six porteurs, avec le système moderne `modern_g1` : G1 uniquement, +3 par G1
-commune, lien parent↔parent inclus, aucun G2/G3 ni titre.
-
-Pour le parent `P1`, ses GP `G11/G12`, l'autre parent `P2` et l'Ace `A` :
-
-```text
-inheritance_affinity(P1) =
+``` text
+affinity(P1) =
     pair(A, P1)
   + pair(P1, P2)
   + triple(A, P1, G11)
   + triple(A, P1, G12)
-  + 3 × G1(P1, P2)
-  + 3 × G1(P1, G11)
-  + 3 × G1(P1, G12)
+  + 3 * G1(P1, P2)
+  + 3 * G1(P1, G11)
+  + 3 * G1(P1, G12)
 ```
 
-Pour `G11` :
+For `G11`:
 
-```text
-inheritance_affinity(G11) =
+``` text
+affinity(G11) =
     triple(A, P1, G11)
-  + 3 × G1(P1, G11)
+  + 3 * G1(P1, G11)
 ```
 
-Les formules symétriques s'appliquent à l'autre branche. Les parents directs ont naturellement
-une meilleure transmission parce que leur affinité individuelle cumule davantage de liens.
-Le [guide Parenting/Gene de Crazyfellow](https://docs.google.com/document/d/1Q3IJKbtkplmuY-PAJMNjYiLtasv0eU0aIBEqp8_C3tg/edit?tab=t.0),
-référence communautaire normative retenue par le projet, rapporte ainsi des taux GP
-approximativement deux fois plus faibles, mais l'attribue explicitement au calcul de compatibilité
-GP de moindre poids : aucun second multiplicateur fixe parent/GP n'est ajouté aux probabilités.
+The other branch is symmetric. Parent factors tend to transmit better because their carrier has more compatibility links; the probability-aware Pink, White, and Scenario models do not apply an additional fixed parent-versus-grandparent multiplier.
 
-### Probabilité de proc
+An isolated parent branch omits the unknown parent-to-parent terms from its parent coefficient. The final-pair evaluator recomputes all six coefficients rather than adding two branch scores.
 
-Chaque facteur rose correspondant effectue un roll indépendant lors des deux Inspiration
-Events. Les taux de base fournis sont :
+The displayed overall `◎/〇/△` compatibility is explanatory. It must not be substituted for the six carrier-specific coefficients.
 
-| Étoiles | Taux de base par événement |
-|---:|---:|
-| 1★ | 1 % |
-| 2★ | 3 % |
-| 3★ | 5 % |
+## 4. Blue and Scenario Sparks
 
-Pour chaque porteur :
+### 4.1 Guaranteed Blue factors
 
-```text
-p/événement = taux de base × (1 + affinité individuelle / 100)
+For each evaluated lineage member, the Blue contribution is:
+
+``` text
+blue_factor = star_quality(stars) * stat_relevance(stat, distance)
 ```
 
-Cette probabilité alimente directement la distribution exacte des procs et donc `P(A)`/`P(S)`.
-Les étoiles roses utilisées pour le rang initial restent déterministes.
+The shipped star qualities are `0.12`, `0.78`, and `1.00` for 1★, 2★, and 3★. Stat relevance and the final distance influence are profile data.
 
-```text
-p_i = base_rate(stars) × (1 + inheritance_affinity(i) / 100)
+### 4.2 Scenario expected value
+
+Scenario Sparks are Blue bonuses rather than extra Blue slots. For carrier `i`:
+
+``` text
+p_event(i) =
+    min(probability_cap,
+        scenario_base_rate(stars) * (1 + affinity(i) / 100))
+
+expected_procs(i) = inspiration_event_count * p_event(i)
+
+scenario_contribution(i) =
+    blue_star_quality(stars)
+  * sum(stat_relevance(granted_stat, distance))
+  * expected_procs(i)
+  * blue_equivalent_per_proc
 ```
 
-Le moteur calcule ensuite exactement la distribution de Poisson binomiale sur les deux
-événements afin d'obtenir `P(N≥1)`, `P(N≥2)`, etc. Un proc est traité comme exactement un rang.
-Les rares montées de deux rangs sont volontairement ignorées.
+The stat targets come from `succession_factor_effect` in the current `master.mdb`. Known Global-era names provide a compatibility fallback for older linked exports. Identity prefers `factor_group_id`, then `factor_id`, so similarly named variants are not collapsed.
 
-### Résultat exporté
+### 4.3 Final Blue score
 
-Pour chaque aptitude, les JSON détaillent notamment :
+``` text
+uncompressed_blue =
+    100 * (sum(blue_factor) + sum(scenario_contribution))
+    / evaluated_lineage_slots
 
-- aptitude naturelle et aptitude au début de la run ;
-- étoiles totales et nombre de porteurs ;
-- procs nécessaires pour atteindre A et S ;
-- `probability_reach_a` et `probability_reach_s` ;
-- coefficient d'affinité et probabilité de proc de chaque facteur ;
-- distribution complète du nombre de procs.
-
-## Distance : contrainte de viabilité
-
-La distance est prioritaire parce qu'un Ace vise normalement Distance S.
-
-### Départ à A
-
-- A est garanti dès le début ;
-- un proc suffit pour S ;
-- `P(S) = P(N≥1)`.
-
-Le score de distance fourni est :
-
-```text
-70 + 30 × utilité(P(S))
+blue_score =
+    max(0,
+        neutral_score
+      + distance_influence * (uncompressed_blue - neutral_score))
 ```
 
-La courbe par défaut traduit les repères pratiques suivants :
+The neutral score is 50 by default. Shorter-distance profiles compress differences toward that neutral value; Medium and Long retain more of the raw difference. Scenario bonuses can intentionally raise the component above 100.
 
-| `P(S)` | Utilité |
-|---:|---:|
-| 15 % | 10/100 |
-| 25 % | 30/100 |
-| 40 % | 70/100 |
-| 50 % | 90/100 |
-| 60 % | 100/100 |
+Distance-B compensation uses `uncompressed_blue`, not the distance-compressed `blue_score`, because that gate asks whether the lineage's intrinsic Blue quality is exceptional.
 
-Le gain 40→50 % reste significatif ; le gain 50→60 % est volontairement plus faible. Au-delà
-de 60 %, aucune valeur additionnelle n'est accordée par défaut. La courbe complète est
-modifiable via `aptitude_inheritance.distance.s_probability_curve`.
+## 5. Pink aptitude inheritance
 
-Une lignée A sans aucun facteur de distance reçoit cependant le statut `no_s_support` et un
-score de distance nul : A seul reste jouable, mais ne correspond pas à l'objectif d'un Ace.
+### 5.1 Initial rank
 
-### Départ à B
+Matching Pink stars are summed independently for surface, distance, and style:
 
-- un proc est nécessaire pour atteindre A ;
-- deux procs sont nécessaires pour atteindre S ;
-- `P(A+) = P(N≥1)` ;
-- `P(S) = P(N≥2)`.
+| Matching stars | Initial gain |
+|---------------:|-------------:|
+|              0 |     +0 ranks |
+|            1–3 |      +1 rank |
+|            4–6 |     +2 ranks |
+|            7–9 |     +3 ranks |
+|            10+ |     +4 ranks |
 
-Le score brut est :
+The initial rank is capped at A. A natural F aptitude can therefore reach B with 10★ but cannot start at A.
 
-```text
-20 + 45 × P(A+) + 35 × utilité(P(S))
+### 5.2 Proc distribution
+
+Every matching factor rolls independently at each configured Inspiration Event. With the shipped two-event model:
+
+``` text
+p_event(i) =
+    min(1,
+        pink_base_rate(stars_i) * (1 + affinity(i) / 100))
 ```
 
-Un départ à B n'est recommandé que si les quatre conditions suivantes sont simultanément
-remplies :
+The shipped base rates are 1%, 3%, and 5% for 1★, 2★, and 3★. The engine builds the exact Poisson-binomial distribution over all factor/event rolls, then derives `P(N >= k)`, `P(A)`, `P(S)`, and the probability of reaching configured minimum and preferred ranks. One proc is modeled as exactly one rank; rare multi-rank procs are deliberately ignored.
 
-| Condition de compensation | Défaut |
-|---|---:|
-| `P(A+)` minimale | 55 % |
-| `P(S)` minimale | 15 % |
-| score white minimal | 85/100 |
-| score blue minimal | 75/100 |
+These rates, their linear affinity multiplier, and independence are configurable model assumptions, not official measured probabilities.
 
-Il reçoit alors le statut `distance_b_compensated`. Sinon il reste
-`distance_b_uncompensated` et est classé derrière toutes les paires prêtes pour S.
+### 5.3 Final-pair Distance score and viability
 
-### Départ à C ou moins
+Let `U(P(S))` be the configured, saturating piecewise utility expressed from 0 to 1. The shipped pair formulas are:
 
-Le statut est `underprepared`. La paire reste exportée pour diagnostic, mais elle n'entre pas
-dans les recommandations normales, même si une succession de procs pourrait théoriquement
-la sauver.
-
-### Ordre de classement
-
-Les paires sont triées selon :
-
-```text
-1. statut de viabilité distance
-2. minimum de terrain atteint ou non
-3. score pondéré global
-4. score white
-5. score blue
-6. probabilité brute d'atteindre le rang terrain préféré, comme départage
-7. probabilité brute d'atteindre S, comme dernier départage
+``` text
+starts at A:  distance_score = 70 + 30 * U(P(S))
+starts at B:  distance_score = 20 + 45 * P(A) + 35 * U(P(S))
+below B:      distance_score = 0
 ```
 
-Statuts de paire finale :
+A pair that starts at A but has no chance of S receives a zero Distance score.
 
-- `ready_for_s` : départ à A avec au moins une chance de S ;
-- `distance_b_compensated` : départ à B, mais pinks + whites + blues exceptionnels ;
-- `distance_b_uncompensated` : départ à B insuffisamment compensé ;
-- `no_s_support` : départ à A mais aucun support de S ;
-- `underprepared` : départ à C ou moins.
+Distance viability is a separate lexicographic tier:
 
-## Terrain et style
+| Priority | Status                     | Condition                                      |
+|---------:|----------------------------|------------------------------------------------|
+|        4 | `ready_for_s`              | Starts at A and `P(S) > 0`                     |
+|        3 | `distance_b_compensated`   | Starts at B and passes all compensation checks |
+|        1 | `distance_b_uncompensated` | Starts at B but fails at least one check       |
+|        0 | `no_s_support`             | Starts at A with no chance of S                |
+|        0 | `underprepared`            | Starts below B                                 |
 
-Terrain et style utilisent les mêmes étoiles, affinités individuelles et probabilités, mais
-avec une exigence moindre.
+The shipped compensation thresholds are `P(A) >= 55%`, `P(S) >= 15%`, White score `>= 85`, and uncompressed Blue score `>= 75`. All four checks are required.
 
-### Terrain
+### 5.4 Surface and style
 
-- politique fournie : B minimum (`minimum_initial_rank = 6`), A préféré
-  (`preferred_initial_rank = 7`) ;
-- départ A : `80 + 20 × P(S)` ;
-- départ B : `55 + 30 × P(A+) + 15 × P(S)` ;
-- sous B : faible score résiduel et statut `surface_below_minimum` ;
-- départ B : statut toléré `surface_minimum_met` ;
-- départ A : statut idéal `surface_preferred_met`.
+For a final pair, target surface uses a configurable initial minimum and preference: B is the shipped minimum, while A is preferred.
 
-Le minimum est un gate secondaire appliqué après la distance. La préférence A reste souple :
-un terrain B peut passer devant un terrain A si ses autres Sparks sont assez meilleures. Les
-rangs minimum/préféré, les bases, les poids de probabilité et le poids global de la composante
-sont tous modifiables dans le profil.
-
-### Style
-
-- départ A : `90 + 10 × P(S)` ;
-- départ B : `70 + 25 × P(A+) + 5 × P(S)` ;
-- sous B : faible score résiduel, sans gate de viabilité.
-
-Le score brut rose conserve sa répartition diagnostique distance/terrain/style. Pour le
-classement parent, les trois axes sont toutefois exposés séparément sous `distance_s`,
-`surface_aptitude` et `pink_other` (style seulement). Terrain/style ne peuvent jamais compenser
-un statut de distance inférieur, car le tri de viabilité distance intervient avant le minimum
-terrain et le score additif.
-
-## Branches incomplètes et futurs GP
-
-Une branche seule ne connaît pas encore l'autre parent. Son coefficient parent est donc
-partiel : le lien parent↔parent et leurs G1 communes seront ajoutés lors du calcul final sur
-six membres. Les coefficients des deux GP de la branche sont déjà complets.
-
-La branche reçoit un diagnostic non bloquant (`deficit`, `light`, `balanced`,
-`distance_carrier`) et conserve le modèle probabiliste partiel, car ses trois membres seront
-directement visibles dans la run finale de l'Ace.
-
-Le futur GP utilise au contraire un score heuristique simple. Il ne reçoit aucun statut de
-viabilité distance et aucune probabilité de S : sa rose, sa blue et ses whites propres sont
-seulement jugées acceptables ou utiles à l'échelle d'un membre sur six.
-
-## White skills
-
-Les skills héritables peuvent provenir d’une white Skill Spark directe ou d’une Race Spark qui accorde cette même skill. Les taux communautaires de base sont :
-
-```text
-White Skill Spark : 1★ = 3 %, 2★ = 6 %, 3★ = 9 %
-Race Spark       : 1★ = 1 %, 2★ = 2 %, 3★ = 3 %
+``` text
+starts at A:  surface_score = 80 + 20 * P(S)
+starts at B:  surface_score = 55 + 30 * P(A) + 15 * P(S)
+below B:      10 + 45 * readiness_to_B
+                   + 25 * P(B) + 15 * P(A) + 5 * P(S)
 ```
 
-Pour chaque source portée par un membre :
+Starting at or above B receives the same surface sort priority. A is a weighted preference, not another gate. Progress below B remains visible so that 0★ and a lineage close to B do not receive the same component score.
 
-```text
-p/événement = taux de base × (1 + affinité individuelle / 100)
+Style has no lexicographic gate. Its shipped pair formula is:
+
+``` text
+starts at A:  style_score = 90 + 10 * P(S)
+starts at B:  style_score = 70 + 25 * P(A) + 5 * P(S)
+below B:      style_score = 10 + 30 * P(A) + 5 * P(S)
 ```
 
-Le moteur applique les deux Inspiration Events. Une white directe et une Race Spark accordant la même skill sont regroupées sans multiplicateur artificiel : la Race Spark vaut naturellement moins car son taux de base est inférieur. Lorsque plusieurs sources donnent la même skill, leurs rolls sont combinés en une seule probabilité d'obtenir la skill au moins une fois :
+### 5.5 Parent-branch Pink score
 
-```text
-P(skill) = 1 − produit(1 − p_i)²
-utilité(skill) = courbe_distincte(P(skill))
-contribution = priorité du skill × utilité(skill)
+A branch does not pretend that its three members form a complete lineage. For each Pink dimension it combines:
+
+- star readiness relative to the stars needed to start at A, or relative to the best legal +4-rank target when A is unreachable;
+- probability of at least one proc relative to a configured reference.
+
+The shipped branch mix is 60% star readiness and 40% proc readiness, with 40% as the full-proc reference. Branches also receive a non-blocking Distance label: `deficit`, `light`, `balanced`, or `distance_carrier`.
+
+## 6. White Skill inheritance
+
+The active priority for a skill comes from the resolved contextual White profile. A priority of zero contributes nothing. Course-static Greens can be set to zero, floored, or overridden before inheritance scoring as described in section 9.
+
+For each source:
+
+| Source                         |  1★ |  2★ |  3★ |
+|--------------------------------|----:|----:|----:|
+| Direct White Skill Spark       |  3% |  6% |  9% |
+| Race Spark granting that skill |  1% |  2% |  3% |
+
+``` text
+p_event(source) =
+    min(probability_cap,
+        base_rate(type, stars) * (1 + affinity(carrier) / 100))
 ```
 
-Cette agrégation évite de surévaluer plusieurs copies. Une copie parent à forte affinité peut
-valoir davantage que plusieurs copies GP dont l'affinité individuelle est plus faible.
-Les copies identiques augmentent uniquement la probabilité de leur skill commune. Elles ne créent
-pas plusieurs entrées de diversité.
+All direct and Race-Spark sources granting the same skill are grouped:
 
-La courbe `distinct_skill_probability_curve` applique ensuite deux principes :
+``` text
+P(skill inherited at least once) =
+    1 - product((1 - p_event(source)) ^ event_count)
 
-- une probabilité très faible, autour de 5–10 %, apporte peu ;
-- les rendements diminuent lorsque la même skill approche déjà 60–80 %.
+raw_white =
+    sum(skill_priority * distinct_skill_utility(P(skill)))
 
-Avec les valeurs par défaut, trois skills utiles à 20 % chacune produisent davantage de valeur
-qu'une seule skill à 80 %, même si la somme brute des probabilités est inférieure. Le modèle vise
-ainsi le meilleur potentiel de high roll sur plusieurs runs plutôt que la seule régularité d'un
-facteur déjà très concentré.
-
-Les contributions par skill sont enfin saturées globalement :
-
-```text
-score = 100 × (1 − exp(−somme / échelle))
+white_score =
+    100 * (1 - exp(-raw_white / mode_saturation))
 ```
 
-Les taux, la courbe de diversité, le nombre d'événements et les échelles restent configurables via
-`white_inheritance` et `white_saturation`.
+The distinct-skill curve suppresses very low probabilities and saturates repeated coverage. Duplicate factors increase the probability of one skill; they do not create additional diversity entries. Consequently, several useful skills with meaningful probabilities can outrank one heavily duplicated skill.
 
-### Différence entre recherche de parent et recherche de GP
+Race Sparks need no arbitrary discount when they grant a relevant skill: their lower base rates already provide it. Their generic stat value is scored separately.
 
-**Parent ou paire finale**
+## 7. Race Sparks and Uniques
 
-Les six membres visibles de la lignée participent directement aux Inspiration Events de
-l’Ace. Le score white combine donc les probabilités des deux parents et de leurs quatre GP,
-avec leurs six affinités individuelles exactes.
+For parent branches and final pairs, the `race_scenario` component now contains only the small generic stat value of Race Sparks:
 
-**Futur GP**
+``` text
+raw_race =
+    sum(base_per_star_quality
+        * generic_star_quality(stars)
+        * position_weight)
 
-Le candidat restera un GP visible dans la lignée finale, mais le reste de cette lignée n'est
-pas encore suffisamment défini pour produire une estimation de proc utile. Ses propres whites sont donc évaluées simplement selon la priorité du skill, les étoiles et son rôle de GP. Une Race Spark accordant une skill utile reçoit la même valeur heuristique multipliée par le ratio `taux_race / taux_white` à étoiles égales — un tiers avec les taux par défaut. Aucune affinité individuelle, probabilité par événement ou probabilité cumulée n'est calculée.
-
-Les parents actuels du candidat ne seront plus visibles dans la lignée de l’Ace. Leurs whites
-ne sont donc jamais ajoutées au score d’héritage direct. Elles interviennent uniquement dans
-`white_generation`, qui estime leur soutien à la création d’une white Spark sur le futur parent.
-
-La compatibilité de la run intermédiaire qui fabrique ce parent est conservée séparément ;
-elle ne remplace pas l’affinité finale du GP pour valoriser ses propres factors.
-
-## Génération white (`white_generation`)
-
-Pour un futur grand-parent, ses propres white Sparks et celles de ses deux parents actuels
-comptent comme support de génération du futur parent :
-
-```text
-bonus_lignée = nombre_de_membres_avec_le_gene × 0,025
-contribution = priorité_du_skill × bonus_lignée
+race_score = saturating_score(raw_race, mode_scale)
 ```
 
-Pas de distinction blanche/◎/gold, pas d'estimation de chance de base, pas de bonus
-d'étoiles. Race et scenario Sparks exclues. Le score agrégé passe par la même saturation.
+The shipped `base_per_star_quality` is `0.025`. A Race Spark's granted skill is scored in the White component, and Scenario Sparks are scored in Blue; neither is double-counted here. The legacy component name is retained for output compatibility.
 
-## Affinité globale et potentiel G1
+Unique scoring is intentionally simple:
 
-La compatibilité globale moderne reste calculée pour l'explication des résultats et pour les
-modes où la lignée finale n'existe pas encore. Elle utilise les groupes de relation communs,
-les triples Ace-parent-GP, le lien parent-parent et +3 par G1 commune sur les cinq liens
-visibles.
-
-Pour une paire finale ou une branche parent, ce total global n'est plus pondéré dans le score :
-les coefficients individuels sont déjà utilisés dans les probabilités roses et whites. Pour un
-futur GP et la recherche de fabrication uma.moe, l'affinité/potentiel G1 conserve une pondération
-distincte et n'est jamais convertie en pourcentage de proc.
-
-Un grand-parent identique à l'Ace apporte 0 en compatibilité de base, afin d'éviter qu'une
-intersection du personnage avec lui-même crée un faux maximum, mais conserve ses factors
-transmissibles.
-
-## Green skills et conditions de course
-
-Sur les conditions sélectionnées (hippodrome, rotation, saison, météo, terrain) :
-
-- incompatibilité explicite → poids 0 ;
-- correspondance explicite → activation avec un plancher configurable
-  (`course_conditions.floors`) ;
-- condition non renseignée → poids générique conservé.
-
-Hiérarchie fournie : saison forte (0,65) ; gauche (0,52) > droite (0,32), car plus rare à
-obtenir ; hippodrome modéré (0,26) ; météo/terrain petits bonus (0,12–0,14).
-
-## Race Sparks
-
-Valeur statistique générique volontairement faible (`0,025` par palier de qualité d'étoiles).
-Lorsqu'une Race Spark donne une skill utile, cette skill rejoint aussi le moteur probabiliste des whites :
-taux de base `1/2/3 %` selon les étoiles, contre `3/6/9 %` pour une White Skill Spark directe.
-Les deux sources sont fusionnées si elles donnent la même skill. Il n'existe plus de multiplicateur
-arbitraire `granted_skill_multiplier`.
-
-Les Scenario Sparks ne participent plus à cette composante : leur valeur statistique attendue est
-calculée dans les Blues comme décrit plus haut.
-
-## Recherche uma.moe
-
-Pour un Ace `A`, un parent à produire `P`, un GP1 et un GP2 :
-
-```text
-base = pair(A, P) + triple(A, P, GP1) + triple(A, P, GP2)
+``` text
+unique_score =
+    min(100,
+        100 * sum(unique_star_quality(stars) * position_weight)
+        / evaluated_lineage_slots)
 ```
 
-Les propres parents de GP1/GP2 sont exclus de cette base : ils servent pendant le run de
-fabrication de `P` mais ne figurent plus dans la future lignée visible de l'Ace.
+The shipped position weights are 1.0 for a parent and 0.5 for a grandparent. There is currently no course-aware Unique relevance table. Required, allowed, and excluded parent costumes are selection constraints outside this generic component.
 
-Le futur parent n'existant pas encore, un budget configurable de G1 (24 par défaut) borne le
-bonus. Chaque G1 commune à GP1 et GP2 vaut `+6` lorsqu'elle est réalisable ; une G1 d'un seul
-côté vaut `+3`. Il n'existe plus de pondération linéaire des G1 unilatérales.
+## 8. Final parent-pair ranking
 
-La faisabilité utilise le modèle d'**Independent Training**. Pour chaque course, le moteur combine
-l'aptitude Distance et l'aptitude Turf/Dirt initiales du futur parent. Celles-ci partent des
-aptitudes naturelles du costume sélectionné et incluent les gains initiaux produits par les Pink
-Sparks des six membres visibles de la lignée GP1 + GP2. Le style de course est ignoré.
+Local-local and local-remote final pairs call the same `evaluate_parent_pair(...)` function. Missing imported lineage remains subject to the normalizer and evaluator fallbacks; it must not be described as a complete known lineage.
 
-Une G1 conserve toute sa valeur si sa chance de victoire effective atteint le cutoff configurable
-`future_grandparent_heuristics.g1_win_probability_cutoff` (`60 %` par défaut), sinon elle vaut
-zéro. La chance effective soustrait la pénalité de série : `−10` points à la 3e course
-consécutive, `−25` à la 4e, `−35` à la 5e et `−50` à partir de la 6e. Le solveur peut déplacer
-une course entre Classic et Senior ou espacer le planning pour rester au-dessus du cutoff.
+Pairs are ordered descending by:
 
-```text
-potentiel final de la branche = base + bonus G1 prévu
+1.  Distance viability priority;
+2.  whether the initial target-surface rank reaches the configured minimum;
+3.  normalized weighted score;
+4.  White score;
+5.  Blue score;
+6.  probability of reaching the preferred surface rank;
+7.  raw Distance `P(S)`.
+
+The weighted score precedes raw `P(S)` because the Distance component already maps that probability through a diminishing-return curve. A small change near the practical ceiling must not override a substantially better White or Blue lineage.
+
+Starting at Surface A does not create a higher sort tier than starting at the configured minimum B. Conversely, no amount of weighted quality can overtake a higher Distance viability tier.
+
+Parent branches are ranked by weighted score, then total diagnostic affinity. Branch scores are useful for preselection, not additive substitutes for final-pair evaluation.
+
+## 9. Contextual skill priorities
+
+Before White scoring, the engine resolves a skill priority for the selected surface, distance, style, and optional course:
+
+- the course-specific profile is used when present; otherwise the generic matrix is used;
+- a statically incompatible course condition sets the priority to zero;
+- a matching static condition applies the configured `floor` or `override`;
+- an unresolved condition preserves the profile priority;
+- dynamic race conditions that cannot be determined from the selected course remain manual profile judgments.
+
+Static categories currently include season, rotation, track, weather, ground condition, and time. This mechanism contextualizes the priority; it does not prove that a skill will activate in every race state.
+
+## 10. Future-grandparent scoring
+
+### 10.1 Simple factor model
+
+Without a fixed opposing final parent, future-GP scoring deliberately remains heuristic. It does not compute a final initial rank, inheritance proc distribution, or `P(S)`.
+
+For a single local future-GP candidate:
+
+- `pink` scores only its matching direct Pink factor using star quality, dimension relevance, and whether the Ace naturally starts below A;
+- `white_skill` scores direct useful White factors by priority, configured star quality, and GP position; a Race Spark granting a skill uses the Race/White base-rate ratio;
+- `blue` scores its own Blue and expected Scenario value;
+- `unique` scores its own Unique;
+- `affinity` uses the exact `triple(Ace, target parent, candidate)` contribution plus `pair(Ace, target parent)` when a target parent is known, or `pair(Ace, candidate)` as a fallback;
+- `g1_potential` maps the candidate's number of distinct G1 wins through the configured threshold curve;
+- `white_generation` evaluates the candidate and its two current parents.
+
+For a generic GP1+GP2 search, direct-factor components use only GP1 and GP2. Their current parents are not part of the future Ace lineage and contribute only to `white_generation` and production-run diagnostics.
+
+### 10.2 White-generation support
+
+`white_generation` is a relative production heuristic:
+
+``` text
+lineage_bonus(skill) =
+    bonus_per_lineage_copy
+  * min(number_of_current_lineage_members_with_direct_white(skill),
+        maximum_copies)
+
+raw_generation =
+    sum(skill_priority * lineage_bonus(skill))
+
+white_generation_score =
+    100 * (1 - exp(-raw_generation / generation_scale))
 ```
 
-L'autre parent final de l'Ace n'étant pas connu, son lien avec `P` n'est pas inclus. La
-compatibilité complète du run de fabrication reste calculée comme diagnostic non pondéré. Sa valeur
-de départage équilibre les deux modificateurs individuels de GP au lieu de réutiliser un total global
-qui saturait presque toujours.
+The shipped bonus is 0.025 per carrier. It excludes Race and Scenario Sparks and ignores learned basic/◎/gold forms and the base generation chance. It must not be presented as an absolute chance of generating a Spark.
 
-Le mode de recherche d'un parent distant final utilise, lui, exactement le moteur à six
-membres décrit plus haut : aptitude initiale, six coefficients individuels et probabilités
-A/S incluses.
+### 10.3 Planned G1 potential
 
-Les contraintes pink cochées (terrain cible, distance, style et minimum d'étoiles) sont
-strictes : elles s'appliquent au Main distant, sont envoyées via
-`main_parent_pink_sparks`, puis revérifiées localement sur les factors résolus avec le
-`master.mdb`. L'ancienne option Dirt a été fusionnée avec le terrain cible.
+For GP1+GP2 intended to produce parent `P`, the future branch base is:
 
-Les minima optionnels de qualité utilisent directement `min_blue_stars_sum`,
-`min_white_count` et `min_white_stars_sum` sur la lignée distante complète. Les
-préférences white restent souples. Le texte UQL généré n'est qu'une représentation pour
-l'audit ou la copie manuelle : `/api/v3/search` n'accepte pas de requête texte libre.
+``` text
+pair(Ace, P) + triple(Ace, P, GP1) + triple(Ace, P, GP2)
+```
 
-## Transfer Helper
+The current parents of GP1 and GP2 are excluded from this final-lineage base. Within the configured race budget:
 
-Le Transfer Helper réutilise les modèles existants sur un socle qui ne dépend pas de la rotation
-temporaire des Champion Meetings :
+- a G1 shared by GP1 and GP2 can create two links and contributes `+6`;
+- a one-sided G1 can create one link and contributes `+3`;
+- the race keeps that value only when the projected parent's effective Independent Training win probability reaches the cutoff.
 
-- Turf Sprint, Mile, Medium et Long ;
-- Dirt Sprint, Mile et Medium ;
-- Front Runner, Pace Chaser et une famille Backline représentée par Late Surger ;
-- rôle parent avec la branche actuelle complète ;
-- rôle futur grand-parent avec factors propres et support de génération issu de sa lignée.
+The projected training aptitudes combine the target parent's natural surface/distance aptitudes with the initial Pink gains from GP1, GP2, and their four current ancestors. Running style is not used by this cutoff.
 
-Le mode rapide produit donc 21 contextes permanents et ne conserve que les Aces naturellement au
-moins B en surface, distance et style pour le contexte. End Closer n'est pas recalculé séparément
-par défaut : Late Surger couvre la famille Backline. Les CM à venir, Team Trials et profils
-génériques sont des couches optionnelles. Les ajouter peut conserver un spécialiste utile ; leur
-absence ne retire jamais un archétype du socle permanent.
+The Independent Training probability table is implemented as:
 
-Le profil livré active jusqu'aux cinq prochaines CM comme preuve additionnelle, soit au maximum
-15 contextes rapides de plus après déduplication par style. Cette fenêtre dynamique peut être
-désactivée et ne remplace jamais les 21 contextes permanents. Les Team Trials restent désactivés
-par défaut.
+``` text
+base_probability =
+    clamp((distance_rank + surface_rank - 3) * 10%, 0%, 110%)
+```
 
-Le mode `exhaustive` réactive les quatre styles et toutes les variantes d'Ace. Il sert de contrôle
-ponctuel, assume un temps de calcul de plusieurs minutes et constitue le seul périmètre autorisé
-à émettre le verdict **transfert strictement sûr**. En mode rapide, toute redondance reste une
-recommandation, même lorsqu'un remplaçant semble dominer sur les contextes filtrés.
+The exact schedule subtracts 10, 25, 35, and 50 percentage points at the third, fourth, fifth, and sixth-or-later consecutive race. The shipped cutoff is 60%. Flexible races may move between Classic and Senior years; fixed objectives and turn collisions are respected. Missing MDB race metadata preserves legacy eligibility and is reported.
 
-Le potentiel GP utilise une affinité constante optimiste à 100. Ce choix volontaire évite de
-classer comme inutile un personnage dont la niche de compatibilité ne correspond simplement
-pas à une cible sélectionnée : le classement relatif mesure donc surtout sa valeur intrinsèque
-comme GP.
+The G1 component is normalized against the theoretical all-shared maximum:
 
-### Portefeuille de collection
+``` text
+g1_potential =
+    min(100,
+        100 * planned_G1_bonus
+        / (planned_race_budget * 2 * G1_bonus_per_link))
+```
 
-Le verdict principal n'utilise plus une dominance universelle copie contre copie. Pour chaque
-costume, l'outil construit un ensemble conservé couvrant :
+There is currently no single code-wide default for the planned G1 budget. The desktop request and control default to 20, while the low-level `rank_online_grandparent_pairs()` parameter still defaults to 24. Callers should pass the value explicitly. This mismatch is implementation debt, not two different scoring policies.
 
-1. au moins une copie du costume ;
-2. chaque niche parent/GP globalement compétitive à moins de
-   `portfolio_regret_tolerance` du meilleur score de ce costume ;
-3. chaque Pink Distance/Surface directe 3★ disponible ;
-4. les Sparks répétées, rares, directes ou packages stratégiques définis par la protection ;
-5. tous les vétérans verrouillés ou portant un mémo.
+### 10.4 Generic GP screening and exact reranking
 
-La sélection est une couverture collective gloutonne puis élaguée : une copie n'a pas besoin de
-reproduire seule tout le patrimoine d'une autre si plusieurs vétérans conservés couvrent ensemble
-les niches et les Sparks concernées.
+`rank_online_grandparent_pairs()` uses E2 by default for generic GP searches,
+including the local-only second-pool mode. Individual future-GP ranking in
+`optimize_parents()` does not use this pair-screening pipeline.
 
-Les verdicts deviennent :
+For X requested results, clamped to 1–500:
 
-- **Protégé** : verrou ou mémo en jeu ;
-- **Conserver** : membre nécessaire du portefeuille ;
-- **Transfert strictement sûr** : en audit exhaustif seulement, un remplaçant individuel est réellement prouvé ;
-- **Transfert recommandé** : copie redondante au niveau de la collection, sans faux remplaçant unique ;
-- **À examiner** : couverture incomplète ou donnée insuffisante.
+1. Score every eligible pair using the E2 G1 estimate and the other normal components.
+2. Keep at most 2X pairs. Restore their original enumeration order, recompute their
+   complete score using the exact Standard schedule, and sort again.
+3. Rebuild complete Standard/Trackblazer diagnostics for the final X pairs only.
 
-Le sous-verdict **strictement sûr** exige toujours qu'un autre exemplaire du même `card_id` et de
-la même unique héritée :
+E2 reserves mandatory objectives, checks the base surface/distance cutoff, valid
+calendar years and turn conflicts, and respects the affinity-race budget. Optional
+races are placed greedily by descending bonus, then increasing number of slots,
+then deterministic name/index ties. It does not optimize consecutive-race penalties.
+Unresolved imported race metadata retains the planner's explicit fallback.
 
-1. n'est inférieur au candidat dans aucun contexte parent testé, à la tolérance configurée ;
-2. n'est inférieur dans aucun contexte futur GP ;
-3. conserve au moins autant de G1 communes avec chaque partenaire local potentiel ;
-4. dépasse la marge moyenne minimale `dominance_mean_margin` ;
-5. préserve individuellement chaque signal retenu par la protection des Sparks.
+Generic pairs sort descending by score, final-branch potential affinity, then
+production scored affinity. Exact ties retain enumeration order. The final scores
+and schedules are exact **for the selected pairs**; E2 does not guarantee recovery
+of the exhaustive global top. Upstream candidate-pool limits also still apply.
 
-Les costumes alternatifs ne sont jamais regroupés. Une copie redondante sans remplaçant universel
-reçoit **transfert recommandé** et expose la liste des copies conservées qui assurent sa couverture.
-Aucun verdict ne déclenche une action en jeu.
+`ULL_G1_RANKING=exact` evaluates all eligible pairs with the exact planner. Parent
+searches and GP searches with a fixed opposing parent remain exact regardless of
+this setting. Execution options are documented in [Architecture](ARCHITECTURE.md#solver-execution).
 
-### Écarts par contexte
+In E2 mode, JSON and CSV both contain only the final X results. `result_count` is
+that exported count; `evaluated_pair_count` counts all screened pairs. JSON
+`metadata.g1_ranking` records `mode=e2_then_exact`, the shortlist multiplier/count,
+`csv_scope=exact_final_top` and `global_recall_guaranteed=false`. Exact mode retains
+the all-pairs CSV. Consumers must not assume the CSV is exhaustive in both modes.
 
-Le rapport de format 5 conserve, pour chaque contexte viable et pour chacun des deux rôles, le
-score-enveloppe du candidat, le score-enveloppe de la couverture conservée et leur différence
-`couverture - candidat`. Un delta positif favorise donc la couverture ; un delta négatif révèle
-une niche où la copie proposée au transfert reste meilleure.
+### 10.5 Fixed opposing parent
 
-Pour un **transfert strictement sûr**, toutes les lignes comparent le candidat au même remplaçant
-individuel. Pour un **transfert recommandé**, chaque ligne utilise la meilleure copie du
-portefeuille conservé dans ce contexte : les identités peuvent varier d'une ligne à l'autre et
-l'outil ne présente toujours aucun faux remplaçant universel. Le rapport fournit aussi la moyenne,
-le contexte le plus serré et le contexte le plus favorable. Ces preuves sont calculées après le
-verdict et ne modifient aucun score, seuil, classement ou choix du portefeuille.
+When a complete opposing final parent is supplied, GP1 and GP2 are evaluated by their exact marginal contribution to the projected six-member final lineage:
 
-Un score-enveloppe est le maximum obtenu sur les variantes d'Ace viables du profil. Les deux
-maximums d'une ligne peuvent donc provenir de variantes d'Ace différentes ; ils mesurent la
-meilleure couverture disponible du contexte, pas un duel imposé entre deux Aces identiques.
+1.  create the future parent below GP1 and GP2;
+2.  keep that future parent's unknown own Sparks empty;
+3.  project only its executable G1 wins within the configured budget;
+4.  pair it with the fixed opposing parent;
+5.  call the canonical final-pair evaluator and use its viability tiers and weighted score.
 
-### Plancher de protection des Sparks
+White generation and the compatibility of the intermediate production run remain diagnostics and do not enter this contextual final score. Whites already covered by the opposing parent are softened during retrieval and preselection, not blacklisted; the exact final evaluator still combines every visible source.
 
-Ce garde-fou ne modifie jamais le score principal. Il devient un ensemble de contraintes de
-couverture collective. Pour le verdict strict, il reste aussi comparé directement entre candidat
-et remplaçant.
+## 11. Retrieval, preselection, and scoring
 
-Les sources sont d'abord normalisées par skill effective :
+Candidate retrieval is not part of the numeric final score, but it determines which candidates can reach that scorer.
 
-- White Spark directe, au taux neutre 3/6/9 % par Inspiration Event ;
-- Race Spark donnant cette même skill, au taux neutre 1/2/3 % ;
-- copies présentes sur le vétéran et ses deux parents.
+Parent search shares the global remote cap across complementary Distance, Surface, and broad/White cohorts. The plan targets the aptitude deficit left by any fixed local branch. When Surface is already covered, its cohort is omitted and most of that budget is reallocated to Distance. Returned records are merged and deduplicated.
 
-Pour chaque skill, le rapport conserve le nombre de porteurs distincts, la somme des étoiles,
-la probabilité neutre cumulée sur les deux événements, la présence directe sur le vétéran et
-le nombre de porteurs contribuant à la génération white. L'utilité retenue est le maximum sur
-tous les contextes actifs — socle permanent et extensions configurées —, jamais une moyenne qui
-écraserait une niche.
+Before the local/remote Cartesian product, branch pools reserve places for overall, Distance-rich, and Surface-rich candidates. Explicit hard Main or lineage filters are rechecked locally. The final ranking always uses the canonical six-member parent-pair engine.
 
-Trois familles de signaux peuvent fixer un plancher :
+Generic grandparent search preselects individual candidates with the future-GP component weights, then evaluates GP pairs. With a fixed opposing parent, retrieval needs and preselection account for the already visible Pink and White coverage before the exact contextual final-pair evaluation.
 
-1. répétition utile dans la branche (`2` porteurs, `4★` et 15 % par défaut) ;
-2. Spark utile difficile à obtenir, à partir du nombre de support cards donnant directement
-   le hint dans le `master.mdb` courant ; une table absente signifie « inconnu », pas zéro ;
-3. Spark directe 2★ ou 3★ dont le poids contextuel atteint `1,0`, ou package explicitement configuré.
+UQL text is an audit/copy representation. The live `/api/v3/search` request uses structured API parameters, not free-form UQL.
 
-Le remplaçant doit conserver au moins 90 % de la probabilité neutre du candidat, avec une
-tolérance absolue d'un point. Un signal direct exige aussi une source directe équivalente.
-Les packages comparent leur couverture distincte, leurs étoiles et la couverture de chaque
-skill. Les codes de raison exportés incluent notamment
-`protected_repeated_white_spark`, `protected_hard_to_obtain_spark`,
-`protected_direct_future_gp_spark`, `protected_important_skill_set` et
-`protected_package_not_preserved_by_replacement`.
+## 12. Transfer Helper
 
-Paramètres disponibles dans `transfer_helper` :
+The Transfer Helper is a conservative collection analysis. It never performs an in-game transfer.
 
-| Paramètre | Défaut | Rôle |
-|---|---:|---|
-| `analysis_mode` | `fast` | `fast` permanent filtré ou audit `exhaustive` |
-| `portfolio_regret_tolerance` | 2,5 | recul maximal du portefeuille dans une niche compétitive |
-| `minimum_ace_aptitude_rank` | 6 (B) | filtre naturel surface/distance/style du mode rapide |
-| `include_permanent_archetypes` | `true` | active le socle stable de 21 contextes |
-| `competitive_score_floor` | 67,5 | référence absolue de compétitivité |
-| `competitive_utility_floor` | 0,78 | qualité minimale d'une niche viable |
-| `elite_utility_floor` | 0,92 | qualité suffisante pour une valeur élite |
-| `minimum_competitive_contexts` | 3 | contextes requis pour une valeur répétée |
-| `minimum_distinct_profiles` | 2 | profils de course distincts requis |
-| `dominance_tolerance` | 0,75 | recul maximal accepté dans un contexte lors d'une comparaison |
-| `dominance_mean_margin` | 1,0 | avance moyenne minimale du remplaçant |
-| `include_course_presets` | `true` | active l'utilisation du catalogue de presets |
-| `include_upcoming_cm_context` | `true` | ajoute les prochaines CM au-dessus du socle |
-| `upcoming_cm_limit` | 5 | nombre maximal de prochaines CM additionnelles |
-| `include_team_trials` | `false` | ajoute les catégories Team Trials comme audit additionnel |
-| `include_generic_profiles` | `false` | ajoute les 32 profils génériques surface × distance × style |
-| `spark_protection.enabled` | `true` | active le plancher indépendant |
-| `spark_protection.minimum_context_weight` | 0,55 | utilité minimale d'une skill protégée |
-| `spark_protection.replacement_probability_ratio` | 0,90 | couverture relative à préserver |
-| `spark_protection.replacement_probability_tolerance` | 0,01 | perte absolue tolérée |
-| `spark_protection.important_packages` | liste | packages et seuils `review`/`likely_keep` |
+### 12.1 Evaluation scope
+
+Fast mode evaluates seven permanent surface/distance archetypes:
+
+- Turf Sprint, Mile, Medium, and Long;
+- Dirt Sprint, Mile, and Medium.
+
+Each is evaluated for Front Runner, Pace Chaser, and Late Surger as the Backline representative: 21 permanent contexts. Only Ace variants naturally at least B in surface, distance, and style are considered. Up to five upcoming Champion Meetings are enabled by default as additional evidence. Team Trials and the complete generic matrix are optional.
+
+Exhaustive mode uses all four styles and removes the natural-B Ace filter. Only this mode may emit a strictly safe transfer verdict; fast-mode redundancy remains a recommendation.
+
+For every context and viable Ace variant, the helper reuses:
+
+- parent-branch scoring for the veteran plus its current lineage;
+- future-GP scoring for the veteran's own direct factors and its lineage's generation support.
+
+Future-GP affinity is fixed optimistically at 100 in this global scan. This avoids discarding a candidate merely because its compatibility niche is absent from the selected Ace set; the GP comparison therefore emphasizes intrinsic factor value.
+
+### 12.2 Context utility
+
+Within each role/context, raw score is converted into a quality utility:
+
+``` text
+utility =
+    50% * clamp(score / absolute_floor)
+  + 40% * clamp(score / context_leader_score)
+  + 10% * percentile_quality
+```
+
+The absolute score, proximity to the local leader, and percentile must therefore be interpreted together. Same-costume dominance comparisons only count a role/context where at least one copy is globally competitive against the full local pool.
+
+### 12.3 Same-costume portfolio
+
+Replacement groups use `card_id` plus inherited-Unique signature. Alternate costumes are never interchangeable.
+
+For each group, the helper greedily builds and then prunes a retained portfolio that covers:
+
+1.  at least one copy of the costume;
+2.  every globally competitive parent or GP context within the configured regret of that group's best copy;
+3.  every direct 3★ Distance or Surface Pink represented in the group;
+4.  protected White skills and configured strategic packages;
+5.  every manually locked or memo-bearing veteran.
+
+This is collective coverage. A redundant copy can be covered by different retained veterans in different contexts; the tool must not invent a universal one-to-one replacement.
+
+### 12.4 Verdicts
+
+| Verdict                | Meaning                                                                                           |
+|------------------------|---------------------------------------------------------------------------------------------------|
+| Protected              | Locked in game or carrying a memo                                                                 |
+| Keep                   | Required by the retained same-costume portfolio                                                   |
+| Strictly safe transfer | In exhaustive mode, one retained same-costume/same-Unique copy proves strict individual dominance |
+| Recommended transfer   | Redundant under collective portfolio coverage, without a universal replacement proof              |
+| Review                 | Coverage or evidence is insufficient                                                              |
+
+Strict dominance requires the replacement to:
+
+- be no worse beyond tolerance in every viable parent and future-GP comparison;
+- preserve at least as many shared G1s with every possible local partner;
+- clear the configured mean-score lead;
+- individually preserve every protected Spark signal.
+
+The report records `replacement - candidate` per context. Positive deltas favor the replacement or retained portfolio; negative deltas reveal a niche where the proposed transfer remains better. For collective recommendations, the best retained copy may differ by row.
+
+### 12.5 Independent Spark protection
+
+Spark protection does not change the primary score. It builds normalized per-skill heritage from direct White sources and Race Sparks granting the same skill, across the veteran and its current parents. It records carriers, stars, neutral two-event inheritance probability, direct ownership, generation carriers, and the maximum contextual skill priority.
+
+Protection can require coverage for:
+
+- repeated useful sources;
+- hard-to-obtain hints when support metadata is available;
+- strong direct future-GP White factors;
+- configured strategic skill packages.
+
+Collective portfolio coverage preserves at least the configured probability ratio and absolute tolerance. Direct signals additionally require an equivalent direct source. The strict verdict applies the same constraints to one replacement.
+
+## 13. Diagnostics and reproducibility
+
+Detailed results expose:
+
+- component scores, normalized weights, and point contributions;
+- initial aptitude ranks, proc requirements, `P(A)`, `P(S)`, and complete proc distributions;
+- every scored White source and its grouped skill probability;
+- six-member individual affinities and visible G1 links;
+- G1 schedule eligibility, streak penalties, objective conflicts, and assumptions;
+- retrieval cohorts, filters, pool sizes, preselection strategy and E2 export scope;
+- Transfer Helper context evidence, portfolio coverage, and Spark-protection reasons.
+
+Runs copy the effective structural and White-priority profiles to `active_parent_scoring.json` and `active_skill_priorities.json`. When investigating a ranking, inspect those files before changing defaults.
+
+## 14. Model boundaries
+
+The following are deliberate limits:
+
+- the proc-rate tables, linear affinity multiplier, independent rolls, and one-rank Pink proc are configurable assumptions;
+- `white_generation` is a relative lineage-support heuristic, not an absolute generation probability;
+- E2 shortlist selection has no global top-recall guarantee;
+- generic future-GP scoring cannot know the eventual second branch and therefore must not expose final `P(S)`;
+- static MDB conditions cannot infer the full race meta or dynamic activation value of a skill;
+- Unique relevance is generic rather than course-aware;
+- uma.moe results can be incomplete or stale, so retrieval quality and follow availability remain separate from score correctness;
+- no score authorizes an automatic in-game action.
+
+Changes to this model should preserve the separation between retrieval, preselection, and final scoring; recompute complete final pairs over all six visible members; keep Distance viability lexicographically ahead of additive quality; and export enough evidence to explain why a candidate was retrieved, retained, ranked, or rejected.

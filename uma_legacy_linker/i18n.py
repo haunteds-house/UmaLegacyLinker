@@ -129,6 +129,8 @@ EXACT_EN: dict[str, str] = {
     "ID technique": "Technical ID",
     "Exporter la paire vers uma.moe Lineage Planner": "Export pair to uma.moe Lineage Planner",
     "Sélectionne d'abord une paire à exporter.": "Select a pair to export first.",
+    "Profil personnalisé actif": "Custom profile active",
+    "Profil par défaut actif": "Default profile active",
 }
 
 
@@ -261,6 +263,8 @@ EXACT_EN.update({
 # Longer fragments must be processed first. These cover formatted status lines,
 # logs and detailed result panels whose variable values are inserted at runtime.
 FRAGMENTS_EN: dict[str, str] = {
+    "Recalcul G1 exact : ": "Exact G1 reranking: ",
+    " paires.": " pairs.",
     "La clé n’a pas pu être mémorisée.": "The key could not be saved.",
     "L’opération a échoué sans détail technique.": "The operation failed without technical details.",
     "Que faire : ": "What to do: ",
@@ -381,7 +385,6 @@ FRAGMENTS_EN: dict[str, str] = {
     "Réponse API invalide depuis ": "Invalid API response from ",
     "Document API invalide depuis ": "Invalid API document from ",
     "Réponse JSON invalide depuis ": "Invalid JSON response from ",
-    "Paramètre requis non résolu pour ": "Required parameter could not be resolved for ",
     "Grand-parent local introuvable : ": "Local grandparent not found: ",
     "La réponse uma.moe ne contient aucun candidat avec costume/factors exploitables.": "The uma.moe response contains no candidate with usable costume/factor data.",
     "Le JSON vétérans doit contenir une liste ou un objet.": "The veteran JSON must contain a list or an object.",
@@ -839,7 +842,6 @@ EXACT_EN.update({
     "Connexion au jeu et extraction…": "Connecting to the game and extracting…",
     "Extraction et liaison terminées.": "Extraction and linking complete.",
     "Catalogue généré.": "Catalogue generated.",
-    "Le classement doit contenir un objet JSON.": "The ranking must contain a JSON object.",
     "Type de recherche uma.moe invalide.": "Invalid uma.moe search type.",
     "Impossible de résoudre l’Ace dans le master.mdb pour le contexte d’affinité uma.moe.": "Unable to resolve the Ace in master.mdb for the uma.moe affinity context.",
     "Impossible de résoudre le parent cible dans le master.mdb pour le contexte d’affinité uma.moe.": "Unable to resolve the target parent in master.mdb for the uma.moe affinity context.",
@@ -1395,7 +1397,6 @@ FRAGMENTS_EN.update({
     "Échec de GET /api/v3/search : ": "GET /api/v3/search failed: ",
     "\nUtilise le bouton d'import JSON si le problème persiste.": "\nUse the JSON import button if the issue persists.",
     "Le document OpenAPI est en YAML mais PyYAML n'est pas installé. Réinstalle l'application complète ou lance: pip install pyyaml": "The OpenAPI document is YAML but PyYAML is not installed. Reinstall the complete application or run: pip install pyyaml",
-    "Corps requis non résolu pour ": "Unresolved required request body for ",
 })
 
 # Qt visual lineage and on-demand artwork cache.
@@ -1551,8 +1552,6 @@ FRAGMENTS_EN.update({
     " vétéran(s) emprunté(s) écarté(s) : carrière en cours.": " borrowed veteran(s) skipped: in-progress career.",
     " — lecture de la mémoire du jeu…": " — reading the game memory…",
     "s'est terminé avec le code ": "exited with code ",
-    "Classement introuvable : ": "Ranking file not found: ",
-    "Classement JSON invalide : ": "Invalid ranking JSON: ",
     "Type de recherche locale invalide": "Invalid local search type",
     "Portefeuille impossible à couvrir pour ": "Unable to cover portfolio for ",
     " · courbe de P(S)": " · P(S) curve",
@@ -1623,7 +1622,6 @@ EXACT_EN.update({
     "Course et profil": "Race and profile",
     "Conditions statiques": "Static conditions",
     "Aucune condition fixée": "No condition set",
-    "Aucun Ace sélectionné": "No Ace selected",
     "Contexte": "Context",
     "Afficher le contexte": "Show context",
     "Masquer le contexte": "Hide context",

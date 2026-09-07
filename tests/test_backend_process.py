@@ -15,6 +15,7 @@ from uma_legacy_linker.backend_process import (
     LOG_MESSAGE,
     PROGRESS_MESSAGE,
     RESULT_MESSAGE,
+    TERMINAL_MESSAGES,
     ProcessTask,
     run_process_task,
 )
@@ -48,8 +49,13 @@ def _spawn_messages(
         while True:
             if receiver.poll(5.0):
                 try:
-                    messages.append(receiver.recv())
+                    message = receiver.recv()
                 except (EOFError, BrokenPipeError):
+                    break
+                messages.append(message)
+                # The backend protocol guarantees that result/error/cancelled
+                # is the final message. Do not poll a closed Windows pipe again.
+                if message[0] in TERMINAL_MESSAGES:
                     break
                 continue
             if not process.is_alive():
