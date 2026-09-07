@@ -69,7 +69,8 @@ class ReleaseConsistencyTests(unittest.TestCase):
                 patch.object(sys, "frozen", True, create=True),
                 patch.object(sys, "_MEIPASS", temp_dir, create=True),
             ):
-                self.assertEqual(resource_base_dir(), Path(temp_dir) / "resources")
+                self.assertEqual(resource_base_dir().name, "resources")
+                self.assertTrue(resource_base_dir().parent.samefile(Path(temp_dir)))
 
         self.assertIn('resources_dir = project_root / "resources"', spec)
         self.assertIn(

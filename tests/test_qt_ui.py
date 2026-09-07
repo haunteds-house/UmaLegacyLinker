@@ -20,6 +20,7 @@ from uma_legacy_linker.application import (
     SettingsStore,
     TransferRequest,
     VeteranOption,
+    default_skill_priorities_path,
     collection_size,
     materialize_skill_priorities,
     run_online_search,
@@ -138,8 +139,16 @@ class QtUiCoreTests(unittest.TestCase):
 
         groundwork = payload["skills"]["groundwork"]
         self.assertEqual(groundwork["style"]["pace_chaser"], 1.28)
-        self.assertEqual(groundwork["style"]["front_runner"], 1.25)
-        self.assertEqual(groundwork["base"], 0.1)
+
+        defaults = read_json_object(default_skill_priorities_path())
+        self.assertEqual(
+            groundwork["style"]["front_runner"],
+            defaults["skills"]["groundwork"]["style"]["front_runner"],
+        )
+        self.assertEqual(
+            groundwork["base"],
+            defaults["skills"]["groundwork"]["base"],
+        )
         self.assertIn("tail_held_high", payload["skills"])
 
     def test_weight_editor_groups_settings_by_user_facing_role(self) -> None:
