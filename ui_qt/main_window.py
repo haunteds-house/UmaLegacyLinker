@@ -36,11 +36,13 @@ NAV_ICON_KEYS = {
     "home": "nav-home",
     "data": "nav-data",
     "search": "nav-search",
+    "parent_maker": "nav-search",
     "transfer": "nav-transfer",
     "weights": "nav-weights",
     "tools": "nav-tools",
 }
 from ui_qt.pages_home_data import DataPage, HomePage
+from ui_qt.pages_parent_maker import ParentMakerPage
 from ui_qt.pages_search import SearchPage
 from ui_qt.pages_tools import ToolsPage
 from ui_qt.pages_transfer import TransferPage
@@ -60,7 +62,15 @@ class MainWindow(QMainWindow):
         self._active_worker: TaskWorker | None = None
         self._busy = False
         self._status_source = "Prêt"
-        self._nav_order = ["home", "data", "search", "transfer", "weights", "tools"]
+        self._nav_order = [
+            "home",
+            "data",
+            "search",
+            "parent_maker",
+            "transfer",
+            "weights",
+            "tools",
+        ]
         self._nav_buttons: dict[str, QPushButton] = {}
         self._nav_sections: dict[str, QLabel] = {}
         self._pages: dict[str, QWidget] = {}
@@ -68,6 +78,7 @@ class MainWindow(QMainWindow):
             "home": HomePage,
             "data": DataPage,
             "search": SearchPage,
+            "parent_maker": ParentMakerPage,
             "transfer": TransferPage,
             "weights": WeightsPage,
             "tools": ToolsPage,
@@ -109,7 +120,7 @@ class MainWindow(QMainWindow):
         nav_sections = (
             ("overview", ("home",)),
             ("prepare", ("data",)),
-            ("analyse", ("search", "transfer")),
+            ("analyse", ("search", "parent_maker", "transfer")),
             ("configure", ("weights", "tools")),
         )
         for section_key, page_keys in nav_sections:
@@ -229,7 +240,11 @@ class MainWindow(QMainWindow):
         return page
 
     def _install_shortcuts(self) -> None:
-        for index, key in enumerate(self._nav_order, start=1):
+        # Preserve the established Ctrl+1…Ctrl+6 page bindings. Parent Maker
+        # is an additional workspace, but inserting it into the numbered list
+        # would silently change every shortcut after Search for existing users.
+        shortcut_pages = ("home", "data", "search", "transfer", "weights", "tools")
+        for index, key in enumerate(shortcut_pages, start=1):
             shortcut = QShortcut(QKeySequence(f"Ctrl+{index}"), self)
             shortcut.activated.connect(lambda target=key: self.show_page(target))
             self._shortcuts.append(shortcut)
@@ -256,6 +271,7 @@ class MainWindow(QMainWindow):
             "home": lambda: self.show_page("data"),
             "data": getattr(page, "start_extract", None),
             "search": getattr(page, "run_current_family", None),
+            "parent_maker": getattr(page, "start_search", None),
             "transfer": getattr(page, "start_analysis", None),
             "weights": getattr(page, "save_profile", None),
             "tools": getattr(page, "save_integration", None),
@@ -271,6 +287,7 @@ class MainWindow(QMainWindow):
             "home": "Accueil",
             "data": "Données locales",
             "search": "Recherche de lignées",
+            "parent_maker": "Parent Maker",
             "transfer": "Transfer Helper",
             "weights": "Pondérations",
             "tools": "Paramètres",
