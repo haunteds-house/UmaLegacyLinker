@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from functools import partial
+from html import escape
 from pathlib import Path
 from typing import Any
 
@@ -32,14 +33,22 @@ from uma_legacy_linker.parent_maker import (
     ParentMakerRequest,
     SparkTarget,
     load_parent_maker_factor_options,
+    preferred_stars_applicable,
     run_parent_maker,
+    spark_family_label,
 )
 from ui_qt.components import PageHeader, ThemedComboBox, muted_label
 from ui_qt.context import AppContext
 from ui_qt.models import Column, ResultTableModel, nested, number
+from ui_qt.pages_collection_data import install_collection_inventory_patch
 from ui_qt.table_typography import enable_tabular_numbers
 from ui_qt.view_state import bind_splitter_state, bind_table_view_state
 
+
+# MainWindow binds the existing DataPage class before importing this module.
+# Mutating that class object here lets Local Data expose the two extra umadump
+# collection files without changing the established page/navigation contract.
+install_collection_inventory_patch()
 
 RIGHT = Qt.AlignmentFlag.AlignRight
 
@@ -67,9 +76,12 @@ def _coverage_label(row: dict[str, Any]) -> str:
 def _spark_rows_html(row: dict[str, Any]) -> str:
     rendered: list[str] = []
     for target in row.get("spark_targets") or []:
-        name = str(target.get("name") or "")
-        factor_type = FACTOR_TYPE_LABELS.get(
-            str(target.get("factor_type") or ""), str(target.get("factor_type") or "")
+        name = escape(str(target.get("family") or target.get("name") or ""))
+        factor_type = escape(
+            FACTOR_TYPE_LABELS.get(
+                str(target.get("factor_type") or ""),
+                str(target.get("factor_type") or ""),
+            )
         )
         copies = int(target.get("copy_count") or 0)
         direct = int(target.get("direct_copy_count") or 0)
@@ -91,12 +103,78 @@ def _spark_rows_html(row: dict[str, Any]) -> str:
     return "".join(rendered)
 
 
+def _support_label(row: dict[str, Any]) -> str:
+    name = str(row.get("name") or f"Support {row.get('support_card_id') or ''}")
+    level = int(row.get("level") or 0)
+    maximum = int(row.get("max_level") or 0)
+    lb = int(row.get("limit_break_count") or 0)
+    return f"{name} — Lv{level}/{maximum}, LB{lb}"
+
+
+def _collection_plan_html(row: dict[str, Any]) -> str:
+    plan = row.get("collection_plan") or {}
+    if not plan or not plan.get("collection_available"):
+        return (
+            "<h3>Collection synthesis</h3>"
+            "<p><small>Add card_data.json and support_card_data.json under Local Data "
+            "to include owned Uma and support skill sources.</small></p>"
+        )
+
+    source_rows: list[str] = []
+    for source in plan.get("skill_sources") or []:
+        inherit = 100.0 * float(source.get("inherit_probability") or 0.0)
+        native = "yes" if source.get("target_native") else "—"
+        supports = int(source.get("owned_support_count") or 0)
+        source_rows.append(
+            "<tr>"
+            f"<td>{escape(str(source.get('name') or ''))}</td>"
+            f"<td>{inherit:.1f}%</td><td>{native}</td><td>{supports}</td>"
+            "</tr>"
+        )
+
+    route_rows: list[str] = []
+    for index, seed in enumerate(plan.get("preparation_route") or [], start=1):
+        skills = ", ".join(str(value) for value in seed.get("route_skill_families") or [])
+        route_rows.append(
+            f"<li><b>{index}. {escape(str(seed.get('uma_name') or seed.get('card_name') or 'Uma'))}</b> "
+            f"— affinity {int(seed.get('affinity_to_target') or 0)} — "
+            f"{escape(skills)}</li>"
+        )
+
+    deck_rows: list[str] = []
+    for support in plan.get("deck_candidates") or []:
+        skills = ", ".join(str(value) for value in support.get("requested_skill_families") or [])
+        deck_rows.append(
+            f"<li>{escape(_support_label(support))}<br><small>{escape(skills)}</small></li>"
+        )
+
+    return (
+        "<h3>Collection synthesis</h3>"
+        "<table cellspacing='0' cellpadding='4' width='100%'>"
+        "<tr><th align='left'>Skill family</th><th align='left'>Inherited</th>"
+        "<th align='left'>Target native</th><th align='left'>Owned hint cards</th></tr>"
+        + "".join(source_rows)
+        + "</table>"
+        + (
+            "<h4>Suggested preparation order</h4><ol>" + "".join(route_rows) + "</ol>"
+            if route_rows
+            else ""
+        )
+        + (
+            "<h4>Owned support skill-access candidates</h4><ol>" + "".join(deck_rows) + "</ol>"
+            if deck_rows
+            else ""
+        )
+        + f"<p><small>{escape(str(plan.get('method_note') or ''))}</small></p>"
+    )
+
+
 def parent_maker_detail_html(row: dict[str, Any] | None) -> str:
     if not row:
         return (
             "<h3>Parent Maker</h3>"
-            "<p>Select a result to inspect the requested-Spark coverage and "
-            "the target character chosen for the pair.</p>"
+            "<p>Select a result to inspect Spark coverage, owned skill sources, "
+            "and the target chosen for the pair.</p>"
         )
     target = row.get("target") or {}
     affinity = row.get("affinity") or {}
@@ -111,27 +189,28 @@ def parent_maker_detail_html(row: dict[str, Any] | None) -> str:
         trainer = parent.get("trainer_name")
         details = " · ".join(str(value) for value in (trainer, code) if value)
         if details:
-            friend_lines.append(f"<li><b>{label} remote:</b> {details}</li>")
+            friend_lines.append(f"<li><b>{label} remote:</b> {escape(details)}</li>")
 
     return (
-        f"<h2>{target.get('uma_name') or target.get('card_name') or 'Target'}</h2>"
+        f"<h2>{escape(str(target.get('uma_name') or target.get('card_name') or 'Target'))}</h2>"
         f"<p><b>Parent Maker score:</b> {float(row.get('score') or 0):.2f}<br>"
         f"<b>Affinity:</b> {int(affinity.get('total') or 0)} "
         f"(base {int(affinity.get('base') or 0)} + G1 {int(affinity.get('g1_bonus') or 0)})<br>"
         f"<b>Coverage:</b> {_coverage_label(row)}</p>"
-        f"<p><b>P1:</b> {_parent_label(p1)}<br>"
-        f"<b>P2:</b> {_parent_label(p2)}</p>"
+        f"<p><b>P1:</b> {escape(_parent_label(p1))}<br>"
+        f"<b>P2:</b> {escape(_parent_label(p2))}</p>"
         + (f"<ul>{''.join(friend_lines)}</ul>" if friend_lines else "")
         + "<table cellspacing='0' cellpadding='5' width='100%'>"
         "<tr><th align='left'>Requested Spark</th><th align='left'>Estimate</th>"
         "<th align='left'>Copies</th><th align='left'>Stars</th><th align='left'>Priority</th></tr>"
         + _spark_rows_html(row)
         + "</table>"
-        "<p><small>White-skill and Scenario percentages are the chance to inherit "
-        "the corresponding skill hint across the two Inspiration events. They are "
-        "not the probability that the new career finishes with that Spark. "
-        "For intermediate parents, Ignited Spirit: WIT/WIT+ and Racing Spirit: "
-        "Stamina/Stamina+ are treated as equivalent source families.</small></p>"
+        + _collection_plan_html(row)
+        + "<p><small>White-skill percentages are the chance to inherit the corresponding "
+        "skill hint across two Inspiration events, not the chance that the new career "
+        "finishes with that Spark. For intermediate parents, Ignited Spirit: Wit/Wit+ "
+        "and Racing Spirit: Stamina/Stamina+ are equivalent even when master.mdb labels "
+        "them as White skills.</small></p>"
     )
 
 
@@ -266,6 +345,7 @@ class ParentMakerPage(QWidget):
         self.add_button.clicked.connect(self.add_target)
         self.remove_button.clicked.connect(self.remove_target)
         self.search_button.clicked.connect(self.start_search)
+        self.spark_combo.currentIndexChanged.connect(self._spark_selection_changed)
         self.results_table.selectionModel().selectionChanged.connect(
             self._selection_changed
         )
@@ -276,6 +356,7 @@ class ParentMakerPage(QWidget):
         self.refresh_factor_options(show_errors=False)
         self.retranslate()
         self._configure_header()
+        self._spark_selection_changed()
 
     def _columns(self) -> list[Column]:
         t = self.context.t
@@ -351,14 +432,30 @@ class ParentMakerPage(QWidget):
                 "factor_type": option.factor_type,
                 "name": option.name,
                 "max_stars": option.max_stars,
+                "family": option.family,
+                "uses_preferred_stars": option.uses_preferred_stars,
             }
             self.spark_combo.addItem(option.display_name, payload)
         if current:
+            current_family = str(current.get("family") or current.get("name") or "").casefold() if isinstance(current, dict) else ""
             for index in range(self.spark_combo.count()):
-                if self.spark_combo.itemData(index) == current:
+                candidate = self.spark_combo.itemData(index)
+                candidate_family = str(candidate.get("family") or candidate.get("name") or "").casefold() if isinstance(candidate, dict) else ""
+                if candidate_family == current_family:
                     self.spark_combo.setCurrentIndex(index)
                     break
         self.spark_combo.blockSignals(False)
+        self._spark_selection_changed()
+
+    def _spark_selection_changed(self, *_args: object) -> None:
+        payload = self.spark_combo.currentData()
+        enabled = bool(isinstance(payload, dict) and payload.get("uses_preferred_stars"))
+        self.stars_spin.setEnabled(enabled and not self._busy)
+        if not enabled:
+            self.stars_spin.setValue(1)
+            self.stars_spin.setToolTip("Not used for White, Scenario, or Race Spark scoring.")
+        else:
+            self.stars_spin.setToolTip("Preferred inherited star total/tier for this factor type.")
 
     def _target_payloads(self) -> list[dict[str, Any]]:
         payloads: list[dict[str, Any]] = []
@@ -371,30 +468,43 @@ class ParentMakerPage(QWidget):
 
     def _set_targets(self, targets: list[dict[str, Any]]) -> None:
         self.target_table.setRowCount(0)
+        normalized: list[dict[str, Any]] = []
         for target in targets:
             factor_type = str(target.get("factor_type") or "")
             name = str(target.get("name") or "")
             if not factor_type or not name:
                 continue
+            family = spark_family_label(factor_type, name)
+            # Migrate old saved Unity '+' rows to the collapsed family spelling.
+            if family:
+                factor_type = "white_skill"
+                name = name.rstrip("+").rstrip()
+            payload = {
+                **target,
+                "factor_type": factor_type,
+                "name": name,
+                "preferred_stars": (
+                    int(target.get("preferred_stars") or 1)
+                    if preferred_stars_applicable(factor_type)
+                    else 1
+                ),
+            }
+            normalized.append(payload)
             row = self.target_table.rowCount()
             self.target_table.insertRow(row)
-            family = ""
-            if factor_type == "scenario" and name.casefold() in {
-                "ignited spirit: wit",
-                "racing spirit: stamina",
-            }:
-                family = f"{name} / {name}+"
             values = [
                 FACTOR_TYPE_LABELS.get(factor_type, factor_type),
                 name,
-                str(int(target.get("priority") or 100)),
-                str(int(target.get("preferred_stars") or 1)),
+                str(int(payload.get("priority") or 100)),
+                str(int(payload.get("preferred_stars") or 1))
+                if preferred_stars_applicable(factor_type)
+                else "—",
                 family,
             ]
             for column, value in enumerate(values):
                 item = QTableWidgetItem(value)
                 if column == 1:
-                    item.setData(Qt.ItemDataRole.UserRole, dict(target))
+                    item.setData(Qt.ItemDataRole.UserRole, payload)
                 self.target_table.setItem(row, column, item)
         self._save_targets()
 
@@ -427,12 +537,16 @@ class ParentMakerPage(QWidget):
             return
         factor_type = str(payload.get("factor_type") or "")
         name = str(payload.get("name") or "")
+        family = str(payload.get("family") or "")
         targets = self._target_payloads()
-        key = (factor_type, name.casefold())
+        key = (factor_type, (family or name).casefold())
         targets = [
             row
             for row in targets
-            if (str(row.get("factor_type") or ""), str(row.get("name") or "").casefold())
+            if (
+                str(row.get("factor_type") or ""),
+                (spark_family_label(str(row.get("factor_type") or ""), str(row.get("name") or "")) or str(row.get("name") or "")).casefold(),
+            )
             != key
         ]
         targets.append(
@@ -440,7 +554,11 @@ class ParentMakerPage(QWidget):
                 "factor_type": factor_type,
                 "name": name,
                 "priority": self.priority_spin.value(),
-                "preferred_stars": self.stars_spin.value(),
+                "preferred_stars": (
+                    self.stars_spin.value()
+                    if preferred_stars_applicable(factor_type)
+                    else 1
+                ),
                 "equivalents": [],
             }
         )
@@ -490,11 +608,15 @@ class ParentMakerPage(QWidget):
                 "parent_maker_top_n": self.top_spin.value(),
             }
         )
+        trainee_text = self.context.store.get("trainee_cards_path")
+        support_text = self.context.store.get("support_cards_path")
         request = ParentMakerRequest(
             master_path=master,
             veterans_json_path=veterans,
             output_dir=Path(self.context.output_dir).expanduser(),
             targets=targets,
+            card_data_path=Path(trainee_text).expanduser() if trainee_text else None,
+            support_card_data_path=Path(support_text).expanduser() if support_text else None,
             allow_remote=self.remote_check.isChecked(),
             remote_limit=self.remote_limit.value(),
             top_n=self.top_spin.value(),
@@ -517,7 +639,16 @@ class ParentMakerPage(QWidget):
         local = int(getattr(result, "local_parent_count", 0) or 0)
         remote = int(getattr(result, "remote_parent_count", 0) or 0)
         pairs = int(getattr(result, "evaluated_pair_count", 0) or 0)
-        self.summary.setText(f"{local} local · {remote} remote · {pairs} pairs")
+        collection = getattr(result, "collection_summary", None) or {}
+        collection_text = ""
+        if collection:
+            collection_text = (
+                f" · {int(collection.get('trainee_cards') or 0)} Umas"
+                f" · {int(collection.get('support_cards') or 0)} supports"
+            )
+        self.summary.setText(
+            f"{local} local · {remote} remote · {pairs} pairs{collection_text}"
+        )
 
     def _selection_changed(
         self, _selected: QItemSelection, _deselected: QItemSelection
@@ -532,7 +663,6 @@ class ParentMakerPage(QWidget):
         for control in (
             self.spark_combo,
             self.priority_spin,
-            self.stars_spin,
             self.add_button,
             self.remove_button,
             self.remote_check,
@@ -541,3 +671,4 @@ class ParentMakerPage(QWidget):
             self.search_button,
         ):
             control.setEnabled(enabled)
+        self._spark_selection_changed()
