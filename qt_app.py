@@ -35,6 +35,7 @@ def main() -> int:
 
     from ui_qt.app_icon import application_icon
     from ui_qt.components import install_no_wheel_filter
+    from ui_qt.context import AppContext
     from ui_qt.main_window import MainWindow
     from ui_qt.theme import application_stylesheet
 
@@ -54,7 +55,16 @@ def main() -> int:
     application.setStyle("Fusion")
     application.setStyleSheet(application_stylesheet())
     install_no_wheel_filter(application)
-    window = MainWindow()
+
+    # The project is now English-only. Keep the legacy translation table as an
+    # internal compatibility layer while old French source strings are migrated
+    # to English, but do not expose language selection or allow a saved French
+    # preference to change the running interface.
+    context = AppContext()
+    context.set_language("en")
+    window = MainWindow(context)
+    window.language_label.hide()
+    window.language_combo.hide()
     window.show()
     return application.exec()
 
