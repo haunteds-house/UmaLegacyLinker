@@ -29,16 +29,34 @@ class ProcessTaskCancelled(Exception):
     """Stop one backend process at a cooperative checkpoint."""
 
 
-def _accepts_checkpoint(operation: Callable[..., Any]) -> bool:
+def callback_kwargs(
+    operation: Callable[..., Any],
+    callbacks: dict[str, Callable[..., Any]],
+) -> dict[str, Callable[..., Any]]:
+    """Return only worker callbacks accepted by ``operation``.
+
+    UI/background workers provide logger, progress and checkpoint hooks, but
+    lightweight operations are not required to implement every hook. This
+    keeps shared worker infrastructure from imposing accidental keyword
+    arguments on otherwise valid callables.
+    """
     try:
         parameters = inspect.signature(operation).parameters.values()
     except (TypeError, ValueError):
-        return False
-    return any(
-        parameter.name == "checkpoint"
-        or parameter.kind is inspect.Parameter.VAR_KEYWORD
-        for parameter in parameters
+        # Builtins and opaque callables are rare in backend work. Preserve the
+        # historical callback contract when Python cannot inspect a signature.
+        return dict(callbacks)
+    parameter_list = tuple(parameters)
+    accepts_extra = any(
+        parameter.kind is inspect.Parameter.VAR_KEYWORD
+        for parameter in parameter_list
     )
+    accepted_names = {parameter.name for parameter in parameter_list}
+    return {
+        name: callback
+        for name, callback in callbacks.items()
+        if accepts_extra or name in accepted_names
+    }
 
 
 def run_process_task(task: ProcessTask, connection: Any, cancel_event: Any) -> None:
@@ -51,7 +69,7 @@ def run_process_task(task: ProcessTask, connection: Any, cancel_event: Any) -> N
 
     def checkpoint() -> None:
         if cancel_event.is_set():
-            raise ProcessTaskCancelled("Tâche annulée par l'utilisateur.")
+            raise ProcessTaskCancelled("Task cancelled by the user.")
 
     def log(message: str) -> None:
         checkpoint()
@@ -63,9 +81,14 @@ def run_process_task(task: ProcessTask, connection: Any, cancel_event: Any) -> N
 
     try:
         checkpoint()
-        kwargs: dict[str, Any] = {"logger": log, "progress": progress}
-        if _accepts_checkpoint(task.operation):
-            kwargs["checkpoint"] = checkpoint
+        kwargs = callback_kwargs(
+            task.operation,
+            {
+                "logger": log,
+                "progress": progress,
+                "checkpoint": checkpoint,
+            },
+        )
         result = task.operation(**kwargs)
         checkpoint()
         connection.send((RESULT_MESSAGE, result))
