@@ -240,7 +240,11 @@ class MainWindow(QMainWindow):
         return page
 
     def _install_shortcuts(self) -> None:
-        for index, key in enumerate(self._nav_order, start=1):
+        # Preserve the established Ctrl+1…Ctrl+6 page bindings. Parent Maker
+        # is an additional workspace, but inserting it into the numbered list
+        # would silently change every shortcut after Search for existing users.
+        shortcut_pages = ("home", "data", "search", "transfer", "weights", "tools")
+        for index, key in enumerate(shortcut_pages, start=1):
             shortcut = QShortcut(QKeySequence(f"Ctrl+{index}"), self)
             shortcut.activated.connect(lambda target=key: self.show_page(target))
             self._shortcuts.append(shortcut)
