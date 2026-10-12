@@ -78,18 +78,39 @@ def import_umadump_directory(
     database_path: str | Path | None = None,
     *,
     logger: Callable[[str], None] | None = None,
+    progress: Callable[[int, str], None] | None = None,
+    checkpoint: Callable[[], None] | None = None,
 ) -> ImportReport:
+    """Import one umadump output tree.
+
+    ``logger``, ``progress`` and ``checkpoint`` match the desktop worker
+    callback contract. They are optional so the importer remains usable from
+    tests, the CLI and the polling watcher without Qt.
+    """
     root = locate_umadump_root(source_root)
     log = logger or (lambda _message: None)
+    report_progress = progress or (lambda _value, _message: None)
+    check = checkpoint or (lambda: None)
     store = AccountStore(database_path)
     report = ImportReport(source_root=root, database_path=store.path)
     try:
-        _import_static_exports(store, root, report, log)
-        _import_misc_exports(store, root, report, log)
-        _import_race_replays(store, root, report, log)
-        _import_careers(store, root, report, log)
+        report_progress(5, "Reading collection exports…")
+        check()
+        _import_static_exports(store, root, report, log, check)
+        report_progress(30, "Reading account documents…")
+        check()
+        _import_misc_exports(store, root, report, log, check)
+        report_progress(45, "Reading race captures…")
+        check()
+        _import_race_replays(store, root, report, log, check)
+        report_progress(70, "Reading career archives…")
+        check()
+        _import_careers(store, root, report, log, check)
+        report_progress(92, "Saving account database…")
+        check()
         store.commit()
         report.summary = store.summary()
+        report_progress(100, "Account import complete.")
         return report
     except Exception:
         store.rollback()
@@ -103,8 +124,10 @@ def _import_static_exports(
     root: Path,
     report: ImportReport,
     log: Callable[[str], None],
+    checkpoint: Callable[[], None],
 ) -> None:
     for filename, kind in STATIC_EXPORTS.items():
+        checkpoint()
         path = root / filename
         if not path.is_file():
             continue
@@ -128,8 +151,10 @@ def _import_misc_exports(
     root: Path,
     report: ImportReport,
     log: Callable[[str], None],
+    checkpoint: Callable[[], None],
 ) -> None:
     for filename, document_type in MISC_EXPORTS.items():
+        checkpoint()
         path = root / filename
         if not path.is_file():
             continue
@@ -152,6 +177,7 @@ def _import_race_replays(
     root: Path,
     report: ImportReport,
     log: Callable[[str], None],
+    checkpoint: Callable[[], None],
 ) -> None:
     replay_root = root / "race_replays"
     categories = (
@@ -162,6 +188,7 @@ def _import_race_replays(
         if not directory.is_dir():
             continue
         for path in sorted(directory.glob("*.json")):
+            checkpoint()
             report.scanned_files += 1
             result = _load_changed_json(store, path, root, f"race:{kind}", report)
             if result is None:
@@ -185,11 +212,13 @@ def _import_careers(
     root: Path,
     report: ImportReport,
     log: Callable[[str], None],
+    checkpoint: Callable[[], None],
 ) -> None:
     career_root = root / "career_data"
     if not career_root.is_dir():
         return
     for archive_dir in sorted(path for path in career_root.iterdir() if path.is_dir()):
+        checkpoint()
         manifest_path = archive_dir / "manifest.json"
         manifest: dict[str, Any] = {}
         if manifest_path.is_file():
@@ -214,6 +243,7 @@ def _import_careers(
         turns_dir = archive_dir / "turns"
         if turns_dir.is_dir():
             for path in sorted(turns_dir.glob("turn_*.json")):
+                checkpoint()
                 match = TURN_PATTERN.search(path.name)
                 if not match:
                     report.ignored_files += 1
@@ -238,6 +268,7 @@ def _import_careers(
             ("log.json", "log"),
             ("veteran.json", "veteran"),
         ):
+            checkpoint()
             path = archive_dir / filename
             if not path.is_file():
                 continue
