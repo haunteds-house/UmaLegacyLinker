@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import inspect
 import multiprocessing
 import pickle
 import threading
@@ -18,6 +17,7 @@ from uma_legacy_linker.backend_process import (
     RESULT_MESSAGE,
     TERMINAL_MESSAGES,
     ProcessTask,
+    callback_kwargs,
     run_process_task,
 )
 from uma_legacy_linker.application import OperationCancelled
@@ -53,7 +53,7 @@ class FunctionWorker(QRunnable):
 
     def _checkpoint(self) -> None:
         if self.cancel_event.is_set():
-            raise OperationCancelled("Tâche annulée par l'utilisateur.")
+            raise OperationCancelled("Task cancelled by the user.")
 
     def request_cancel(self, *, force: bool = False) -> None:
         del force
@@ -62,7 +62,7 @@ class FunctionWorker(QRunnable):
     @Slot()
     def run(self) -> None:
         def yield_to_ui() -> None:
-            # CPU-bound Python scoring runs in a Qt pool thread.  Explicitly
+            # CPU-bound Python scoring runs in a Qt pool thread. Explicitly
             # yield at backend checkpoints so the GUI thread can process the
             # Cancel click promptly even under sustained scoring load.
             time.sleep(0)
@@ -79,13 +79,14 @@ class FunctionWorker(QRunnable):
             yield_to_ui()
 
         try:
-            kwargs: dict[str, Any] = {"logger": log, "progress": progress}
-            parameters = inspect.signature(self.function).parameters
-            if "checkpoint" in parameters or any(
-                parameter.kind is inspect.Parameter.VAR_KEYWORD
-                for parameter in parameters.values()
-            ):
-                kwargs["checkpoint"] = yield_to_ui
+            kwargs = callback_kwargs(
+                self.function,
+                {
+                    "logger": log,
+                    "progress": progress,
+                    "checkpoint": yield_to_ui,
+                },
+            )
             result = self.function(**kwargs)
         except OperationCancelled:
             self.signals.cancelled.emit()
@@ -126,24 +127,24 @@ class ProcessFunctionWorker(QRunnable):
 
     def _relay_message(self, message: object) -> bool:
         if not isinstance(message, tuple) or len(message) != 2:
-            raise RuntimeError("Message IPC backend invalide.")
+            raise RuntimeError("Invalid backend IPC message.")
         kind, payload = message
         if kind == LOG_MESSAGE:
             self.signals.log.emit(str(payload))
         elif kind == PROGRESS_MESSAGE:
             if not isinstance(payload, tuple) or len(payload) != 2:
-                raise RuntimeError("Progression IPC backend invalide.")
+                raise RuntimeError("Invalid backend IPC progress message.")
             self.signals.progress.emit(int(payload[0]), str(payload[1]))
         elif kind == RESULT_MESSAGE:
             self.signals.result.emit(payload)
         elif kind == ERROR_MESSAGE:
             if not isinstance(payload, tuple) or len(payload) != 2:
-                raise RuntimeError("Erreur IPC backend invalide.")
+                raise RuntimeError("Invalid backend IPC error message.")
             self.signals.error.emit(str(payload[0]), str(payload[1]))
         elif kind == CANCELLED_MESSAGE:
             self.signals.cancelled.emit()
         else:
-            raise RuntimeError(f"Type de message IPC backend inconnu : {kind!r}")
+            raise RuntimeError(f"Unknown backend IPC message type: {kind!r}")
         return kind in TERMINAL_MESSAGES
 
     @Slot()
@@ -219,9 +220,9 @@ class ProcessFunctionWorker(QRunnable):
                     self.signals.cancelled.emit()
                 else:
                     self.signals.error.emit(
-                        "Le processus de calcul s’est arrêté de façon inattendue "
-                        f"(code {process.exitcode}).",
-                        "Aucun diagnostic backend n’a été reçu.",
+                        "The calculation process stopped unexpectedly "
+                        f"(exit code {process.exitcode}).",
+                        "No backend diagnostic was received.",
                     )
         except Exception as exc:
             if not terminal_received:
