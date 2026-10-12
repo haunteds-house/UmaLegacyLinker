@@ -121,6 +121,27 @@ class UmadumpImportTests(unittest.TestCase):
                 ).fetchone()
                 self.assertEqual((row[0], row[1]), (45, 200))
 
+    def test_accepts_desktop_worker_callbacks(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "Umadump"
+            root.mkdir(parents=True)
+            self.make_dump(root)
+            progress_events: list[tuple[int, str]] = []
+            checkpoints: list[bool] = []
+
+            report = import_umadump_directory(
+                root,
+                Path(temp) / "account.sqlite3",
+                logger=lambda _message: None,
+                progress=lambda value, message: progress_events.append((value, message)),
+                checkpoint=lambda: checkpoints.append(True),
+            )
+
+            self.assertEqual(progress_events[-1][0], 100)
+            self.assertEqual(progress_events[-1][1], "Account import complete.")
+            self.assertGreater(len(checkpoints), 0)
+            self.assertEqual(report.failed_files, 0)
+
 
 if __name__ == "__main__":
     unittest.main()
