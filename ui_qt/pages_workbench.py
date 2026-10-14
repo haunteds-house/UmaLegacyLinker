@@ -122,7 +122,14 @@ class WorkbenchPage(QWidget):
             return
         if table is not self.database:
             veteran = next((row for row in self.store.entities("veterans")
-                if row.get("trained_chara_id") == payload.get("veteran_id")), None)
+                if str(row.get("trained_chara_id")) == str(payload.get("veteran_id"))), None)
+            if veteran is None:
+                observation = next((row for row in self.store.observations()
+                    if str(row["veteran_id"]) == str(payload.get("veteran_id"))), None)
+                if observation:
+                    veteran = json.loads(observation["payload"])["horse"]
+                    if "power" not in veteran and "pow" in veteran:
+                        veteran["power"] = veteran["pow"]
             descriptor = describe_records(self.master, "veterans", [veteran or payload])[0]
             self._view_collection(descriptor, observation=payload)
             return

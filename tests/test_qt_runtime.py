@@ -72,6 +72,40 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.assertEqual(saved["title"], "Train Special Week · Team Trials runner")
             dialog.close()
 
+    def test_trials_overview_matches_veteran_stats_and_uses_retained_race_data(self) -> None:
+        from unittest.mock import patch
+        from ui_qt.context import AppContext
+        from ui_qt.pages_workbench import WorkbenchPage
+        from uma_legacy_linker.application import SettingsStore
+        from uma_workbench.core import Store
+        from tests.test_workbench_core import capture
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            settings = SettingsStore(root / "config.json")
+            settings.update({"online_images": "0", "output_dir": str(root / "output")})
+            store = Store(root / "profile")
+            store.import_bytes("trained_chara_data.json", json.dumps([
+                {"trained_chara_id": 42, "card_id": 100101, "speed": 900,
+                    "skill_array": [{"skill_id": 200001}]}]).encode())
+            race = capture()
+            race["race_start_params_array"][0]["race_horse_data_array"][0]["speed"] = 850
+            race["race_start_params_array"][0]["race_horse_data_array"][0]["pow"] = 700
+            store.import_bytes("race.json", json.dumps(race).encode())
+            page = WorkbenchPage(AppContext(settings), store=store)
+            page.tt.setCurrentCell(0, 0)
+            with patch.object(page, "_view_collection") as overview:
+                page._details(page.tt)
+                self.assertEqual(overview.call_args.args[0]["record"]["speed"], 900)
+                self.assertEqual(overview.call_args.args[0]["record"]["skill_array"], [{"skill_id": 200001}])
+                store.import_bytes("trained_chara_data.json", b"[]")
+                page._details(page.tt)
+                self.assertEqual(overview.call_args.args[0]["record"]["speed"], 850)
+                self.assertEqual(overview.call_args.args[0]["record"]["power"], 700)
+                self.assertEqual(overview.call_args.args[0]["record"]["skill_array"], [{"skill_id": 200001}])
+            page.shutdown()
+            page.close()
+
     def test_collection_picker_filters_names_and_distinguishes_veteran_copies(self) -> None:
         from ui_qt.collection_widgets import CollectionPicker, describe_records
         from ui_qt.image_assets import ImageRepository
