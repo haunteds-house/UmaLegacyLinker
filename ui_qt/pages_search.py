@@ -1577,9 +1577,9 @@ class SearchPage(QWidget):
     def retranslate(self) -> None:
         t = self.context.t
         self.header.set_text(
-            t('Lineage Search'),
+            'Find inheritance parents',
             t(
-                'Set the context once, then run each tab whenever you need it.'
+                'Choose who you want to train in Target, then search for parents. Open a result to see the characters and their inheritance.'
             ),
         )
         self.rail_title.setText(t('Shared context'))

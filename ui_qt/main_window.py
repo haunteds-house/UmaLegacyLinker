@@ -8,6 +8,7 @@ from PySide6.QtCore import QSize, QThreadPool, Slot
 from PySide6.QtGui import QCloseEvent, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QButtonGroup,
+    QCheckBox,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -108,10 +109,10 @@ class MainWindow(QMainWindow):
         nav_group = QButtonGroup(self)
         nav_group.setExclusive(True)
         nav_sections = (
-            ("overview", ("home",)),
-            ("prepare", ("workbench", "data")),
-            ("analyse", ("search", "transfer")),
-            ("configure", ("weights", "tools")),
+            ("overview", ("home", "workbench", "search")),
+            ("configure", ("tools",)),
+            ("prepare", ("data",)),
+            ("analyse", ("transfer", "weights")),
         )
         for section_key, page_keys in nav_sections:
             label = QLabel("")
@@ -137,6 +138,12 @@ class MainWindow(QMainWindow):
                 sidebar_layout.addWidget(button)
             sidebar_layout.addSpacing(2)
         sidebar_layout.addStretch(1)
+        self.advanced_toggle = QCheckBox("Show advanced tools")
+        self.advanced_toggle.setAccessibleName("Show advanced tools")
+        self.advanced_toggle.toggled.connect(self._set_advanced_tools)
+        sidebar_layout.addWidget(self.advanced_toggle)
+        self.context.configuration_changed.connect(self._sync_advanced_tools)
+        self._sync_advanced_tools()
 
         outer.addWidget(sidebar)
 
@@ -240,7 +247,7 @@ class MainWindow(QMainWindow):
         if page is None:
             return
         actions = {
-            "home": lambda: self.show_page("data"),
+            "home": lambda: self.show_page("setup"),
             "data": getattr(page, "start_extract", None),
             "search": getattr(page, "run_current_family", None),
             "transfer": getattr(page, "start_analysis", None),
@@ -257,8 +264,8 @@ class MainWindow(QMainWindow):
         labels = {
             "home": 'Home',
             "data": 'Local data',
-            "workbench": "Workbench",
-            "search": 'Lineage Search',
+            "workbench": "My collection",
+            "search": 'Find parents',
             "transfer": "Transfer Helper",
             "weights": 'Weights',
             "tools": 'Settings',
@@ -268,10 +275,10 @@ class MainWindow(QMainWindow):
             self._nav_buttons[key].setText(translated)
             self._nav_buttons[key].setAccessibleName(translated)
         section_labels = {
-            "overview": 'OVERVIEW',
-            "prepare": 'PREPARE',
-            "analyse": 'ANALYSE',
-            "configure": 'CONFIGURE',
+            "overview": 'YOUR DESK',
+            "prepare": 'ADVANCED DATA',
+            "analyse": 'ADVANCED ANALYSIS',
+            "configure": 'PREFERENCES',
         }
         for key, source in section_labels.items():
             self._nav_sections[key].setText(t(source))
@@ -295,11 +302,32 @@ class MainWindow(QMainWindow):
         # Compatibility for home shortcuts and integrations saved by v1.7.x.
         if key in {"optimizer", "online"}:
             key = "search"
+        tab = {"setup": 5, "trials": 1, "goals": 2}.get(key)
+        if tab is not None:
+            key = "workbench"
         if key not in self._nav_order:
             return
         page = self._ensure_page(key)
         self.stack.setCurrentWidget(page)
         self._nav_buttons[key].setChecked(True)
+        if tab is not None:
+            page.tabs.setCurrentIndex(tab)
+        if key == "home":
+            page.refresh()
+
+    def _set_advanced_tools(self, enabled: bool) -> None:
+        self.context.store.update({"advanced_tools": "1" if enabled else "0"})
+        self.context.configuration_changed.emit()
+
+    def _sync_advanced_tools(self) -> None:
+        enabled = self.context.store.get("advanced_tools", "0") == "1"
+        self.advanced_toggle.blockSignals(True)
+        self.advanced_toggle.setChecked(enabled)
+        self.advanced_toggle.blockSignals(False)
+        for key in ("data", "transfer", "weights"):
+            self._nav_buttons[key].setVisible(enabled)
+        for key in ("prepare", "analyse"):
+            self._nav_sections[key].setVisible(enabled)
 
     def append_log(self, message: str) -> None:
         timestamp = time.strftime("%H:%M:%S")
@@ -385,7 +413,7 @@ class MainWindow(QMainWindow):
         try:
             callback(result)
         except Exception as exc:
-            raw_message = f'Error d’affichage: {exc}'
+            raw_message = f'Display error: {exc}'
             self.append_log(raw_message)
             QMessageBox.critical(
                 self,

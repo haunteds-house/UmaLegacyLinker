@@ -25,6 +25,147 @@ class QtRuntimeSmokeTests(unittest.TestCase):
         assert QApplication is not None
         cls.application = QApplication.instance() or QApplication([])
 
+    def test_named_career_choices_save_the_exact_selected_records(self) -> None:
+        from PySide6.QtCore import Qt
+        from ui_qt.training_goal_dialog import TrainingGoalDialog
+        from ui_qt.image_assets import ImageRepository
+        from uma_workbench.core import MasterData, Store
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            store = Store(root / "profile")
+            for filename, rows in (
+                ("card_data.json", [{"card_id": 100101, "rarity": 3, "talent_level": 4}]),
+                ("trained_chara_data.json", [
+                    {"trained_chara_id": 42, "card_id": 100201, "speed": 800},
+                    {"trained_chara_id": 43, "card_id": 100201, "speed": 1000}]),
+                ("support_card_data.json", [{"support_card_id": 30011, "level": 40}]),
+            ):
+                store.import_bytes(filename, json.dumps(rows).encode())
+            first_plan = store.save_goal("Prepare inheritance", {"prerequisites": []})
+            master = MasterData()
+            master.names = {(4, 100101): "Special Week", (4, 100201): "Silence Suzuka",
+                (77, 30011): "Tokai Teio", (76, 30011): "Dream Chaser",
+                (47, 200001): "Corner Recovery"}
+            master.supports = {30011: {"rarity": 3, "chara_id": 1003}}
+            repository = ImageRepository(root / "images", enabled=False)
+            dialog = TrainingGoalDialog(store, master, repository)
+            dialog.trainee.set_choice(dialog.trainee.records[0])
+            selected_parent = next(row for row in dialog.parents[0].records
+                if row["record"]["trained_chara_id"] == 43)
+            dialog.parents[0].set_choice(selected_parent)
+            dialog.deck[0].set_choice(dialog.deck[0].records[0])
+            dialog.stats["speed"].setValue(1000)
+            dialog.skills.item(0).setCheckState(Qt.CheckState.Checked)
+            dialog.dependencies.item(0).setCheckState(Qt.CheckState.Checked)
+            self.assertEqual(dialog.trainee.label.text().splitlines()[0], "Special Week")
+            self.assertIn("Speed 1000", dialog.parents[0].label.text())
+            self.assertNotIn("100201", dialog.parents[0].label.text())
+            self.assertNotIn("30011", dialog.deck[0].label.text())
+            dialog.save()
+            saved = store.goals()[-1]
+            self.assertEqual(saved["details"]["card_id"], 100101)
+            self.assertEqual(saved["details"]["parent_ids"], [43])
+            self.assertEqual(saved["details"]["deck_ids"], [30011])
+            self.assertEqual(saved["details"]["skill_ids"], [200001])
+            self.assertEqual(saved["details"]["prerequisites"], [first_plan])
+            self.assertEqual(saved["title"], "Train Special Week · Team Trials runner")
+            dialog.close()
+
+    def test_collection_picker_filters_names_and_distinguishes_veteran_copies(self) -> None:
+        from ui_qt.collection_widgets import CollectionPicker, describe_records
+        from ui_qt.image_assets import ImageRepository
+        from uma_workbench.core import MasterData
+
+        with tempfile.TemporaryDirectory() as temp:
+            master = MasterData()
+            master.names = {(4, 100201): "Silence Suzuka", (4, 100301): "Tokai Teio"}
+            rows = [{"trained_chara_id": 1, "card_id": 100201, "speed": 800},
+                {"trained_chara_id": 2, "card_id": 100201, "speed": 1000},
+                {"trained_chara_id": 3, "card_id": 100301, "speed": 900}]
+            picker = CollectionPicker("Choose a parent", describe_records(master, "veterans", rows),
+                ImageRepository(Path(temp), enabled=False))
+            picker.search.setText("SUZUKA")
+            self.assertEqual(picker.gallery.rowCount(), 2)
+            choice = next(row for row in picker.gallery.records if row["record"]["speed"] == 1000)
+            picker.gallery._choose(choice)
+            self.assertEqual(picker.choice["record"]["trained_chara_id"], 2)
+            self.assertEqual(picker.result(), picker.DialogCode.Accepted)
+            picker.close()
+
+    def test_guided_navigation_keeps_advanced_tools_optional(self) -> None:
+        from ui_qt.context import AppContext
+        from ui_qt.main_window import MainWindow
+        from uma_legacy_linker.application import SettingsStore
+
+        with tempfile.TemporaryDirectory() as temp:
+            settings = SettingsStore(Path(temp) / "config.json")
+            settings.update({"online_images": "0", "output_dir": str(Path(temp) / "output")})
+            window = MainWindow(AppContext(settings))
+            window.show()
+            self.application.processEvents()
+            self.assertFalse(window._nav_buttons["data"].isVisible())
+            window._pages["home"].data_button.click()
+            page = window._pages["workbench"]
+            self.assertIs(page.tabs.currentWidget(), page.sync_tab)
+            self.assertFalse(page.tabs.isTabVisible(3))
+            window.advanced_toggle.setChecked(True)
+            self.assertTrue(window._nav_buttons["weights"].isVisible())
+            self.assertTrue(page.tabs.isTabVisible(3))
+            window.show_page("goals")
+            self.assertEqual(page.tabs.currentIndex(), 2)
+            window.close()
+
+    def test_artwork_falls_back_to_hakuraku_and_stays_available_offline(self) -> None:
+        from PySide6.QtCore import QByteArray, QBuffer, QIODevice, QObject, Signal
+        from PySide6.QtGui import QColor, QPixmap
+        from PySide6.QtNetwork import QNetworkReply
+        from ui_qt.asset_catalog import hakuraku_fallback_url, trainee_image_url
+        from ui_qt.image_assets import ImageRepository
+
+        class Reply(QObject):
+            finished = Signal()
+            def __init__(self, payload, error):
+                super().__init__()
+                self.payload, self.failure = payload, error
+            def error(self):
+                return self.failure
+            def readAll(self):
+                return QByteArray(self.payload)
+
+        class Manager:
+            def __init__(self, payload):
+                self.payload, self.requests, self.replies = payload, [], []
+            def get(self, request):
+                self.requests.append(request.url().toString())
+                reply = Reply(self.payload, QNetworkReply.NetworkError.ContentNotFoundError
+                    if len(self.requests) == 1 else QNetworkReply.NetworkError.NoError)
+                self.replies.append(reply)
+                return reply
+
+        with tempfile.TemporaryDirectory() as temp:
+            source = QPixmap(32, 64)
+            source.fill(QColor("#4488cc"))
+            buffer = QBuffer()
+            buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+            source.save(buffer, "PNG")
+            repository = ImageRepository(Path(temp))
+            manager = Manager(bytes(buffer.data()))
+            repository._manager = manager
+            ready, failed = [], []
+            repository.image_ready.connect(lambda url, pixmap: ready.append(url))
+            repository.image_failed.connect(failed.append)
+            url = trainee_image_url(100701)
+            self.assertIsNone(repository.pixmap(url))
+            manager.replies[0].finished.emit()
+            self.assertEqual(manager.requests, [url, hakuraku_fallback_url(url)])
+            manager.replies[1].finished.emit()
+            self.assertEqual(ready, [url])
+            self.assertEqual(failed, [])
+            self.assertEqual(repository._pending, {})
+            offline = ImageRepository(Path(temp), enabled=False)
+            self.assertEqual(offline.pixmap(url).size(), source.size())
+
     def test_migrated_race_settings_keep_numeric_weather_and_season(self) -> None:
         from ui_qt.context import AppContext
         from ui_qt.lineage_settings import LineageRaceEditor

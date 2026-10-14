@@ -140,6 +140,10 @@ class VisualAssetTests(unittest.TestCase):
         self.assertFalse(is_allowed_image_url("http://gametora.com/image.png"))
         self.assertFalse(is_allowed_image_url("https://gametora.com.example/image.png"))
         self.assertFalse(is_allowed_image_url("https://example.com/image.png"))
+        from ui_qt.asset_catalog import hakuraku_fallback_url
+        self.assertTrue(is_allowed_image_url(hakuraku_fallback_url(trainee_image_url(100701))))
+        self.assertFalse(is_allowed_image_url("https://raw.githubusercontent.com/ayaliz/hakuraku/main/README.md"))
+        self.assertFalse(is_allowed_image_url("https://raw.githubusercontent.com/another/repo/main/public/assets/chara_stand_1007_100701.webp"))
 
     def test_cache_names_are_opaque_stable_and_confined(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

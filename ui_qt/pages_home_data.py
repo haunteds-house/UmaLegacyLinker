@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 from uma_legacy_linker.error_guidance import actionable_error
 from ui_qt.components import PageHeader, PathPicker, StatusCard, muted_label, section_label
 from ui_qt.context import AppContext
+from uma_workbench.core import Store
 from uma_legacy_linker.application import (
     CatalogRequest,
     ExtractRequest,
@@ -53,6 +54,7 @@ class HomePage(QWidget):
     def __init__(self, context: AppContext, parent=None):
         super().__init__(parent)
         self.context = context
+        self.collection_store = Store()
         root = QVBoxLayout(self)
         root.setContentsMargins(28, 24, 28, 24)
         root.setSpacing(18)
@@ -81,17 +83,18 @@ class HomePage(QWidget):
         action_layout.setSpacing(10)
         self.quick_title = section_label("")
         self.quick_detail = muted_label("")
-        buttons = QHBoxLayout()
+        buttons = QGridLayout()
         self.data_button = QPushButton("")
         self.data_button.setObjectName("primary")
         self.search_button = QPushButton("")
         self.transfer_button = QPushButton("")
         self.refresh_button = QPushButton("")
-        buttons.addWidget(self.data_button)
-        buttons.addWidget(self.search_button)
-        buttons.addWidget(self.transfer_button)
-        buttons.addStretch(1)
-        buttons.addWidget(self.refresh_button)
+        buttons.addWidget(self.data_button, 0, 0)
+        buttons.addWidget(self.search_button, 0, 1)
+        buttons.addWidget(self.transfer_button, 0, 2)
+        buttons.addWidget(self.refresh_button, 1, 2)
+        for column in range(3):
+            buttons.setColumnStretch(column, 1)
         action_layout.addWidget(self.quick_title)
         action_layout.addWidget(self.quick_detail)
         action_layout.addLayout(buttons)
@@ -108,9 +111,9 @@ class HomePage(QWidget):
         root.addWidget(preview_panel)
         root.addStretch(1)
 
-        self.data_button.clicked.connect(lambda: self.navigate_requested.emit("data"))
-        self.search_button.clicked.connect(lambda: self.navigate_requested.emit("search"))
-        self.transfer_button.clicked.connect(lambda: self.navigate_requested.emit("transfer"))
+        self.data_button.clicked.connect(lambda: self.navigate_requested.emit("setup"))
+        self.search_button.clicked.connect(lambda: self.navigate_requested.emit("workbench"))
+        self.transfer_button.clicked.connect(lambda: self.navigate_requested.emit("goals"))
         self.refresh_button.clicked.connect(self.refresh)
         self.context.configuration_changed.connect(self._schedule_refresh)
         self._refresh_timer = QTimer(self)
@@ -126,20 +129,23 @@ class HomePage(QWidget):
     def retranslate(self) -> None:
         t = self.context.t
         self.header.set_text(
-            t('Overview'),
-            t('Prepare the data, run a calculation, and immediately see the latest useful state.'),
+            'Your training desk',
+            'Your umas, support cards, race results and next career in one place.',
         )
-        self.quick_title.setText(t('Quick actions'))
+        self.quick_title.setText('Start here')
         self.quick_detail.setText(
-            t('Prepare your collection, optimise a lineage, or start a focused analysis.')
+            'Set up names once, import your collection, then choose a character to train.',
         )
-        self.data_button.setText(t('Configure data'))
-        self.search_button.setText(t('Search for a lineage'))
-        self.transfer_button.setText(t('Analyse my veterans'))
+        self.data_button.setText('1 · Set up and import')
+        self.search_button.setText('2 · Browse my collection')
+        self.transfer_button.setText('3 · Plan a career')
         self.refresh_button.setText(t('Refresh'))
-        self.preview_title.setText(t('Local and uma.moe search'))
+        self.preview_title.setText('What can I do here?')
         self.preview_text.setText(
-            t('Local and uma.moe searches now share the same context, result workspace and lineage rendering.')
+            'My collection: recognize trainees and supports by their pictures and names. Open a card to see its details.\n\n'
+            'Team Trials: compare recorded race results and choose a runner to improve.\n\n'
+            'Career plans: choose a trainee, parents, supports and targets for your next run. Mark plans complete as you finish them.\n\n'
+            'Find parents: search your veterans for an inheritance pairing.',
         )
         self.refresh()
 
@@ -148,71 +154,33 @@ class HomePage(QWidget):
         master = Path(self.context.master_path).expanduser()
         if master.is_file():
             self.master_card.set_content(
-                t('Game database'), t('Detected'), master.name, "ok"
+                'Character names', 'Ready', 'Game data file selected', "ok"
             )
         else:
             self.master_card.set_content(
-                t('Game database'), t('Needs setup'), t('master.mdb is required'), "warning"
+                'Character names', 'Setup needed', 'Choose the game data file in Setup', "warning"
             )
 
-        data_path = Path(self.context.veterans_json_path).expanduser()
-        count = collection_size(data_path) if data_path.is_file() else None
-        if count is not None:
+        counts = self.collection_store.counts()
+        if any(counts.get(key, 0) for key in ('trainees', 'supports', 'veterans')):
             self.collection_card.set_content(
-                t('Local collection'),
-                t('{count} veterans').replace("{count}", str(count)),
-                data_path.name,
+                'My collection',
+                f"{counts.get('trainees', 0)} trainees",
+                f"{counts.get('supports', 0)} supports · {counts.get('veterans', 0)} veterans",
                 "ok",
             )
-        elif data_path.is_file():
-            self.collection_card.set_content(
-                t('Local collection'), t('Invalid JSON'), data_path.name, "error"
-            )
         else:
             self.collection_card.set_content(
-                t('Local collection'),
-                t('Select a file'),
-                t('A collection export is required'),
+                'My collection',
+                'Import needed',
+                'Use Import my collection to add your exports',
                 "warning",
             )
-
-        rankings = latest_rankings_path(self.context.output_dir)
-        output = Path(self.context.output_dir).expanduser()
-        result_candidates = [
-            path for path in (
-                rankings,
-                output / "uma_moe_parent_pairs.json",
-                output / "uma_moe_grandparent_pairs.json",
-                output / "transfer_helper_report.json",
-            )
-            if path.is_file()
-        ]
-        linked = linked_veterans_path(self.context.output_dir)
-        freshness = linked_data_freshness(
-            self.context.master_path,
-            self.context.veterans_json_path,
-            self.context.output_dir,
-        )
-        if linked.is_file() and freshness.state != "ready":
-            self.results_card.set_content(
-                t('Latest calculation'),
-                t('Inputs changed'),
-                t('Link the collection again before running an optimisation'),
-                "warning",
-            )
-        elif result_candidates:
-            latest = max(result_candidates, key=lambda path: path.stat().st_mtime)
-            self.results_card.set_content(
-                t('Latest calculation'), t('Available'), latest.name, "ok"
-            )
-        elif linked.is_file():
-            self.results_card.set_content(
-                t('Latest calculation'), t('Linked data'), t('Ready for optimisation'), "neutral"
-            )
-        else:
-            self.results_card.set_content(
-                t('Latest calculation'), t('None'), t('Start by preparing the data'), "neutral"
-            )
+        goals = self.collection_store.goals()
+        active = sum(goal['status'] in ('Planned', 'In progress') for goal in goals)
+        self.results_card.set_content('Career plans', f'{active} to work on',
+            'Choose a trainee to start your next plan' if not active else 'Open Career plans to see your next steps',
+            'neutral')
 
 
 class DataPage(QWidget):
@@ -254,7 +222,7 @@ class DataPage(QWidget):
         self.extractor_picker = PathPicker(
             self.context.extractor_path,
             title='Select UmaExtractor or umadump',
-            file_filter='Extracteur (*.exe *.py);;All files (*)',
+            file_filter='Extractor (*.exe *.py);;All files (*)',
         )
         self.output_label = QLabel("")
         self.output_picker = PathPicker(

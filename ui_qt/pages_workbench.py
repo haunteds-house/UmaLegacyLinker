@@ -6,13 +6,13 @@ import sqlite3
 from functools import partial
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QUrl, Signal
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtCore import Qt, QUrl, Signal, QSize
+from PySide6.QtGui import QDesktopServices, QIcon
 from PySide6.QtWidgets import (
     QAbstractItemView, QCheckBox, QComboBox, QDialog, QDialogButtonBox,
     QFileDialog, QFormLayout, QHBoxLayout, QHeaderView, QLabel, QLineEdit,
     QMessageBox, QPlainTextEdit, QPushButton, QScrollArea,
-    QTableWidget, QTableWidgetItem, QTabWidget, QVBoxLayout, QWidget,
+    QTableWidget, QTableWidgetItem, QTabWidget, QVBoxLayout, QWidget, QListWidget,
 )
 
 from uma_legacy_linker.application import LinkRequest, run_link
@@ -22,6 +22,10 @@ from uma_workbench.goals import validate_training_goal
 from uma_workbench.sync import ExportWatcher, check_release, launch_umadump
 from ui_qt.components import PageHeader, PathPicker, muted_label
 from ui_qt.context import AppContext
+from ui_qt.collection_widgets import ArtworkLabel, CollectionGallery, STAT_LABELS, character_name, describe_records, display_name
+from ui_qt.training_goal_dialog import TrainingGoalDialog
+from ui_qt.image_assets import ImageRepository, online_images_enabled
+from ui_qt.avatar import AsyncAvatarProvider
 
 
 def _table(headers, parent=None):
@@ -63,20 +67,23 @@ class WorkbenchPage(QWidget):
         self.context = context
         self.store = store or Store()
         self.master = MasterData()
+        self.images = ImageRepository(enabled=online_images_enabled(context), parent=self)
+        self.avatars = AsyncAvatarProvider(self.images, 48, self)
+        self.avatars.changed.connect(self._update_runner_portraits)
         self.watcher = None
         self.dumper = None
         self._busy = False
         self._buttons = []
         root = QVBoxLayout(self)
         root.setContentsMargins(28, 24, 28, 24)
-        root.addWidget(PageHeader("Collection and training workbench",
-            "Use exported collection and race evidence, then compare inheritance in Lineage Search."))
+        root.addWidget(PageHeader("Your collection and career plans",
+            "Browse your umas, review their races, and decide what to train next."))
         actions = QHBoxLayout()
-        self._button(actions, "Import dump or JSON", self.import_dump)
-        self._button(actions, "Use collection for lineage search", self.prepare_lineage)
+        self._button(actions, "Import my collection", self.import_dump)
+        self._button(actions, "Find inheritance parents", self.prepare_lineage)
         actions.addStretch()
         root.addLayout(actions)
-        self.notice = muted_label("Import a dump and select master.mdb to resolve names.")
+        self.notice = muted_label("")
         root.addWidget(self.notice)
         self.tabs = QTabWidget()
         root.addWidget(self.tabs, 1)
@@ -89,6 +96,9 @@ class WorkbenchPage(QWidget):
         self.watch_result.connect(self._import_done)
         self.context.configuration_changed.connect(self._paths_changed)
         self._paths_changed()
+        self.tabs.setTabVisible(3, False)
+        self.context.configuration_changed.connect(self._update_advanced_visibility)
+        self._update_advanced_visibility()
         self.refresh()
 
     def _button(self, layout, text, action):
@@ -110,6 +120,12 @@ class WorkbenchPage(QWidget):
         payload = _selected(table)
         if payload is None:
             return
+        if table is not self.database:
+            veteran = next((row for row in self.store.entities("veterans")
+                if row.get("trained_chara_id") == payload.get("veteran_id")), None)
+            descriptor = describe_records(self.master, "veterans", [veteran or payload])[0]
+            self._view_collection(descriptor, observation=payload)
+            return
         dialog = QDialog(self)
         dialog.setWindowTitle("Recorded data")
         dialog.resize(820, 600)
@@ -126,53 +142,116 @@ class WorkbenchPage(QWidget):
         QMessageBox.warning(self, "Check the selected data", actionable_error(message))
 
     def _make_collection(self):
-        _, layout = self._tab("Collection")
+        _, layout = self._tab("My collection")
+        layout.addWidget(muted_label("Choose a character or support card to see its stats, skills and inheritance. Search by name; portraits load as you browse."))
         row = QHBoxLayout()
         self.collection_kind = QComboBox()
         for label, code in (("Trainees", "trainees"), ("Support cards", "supports"), ("Veterans", "veterans")):
             self.collection_kind.addItem(label, code)
         self.collection_kind.setAccessibleName("Collection type")
         self.filter = QLineEdit()
-        self.filter.setPlaceholderText("Filter by name or ID")
-        self.filter.setAccessibleName("Filter collection")
+        self.filter.setPlaceholderText("Find a character or card by name")
+        self.filter.setAccessibleName("Search collection names")
         row.addWidget(self.collection_kind)
         row.addWidget(self.filter, 1)
         layout.addLayout(row)
-        self.collection = _table(["ID", "Name", "Level / stats", "Skills / factors"])
-        layout.addWidget(self.collection)
+        self.collection = CollectionGallery(self.images)
+        layout.addWidget(self.collection, 1)
+        self.collection.activated.connect(self._view_collection)
         self.collection_kind.currentIndexChanged.connect(self.refresh_collection)
         self.filter.textChanged.connect(self.refresh_collection)
-        self.collection.cellDoubleClicked.connect(lambda *_: self._details(self.collection))
+
 
     def refresh_collection(self, *_):
         kind = self.collection_kind.currentData()
         search = self.filter.text().casefold()
-        rows = []
-        for item in self.store.entities(kind):
-            if kind == "supports":
-                identity = item["support_card_id"]
-                name = self.master.support_name(identity)
-                level = self.master.support_level(item)
-                progress = f"Level {level}" if level is not None else f"Exp {item.get('exp', 'unknown')}"
-                summary = f"{progress} · {item.get('limit_break_count', 0)} limit breaks"
-                detail = ""
-            elif kind == "trainees":
-                identity = item["card_id"]
-                name = self.master.card_name(identity)
-                summary = f"Rarity {item.get('rarity', 'unknown')}★ · Awakening {item.get('talent_level', 'unknown')}"
-                detail = f"{len(item.get('skill_data_array', []))} skill hint records"
-            else:
-                identity = item["trained_chara_id"]
-                name = self.master.card_name(item["card_id"])
-                summary = " / ".join(str(item.get(stat, 0)) for stat in ("speed", "stamina", "power", "guts", "wiz"))
-                detail = f"{len(item.get('skill_array', []))} skills · {len(item.get('factor_info_array', []))} factors"
-            if search in f"{identity} {name}".casefold():
-                rows.append(([identity, name, summary, detail], item))
-        _fill(self.collection, rows)
+        records = describe_records(self.master, kind, self.store.entities(kind))
+        self.collection.set_records([row for row in records if search in (row["name"] + " " + row["summary"]).casefold()])
+
+    def _view_collection(self, descriptor, observation=None):
+        record = descriptor["record"]
+        dialog = QDialog(self)
+        dialog.setWindowTitle(descriptor["name"])
+        dialog.resize(860, 640)
+        root = QVBoxLayout(dialog)
+        tabs = QTabWidget()
+        root.addWidget(tabs, 1)
+        overview = QWidget()
+        layout = QVBoxLayout(overview)
+        head = QHBoxLayout()
+        head.addWidget(ArtworkLabel(self.images, descriptor["url"], descriptor["name"], size=170, support=descriptor["kind"] == "supports"))
+        copy = QVBoxLayout()
+        title = QLabel(descriptor["character"])
+        title.setObjectName("sectionTitle")
+        title.setWordWrap(True)
+        copy.addWidget(title)
+        if descriptor["costume"]:
+            copy.addWidget(muted_label(descriptor["costume"]))
+        copy.addWidget(muted_label(descriptor["summary"]))
+        copy.addWidget(muted_label(descriptor["badge"]))
+        if descriptor["kind"] == "veterans":
+            for key, label in STAT_LABELS:
+                copy.addWidget(QLabel(f"{label}: {record.get(key, 'Not recorded')}"))
+        if observation:
+            copy.addWidget(muted_label(DIVISIONS.get(observation.get("division"), "") + " · "
+                + STYLES.get(observation.get("style"), "")))
+            if "mean" in observation:
+                copy.addWidget(QLabel(f"{observation['mean']:,.0f} average points · {observation['races']} recorded races"))
+                copy.addWidget(muted_label(f"Won {observation.get('win_rate', 0):.0%} of recorded races. More recordings improve this comparison."))
+            elif "skill_id" in observation:
+                copy.addWidget(QLabel(self.master.names.get((47, observation["skill_id"]), "Skill name unavailable")))
+                copy.addWidget(muted_label(f"Activated in {observation['active_races']} of {observation['exposures']} recorded races with this skill ({observation['rate']:.0%})."))
+        head.addLayout(copy, 1)
+        layout.addLayout(head)
+        skills = record.get("skill_array", record.get("skill_data_array", []))
+        layout.addWidget(QLabel("Learned skills" if descriptor["kind"] == "veterans" else "Skill hints"))
+        names = QListWidget()
+        for skill in skills:
+            identity = skill.get("skill_id")
+            if identity:
+                name = self.master.skill_name(identity)
+                names.addItem(name if not name.startswith("Skill #") else "Skill name unavailable — finish game-data setup")
+        if not skills:
+            names.addItem("No skill records in this export")
+        layout.addWidget(names, 1)
+        if record.get("factor_info_array"):
+            factors = []
+            for factor in record["factor_info_array"]:
+                identity = factor.get("factor_id")
+                name = self.master.names.get((147, identity), "Inheritance spark")
+                factors.append(f"{name} {'★' * int(factor.get('level', 0))}".strip())
+            layout.addWidget(muted_label("Inheritance: " + " · ".join(factors)))
+        if descriptor["kind"] == "trainees":
+            button = QPushButton("Plan a career with this trainee")
+            button.setObjectName("primary")
+            button.clicked.connect(lambda: self._plan_trainee(dialog, record))
+            layout.addWidget(button)
+        elif observation:
+            button = QPushButton("Plan a career to improve this runner")
+            button.setObjectName("primary")
+            button.clicked.connect(lambda: self._plan_trainee(dialog, record))
+            layout.addWidget(button)
+        overview_scroll = QScrollArea()
+        overview_scroll.setWidgetResizable(True)
+        overview_scroll.setWidget(overview)
+        tabs.addTab(overview_scroll, "Overview")
+        raw = QPlainTextEdit(json.dumps({"collection": record, "race_summary": observation} if observation else record,
+            ensure_ascii=False, indent=2))
+        raw.setReadOnly(True)
+        tabs.addTab(raw, "Technical data")
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(dialog.reject)
+        root.addWidget(buttons)
+        dialog.exec()
+
+    def _plan_trainee(self, dialog, record):
+        dialog.accept()
+        self.new_goal({"card_id": record["card_id"], "style": 2})
+
 
     def _make_trials(self):
         _, layout = self._tab("Team Trials")
-        layout.addWidget(muted_label("Measured base points exclude recorded bonuses. Cohorts separate roster, division and style changes."))
+        layout.addWidget(muted_label("Compare your recorded Team Trials races. Points shown exclude bonuses. More races give a more reliable comparison. Select a runner to plan another career."))
         row = QHBoxLayout()
         self.cohort = QComboBox()
         self.cohort.setAccessibleName("Team Trials roster cohort")
@@ -180,16 +259,25 @@ class WorkbenchPage(QWidget):
         self.distinct_styles.setChecked(True)
         row.addWidget(self.cohort, 1)
         row.addWidget(self.distinct_styles)
-        self._button(row, "Create goal for selected runner", self.goal_from_runner)
+        self._button(row, "Train a better version", self.goal_from_runner)
         layout.addLayout(row)
         sub = QTabWidget()
-        self.tt = _table(["Runner", "Division", "Style", "Races", "Mean base pts", "Win rate", "95% win interval"])
-        self.skills = _table(["Runner", "Skill", "Eligible records", "Active records", "Activation rate"])
-        self.roster = _table(["Division", "Runner", "Style", "Races", "Mean base pts", "Approx. lower score bound"])
+        self.tt = _table(["Runner", "Division", "Style", "Races", "Average points", "Win rate", "Win-rate range"])
+        self.skills = _table(["Runner", "Skill", "Races with this skill", "Races activated", "Activation rate"])
+        self.roster = _table(["Division", "Runner", "Style", "Races", "Average points", "Cautious points estimate"])
         sub.addTab(self.tt, "Observed runners")
         sub.addTab(self.skills, "Skill activations")
         sub.addTab(self.roster, "Measured roster shortlist")
         layout.addWidget(sub)
+        self.tt.setIconSize(QSize(48, 48))
+        self.skills.setIconSize(QSize(48, 48))
+        self.roster.setIconSize(QSize(48, 48))
+        self.tt.verticalHeader().setDefaultSectionSize(60)
+        self.skills.verticalHeader().setDefaultSectionSize(58)
+        self.roster.verticalHeader().setDefaultSectionSize(60)
+        self.tt.hideColumn(6)
+        self.trial_focus = muted_label("")
+        layout.addWidget(self.trial_focus)
         self.roster_note = muted_label("The shortlist only considers veterans with at least three observations. It does not simulate new runners.")
         layout.addWidget(self.roster_note)
         for table in (self.tt, self.skills, self.roster):
@@ -200,32 +288,40 @@ class WorkbenchPage(QWidget):
     def refresh_trials(self, *_):
         cohort = self.cohort.currentData()
         metrics = self.store.metrics(cohort) if cohort else []
-        _fill(self.tt, [([self.master.card_name(r["card_id"]), DIVISIONS.get(r["division"], "Unknown"),
+        _fill(self.tt, [([character_name(self.master, "veterans", r["card_id"]), DIVISIONS.get(r["division"], "Unknown"),
             STYLES.get(r["style"], "Unknown"), r["races"], f"{r['mean']:,.0f}", f"{r['win_rate']:.1%}",
             f"{r['win_lo']:.1%}–{r['win_hi']:.1%}"], r) for r in metrics])
-        _fill(self.skills, [([self.master.card_name(r["card_id"]), self.master.skill_name(r["skill_id"]),
+        _fill(self.skills, [([character_name(self.master, "veterans", r["card_id"]), self.master.names.get((47, r["skill_id"]), "Skill name unavailable"),
             r["exposures"], r["active_races"], f"{r['rate']:.1%}"], r) for r in self.store.skill_metrics(cohort) if cohort])
         result = measured_roster(self.store, self.master, distinct_styles=self.distinct_styles.isChecked())
-        _fill(self.roster, [([DIVISIONS[r["division"]], self.master.card_name(r["card_id"]),
+        _fill(self.roster, [([DIVISIONS[r["division"]], character_name(self.master, "veterans", r["card_id"]),
             STYLES.get(r["style"], "Unknown"), r["races"], f"{r['mean']:,.0f}", f"{r['lower_score']:,.0f}"], r)
             for r in result["selected"]])
         vacancies = ", ".join(f"{DIVISIONS[key]}: {value}" for key, value in result["vacancies"].items() if value)
+        if metrics:
+            focus = min(metrics, key=lambda item: item["mean"])
+            name = character_name(self.master, "veterans", focus["card_id"])
+            self.trial_focus.setText(f"Lowest recorded average: {name} in {DIVISIONS.get(focus['division'], 'this division')} — {focus['mean']:,.0f} points over {focus['races']} races. Select a runner, then choose ‘Train a better version’. This is a comparison of recorded results.")
+        else:
+            self.trial_focus.setText("No Team Trials races yet. Record a few races with umadump, then import the exports or enable live updates in Setup.")
+        self._update_runner_portraits()
         self.roster_note.setText(f"{len(result['selected'])}/15 slots supported across all recorded cohorts. "
             + (f"Unfilled: {vacancies}. " if vacancies else "")
-            + "The shortlist uses current veterans with three or more observations. Historical comparisons are approximate; teammate interactions are not simulated.")
+            + "This suggested roster uses veterans seen in at least three races. Empty places need more race recordings; it does not predict new runners or team interactions.")
 
     def _make_goals(self):
-        _, layout = self._tab("Training goals")
-        layout.addWidget(muted_label("Record TT, CM, parent and grandparent targets. Prerequisites must be complete before the next career starts."))
+        _, layout = self._tab("Career plans")
+        layout.addWidget(muted_label("A career plan records who to train, which parents and supports to use, and when the result is good enough. Start by choosing a trainee."))
         row = QHBoxLayout()
-        self._button(row, "New training goal", self.new_goal)
+        self._button(row, "Plan a career", self.new_goal)
         for label, status in (("Start selected", "In progress"), ("Mark complete", "Complete"), ("Abandon", "Abandoned")):
             self._button(row, label, lambda _checked=False, target=status: self.change_goal(target))
         row.addStretch()
         layout.addLayout(row)
-        self.goals = _table(["ID", "Goal", "Role", "Status", "Prerequisites", "Stop condition"])
+        self.goals = _table(["Internal key", "Career plan", "Purpose", "Progress", "Finish these plans first", "When to stop"])
         layout.addWidget(self.goals)
-        self.goals.cellDoubleClicked.connect(lambda *_: self._details(self.goals))
+        self.goals.cellDoubleClicked.connect(lambda *_: self._view_goal())
+        self.goals.hideColumn(0)
         self.careers = muted_label("")
         layout.addWidget(self.careers)
 
@@ -238,67 +334,14 @@ class WorkbenchPage(QWidget):
         if isinstance(runner, bool):
             runner = None
         if not self.master.path:
-            self._error("Select master.mdb before planning a training deck and parents")
+            self.tabs.setCurrentWidget(self.sync_tab)
+            self._error("Finish setup by choosing the game's data file. It lets the app show character, card and skill names.")
             return
-        dialog = QDialog(self)
-        dialog.setWindowTitle("New training goal")
-        dialog.resize(740, 720)
-        layout = QVBoxLayout(dialog)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        content = QWidget()
-        form = QFormLayout(content)
-        scroll.setWidget(content)
-        layout.addWidget(scroll)
-        fields = {}
-        defaults = {
-            "Title": f"Improve {self.master.card_name(runner['card_id'])}" if runner else "",
-            "Role": "TT", "Trainee card ID": str(runner["card_id"]) if runner else "",
-            "Scenario": "URA", "Surface": "Turf", "Distance (m)": "",
-            "Running style": STYLES.get(runner["style"], "Pace Chaser") if runner else "Pace Chaser",
-            "Stats: Spd/Sta/Pow/Guts/Wit": "", "Required skill IDs": "", "Parent veteran IDs": "",
-            "Support IDs (up to 6)": "", "Prerequisite goal IDs": "", "Maximum attempts": "10", "Stop condition": "",
-        }
-        choices = {"Role": ("TT", "CM", "Parent", "Grandparent"), "Surface": ("Turf", "Dirt"),
-            "Running style": tuple(STYLES.values()), "Scenario": ("URA", "Unity Cup", "Trackblazer", "Our Grand Concert")}
-        for name, value in defaults.items():
-            if name in choices:
-                field = QComboBox()
-                field.addItems(choices[name])
-                field.setCurrentText(value)
-            else:
-                field = QLineEdit(value)
-            field.setAccessibleName(name)
-            form.addRow(name, field)
-            fields[name] = field
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
-        layout.addWidget(buttons)
-        buttons.rejected.connect(dialog.reject)
-        def value(name):
-            field = fields[name]
-            return field.currentText() if isinstance(field, QComboBox) else field.text().strip()
-        def ids(name):
-            return [int(part.strip()) for part in value(name).split(",") if part.strip()]
-        def save():
-            try:
-                stats = [int(part) for part in value("Stats: Spd/Sta/Pow/Guts/Wit").split("/")] if value("Stats: Spd/Sta/Pow/Guts/Wit") else []
-                if stats and len(stats) != 5:
-                    raise ValueError("Use five stat targets separated by /, or leave them blank")
-                payload = {"role": value("Role"), "card_id": int(value("Trainee card ID")), "scenario": value("Scenario"),
-                    "surface": value("Surface"), "style": value("Running style"),
-                    "distance": int(value("Distance (m)")) if value("Distance (m)") else None,
-                    "stats": dict(zip(("speed", "stamina", "power", "guts", "wiz"), stats)),
-                    "skill_ids": ids("Required skill IDs"), "parent_ids": ids("Parent veteran IDs"),
-                    "deck_ids": ids("Support IDs (up to 6)"), "prerequisites": ids("Prerequisite goal IDs"),
-                    "max_attempts": int(value("Maximum attempts")), "stop_condition": value("Stop condition")}
-                validate_training_goal(payload, self.store, self.master)
-                self.store.save_goal(value("Title"), payload)
-                self.refresh()
-                dialog.accept()
-            except (ValueError, KeyError) as exc:
-                self._error(exc)
-        buttons.accepted.connect(save)
-        dialog.exec()
+        dialog = TrainingGoalDialog(self.store, self.master, self.images, runner, self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.refresh()
+            self.tabs.setCurrentIndex(2)
+
 
     def change_goal(self, status):
         goal = _selected(self.goals)
@@ -310,7 +353,7 @@ class WorkbenchPage(QWidget):
                 self._error(exc)
 
     def _make_database(self):
-        _, layout = self._tab("Game database")
+        _, layout = self._tab("Advanced game data")
         row = QHBoxLayout()
         self.database_kind = QComboBox()
         self.database_kind.addItems(MasterData.TABLES)
@@ -388,13 +431,14 @@ class WorkbenchPage(QWidget):
             self.refresh()
 
     def _make_sync(self):
-        self.sync_tab, layout = self._tab("Sync")
+        self.sync_tab, layout = self._tab("Setup")
+        layout.addWidget(muted_label("First choose your game's master.mdb file to load character, support and skill names. Then use ‘Import my collection’ above to add your umadump ZIP or JSON exports."))
         form = QFormLayout()
         self.master_picker = PathPicker(mode="file", file_filter="Game database (*.mdb);;All files (*)")
         self.output_picker = PathPicker(mode="directory")
         self.umadump_picker = PathPicker(mode="file", file_filter="Windows executable (*.exe)")
-        for name, field in (("Game master.mdb", self.master_picker), ("umadump output folder", self.output_picker),
-            ("Upstream umadump.exe", self.umadump_picker)):
+        for name, field in (("Game data file (loads names)", self.master_picker), ("Folder where umadump saves exports", self.output_picker),
+            ("Your umadump program", self.umadump_picker)):
             field.edit.setAccessibleName(name)
             field.set_button_text("Browse…")
             form.addRow(name, field)
@@ -402,18 +446,30 @@ class WorkbenchPage(QWidget):
         self.umadump_picker.set_text(str(self.store.setting("umadump_path", "")))
         layout.addLayout(form)
         actions = QHBoxLayout()
-        self._button(actions, "Save paths / reload MDB", self.save_paths)
-        self.monitor_button = self._button(actions, "Start file monitoring", self.toggle_monitor)
-        self._button(actions, "Launch upstream daemon", self.launch_daemon)
-        self._button(actions, "Check upstream release", self.check_upstream)
+        self._button(actions, "Save setup", self.save_paths)
+        self.monitor_button = self._button(actions, "Start live updates", self.toggle_monitor)
         actions.addStretch()
         layout.addLayout(actions)
-        self.sync_note = muted_label("File monitoring reads exported JSON only. An optional launch uses your separate, unmodified upstream umadump release.")
+        extra = QHBoxLayout()
+        self._button(extra, "Open umadump", self.launch_daemon)
+        self._button(extra, "Check for umadump updates", self.check_upstream)
+        extra.addStretch()
+        layout.addLayout(extra)
+        self.sync_note = muted_label("Live updates watch the export folder for new collection and race recordings. Open umadump starts your existing copy in a separate window.")
         layout.addWidget(self.sync_note)
-        layout.addWidget(muted_label(f"Private workbench data: {self.store.path}"))
+        self.artwork_toggle = QCheckBox("Show character portraits and support artwork")
+        self.artwork_toggle.setChecked(online_images_enabled(self.context))
+        self.artwork_toggle.toggled.connect(self._artwork_changed)
+        layout.addWidget(self.artwork_toggle)
+        layout.addWidget(muted_label("Pictures load from GameTora, with Hakuraku as a backup, and are kept for offline browsing. Game data and collection exports stay on your computer."))
         layout.addStretch()
 
     def _paths_changed(self):
+        enabled = online_images_enabled(self.context)
+        self.images.set_enabled(enabled)
+        self.artwork_toggle.blockSignals(True)
+        self.artwork_toggle.setChecked(enabled)
+        self.artwork_toggle.blockSignals(False)
         path = self.context.master_path or self.store.setting("master_path", "")
         self.master_picker.set_text(str(path))
         if path and (not self.master.path or str(self.master.path) != str(Path(path).expanduser().resolve())):
@@ -433,7 +489,7 @@ class WorkbenchPage(QWidget):
             self.store.set_setting("umadump_path", self.umadump_picker.text())
             self.context.update_paths(master_path=path)
             self.refresh()
-            self.sync_note.setText("Paths saved. MDB fingerprint: " + (self.master.sha256 or "not selected"))
+            self.sync_note.setText("Setup saved. Character, card and skill names are ready." if self.master.path else "Choose the game data file to load names.")
         except (ValueError, OSError, sqlite3.Error) as exc:
             self._error(exc)
 
@@ -468,16 +524,16 @@ class WorkbenchPage(QWidget):
     def toggle_monitor(self):
         if self.watcher:
             self.shutdown()
-            self.monitor_button.setText("Start file monitoring")
-            self.sync_note.setText("File monitoring stopped")
+            self.monitor_button.setText("Start live updates")
+            self.sync_note.setText("Live updates stopped")
             return
         try:
             if not self.output_picker.text():
                 raise ValueError("Select an umadump output folder")
             self.watcher = ExportWatcher(self.store, self.output_picker.text(), self.watch_result.emit)
             self.watcher.start()
-            self.monitor_button.setText("Stop file monitoring")
-            self.sync_note.setText("Watching exported JSON for completed file writes")
+            self.monitor_button.setText("Stop live updates")
+            self.sync_note.setText("Live updates are on. New exports will appear here automatically.")
         except (ValueError, OSError) as exc:
             self.watcher = None
             self._error(exc)
@@ -492,7 +548,7 @@ class WorkbenchPage(QWidget):
             self.dumper = launch_umadump(self.umadump_picker.text(), self.output_picker.text())
             if self.watcher is None:
                 self.toggle_monitor()
-            self.sync_note.setText("Upstream daemon launched in a separate console. Stop it in that console when finished.")
+            self.sync_note.setText("umadump is open in a separate window. Close that window when you finish recording.")
         except (ValueError, OSError) as exc:
             self._error(exc)
 
@@ -525,25 +581,84 @@ class WorkbenchPage(QWidget):
     def refresh(self):
         counts = self.store.counts()
         self.notice.setText(f"{counts.get('trainees', 0)} trainees · {counts.get('supports', 0)} supports · "
-            f"{counts.get('veterans', 0)} veterans · {counts.get('races', 0)} TT races")
+            f"{counts.get('veterans', 0)} veterans · {counts.get('races', 0)} Team Trials races"
+            + (" · Choose the game data file in Setup to load names." if not self.master.path else ""))
         self.refresh_collection()
         current = self.cohort.currentData()
         self.cohort.blockSignals(True)
         self.cohort.clear()
         for index, cohort in enumerate(self.store.cohorts(), 1):
-            self.cohort.addItem(f"Roster {index} · {str(cohort['cohort'])[:10]} · {cohort['captures']} captures", cohort["cohort"])
+            self.cohort.addItem(f"Team {index} · {cohort['captures']} race recordings", cohort["cohort"])
         if current:
             self.cohort.setCurrentIndex(max(0, self.cohort.findData(current)))
         self.cohort.blockSignals(False)
         self.refresh_trials()
-        _fill(self.goals, [([goal["id"], goal["title"], goal["details"].get("role", ""), goal["status"],
-            ", ".join(map(str, goal["details"].get("prerequisites", []))), goal["details"].get("stop_condition", "")], goal)
+        _fill(self.goals, [([goal["id"], goal["title"], {"TT": "Team Trials", "CM": "Champion Meeting", "Parent": "Parent", "Grandparent": "Grandparent"}.get(goal["details"].get("role"), "Career"), goal["status"],
+            ", ".join(next((other["title"] for other in self.store.goals() if other["id"] == identity), "Previous plan") for identity in goal["details"].get("prerequisites", [])), goal["details"].get("stop_condition", "")], goal)
             for goal in self.store.goals()])
         _fill(self.resources, [([row["name"], row["balance"], row["target"], row["missing"], row["income"],
             row["runs"] if row["runs"] is not None else "Unknown"], row) for row in self.store.resources()])
         career_count = sum(career["snapshots"] for career in self.store.career_summary())
         self.careers.setText(f"{career_count} career observations retained. Inspect completed careers and mark goals complete manually.")
         self.refresh_database()
+
+    def _artwork_changed(self, enabled):
+        self.context.store.update({"online_images": "1" if enabled else "0"})
+        self.context.configuration_changed.emit()
+
+    def _update_runner_portraits(self):
+        for table in (getattr(self, "tt", None), getattr(self, "skills", None), getattr(self, "roster", None)):
+            if table is None:
+                continue
+            column = 1 if table is getattr(self, "roster", None) else 0
+            for index in range(table.rowCount()):
+                item = table.item(index, column)
+                if item is None:
+                    continue
+                record = item.data(Qt.ItemDataRole.UserRole)
+                item.setToolTip(display_name(self.master, "veterans", record.get("card_id")))
+                portrait = self.avatars.avatar(record.get("card_id"))
+                if portrait is not None:
+                    item.setIcon(QIcon(portrait))
+
+    def _view_goal(self):
+        goal = _selected(self.goals)
+        if not goal:
+            return
+        details = goal["details"]
+        dialog = QDialog(self)
+        dialog.setWindowTitle(goal["title"])
+        dialog.resize(740, 610)
+        root = QVBoxLayout(dialog)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        content = QWidget()
+        scroll.setWidget(content)
+        root.addWidget(scroll, 1)
+        layout = QVBoxLayout(content)
+        layout.addWidget(QLabel(goal["title"]))
+        layout.addWidget(muted_label(goal["status"] + " · " + details.get("scenario", "")))
+        trainee = describe_records(self.master, "trainees", [{"card_id": details["card_id"]}])[0]
+        layout.addWidget(ArtworkLabel(self.images, trainee["url"], trainee["name"], size=100))
+        layout.addWidget(QLabel(trainee["name"]))
+        supports = [display_name(self.master, "supports", identity) for identity in details.get("deck_ids", [])]
+        layout.addWidget(muted_label("Support deck: " + (" · ".join(supports) or "Not chosen yet")))
+        veteran_map = {int(row["trained_chara_id"]): row for row in self.store.entities("veterans")}
+        parents = [display_name(self.master, "veterans", veteran_map[identity]["card_id"]) for identity in details.get("parent_ids", []) if identity in veteran_map]
+        layout.addWidget(muted_label("Parents: " + (" · ".join(parents) or "Not chosen yet")))
+        targets = [f"{label}: {details.get('stats', {}).get(key)}" for key, label in STAT_LABELS if details.get("stats", {}).get(key)]
+        layout.addWidget(muted_label("Stat targets: " + (" · ".join(targets) or "None set")))
+        skills = [self.master.names.get((47, identity), "Skill name unavailable") for identity in details.get("skill_ids", [])]
+        layout.addWidget(muted_label("Required skills: " + (" · ".join(skills) or "None set")))
+        layout.addWidget(muted_label("When to stop: " + details.get("stop_condition", "")))
+        layout.addStretch()
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(dialog.reject)
+        root.addWidget(buttons)
+        dialog.exec()
+
+    def _update_advanced_visibility(self):
+        self.tabs.setTabVisible(3, self.context.store.get("advanced_tools", "0") == "1")
 
     def set_busy(self, busy):
         self._busy = busy

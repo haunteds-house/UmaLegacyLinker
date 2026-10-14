@@ -121,6 +121,22 @@ def application_stylesheet() -> str:
         background: {COLORS['sidebar']};
         border-right: 1px solid {COLORS['border']};
     }}
+    QFrame#collectionTile {{
+        background: {COLORS['surface']};
+        border: 1px solid {COLORS['border']};
+        border-radius: 14px;
+    }}
+    QLabel#portraitPlaceholder {{
+        background: {COLORS['sidebar']};
+        border-radius: 12px;
+        color: {COLORS['accent']};
+        font-size: {css_point_size('brand')};
+        font-weight: 700;
+    }}
+    QLabel#cardName {{
+        font-size: {css_point_size('body_large')};
+        font-weight: 650;
+    }}
     QLabel#brand {{
         font-size: {css_point_size("brand")};
         font-weight: 700;

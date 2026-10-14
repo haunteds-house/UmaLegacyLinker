@@ -12,12 +12,13 @@
 
 Windows desktop application · English interface
 
-This fork is the base for the collection and training workbench. **Workbench**
-imports umadump ZIP/JSON exports, displays trainees, support cards and veterans,
-tracks Team Trials points and skill activations, and stores training goals and
-resource milestones. **Use collection for lineage search** links those veterans
-with this application's inheritance engine and opens the existing Search page.
-See the [workbench guide](docs/WORKBENCH.md) for setup and current limits.
+This fork is the base for the collection and career planner. **My collection**
+imports umadump ZIP/JSON exports and shows trainees, support cards and veterans
+with pictures and names. **Career plans** uses illustrated choices for trainees,
+parents and support decks. **Team Trials** compares recorded race results.
+**Find inheritance parents** connects the imported veterans to the existing
+inheritance engine. See the [collection guide](docs/WORKBENCH.md) for setup and
+current limits.
 
 [Download](#quick-start) · [Features](#features) · [Documentation](#documentation)
 
@@ -34,10 +35,10 @@ Choose the Ace you want to train, the course and your running style. Uma Legacy 
 1. Open the [latest release](https://github.com/haunteds-house/UmaLegacyLinker/releases/latest) and download `UmaLegacyLinkerQt-win64.zip`. Check the release notes and prerelease label for that version.
 2. Extract the **whole ZIP** and run `UmaLegacyLinkerQt.exe`. Keep its runtime files together; Python is included.
 3. Obtain your current game database, `master.mdb`, and export your veterans with [umadump](https://github.com/Werseter/umadump) or [UmaExtractor](https://github.com/xancia/UmaExtractor), following that tool's instructions.
-4. On **Data**, select the MDB, the export (`trained_chara_data.json` or `data.json`) and an output directory. Select **Link an existing export**.
-5. Open **Search**, set your target and race profile, choose a result tab and run the search.
+4. From **Home**, choose **1 · Set up and import**. Choose `master.mdb` in **Setup**, click **Save setup**, then **Import my collection** to select your ZIP or JSON exports.
+5. Browse your characters in **My collection**, start a **Career plan**, or choose **Find inheritance parents** to search your veterans.
 
-These steps support local ranking without an API key. **Extract my collection** can also launch a separately configured extractor from the Data page. Relink after replacing the MDB or collection export.
+These steps support local inheritance ranking without an API key. **Open umadump** launches your existing unmodified executable. The original data and scoring editors are available through **Show advanced tools**. Prepare the inheritance search again after replacing the MDB or collection export.
 
 This README describes the current source tree; published builds and prereleases are described by their own release notes.
 

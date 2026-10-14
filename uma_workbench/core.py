@@ -123,7 +123,7 @@ class MasterData:
     @contextmanager
     def connection(self):
         if not self.path:
-            raise ValueError("Select the game's master.mdb on the Sync page")
+            raise ValueError("Choose the game's master.mdb file in Setup to load names")
         connection = sqlite3.connect(self.path.as_uri() + "?mode=ro", uri=True)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA query_only=ON")
@@ -144,7 +144,7 @@ class MasterData:
                 if not {"text_data", "skill_data", "card_data"}.issubset(tables):
                     raise ValueError("This is not a supported game master database")
                 names = {(int(r[0]), int(r[1])): r[2] for r in con.execute(
-                    'SELECT category, "index", text FROM text_data WHERE category IN (4,6,47,48,76,77)')}
+                    'SELECT category, "index", text FROM text_data WHERE category IN (4,6,47,48,76,77,147)')}
                 cards = {r["id"]: dict(r) for r in con.execute("SELECT * FROM card_data")}
                 supports = {r["id"]: dict(r) for r in con.execute("SELECT * FROM support_card_data")}
                 support_levels = [dict(row) for row in con.execute("SELECT * FROM support_card_level")] if "support_card_level" in tables else []

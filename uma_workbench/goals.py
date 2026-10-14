@@ -13,7 +13,7 @@ def validate_training_goal(payload, store, master):
         raise ValueError("Use five nonnegative stat targets, or leave them blank")
     deck = payload.get("deck_ids", [])
     if len(deck) > 6 or len(set(deck)) != len(deck):
-        raise ValueError("Enter up to six distinct support IDs")
+        raise ValueError("Choose up to six different support cards")
     owned = {int(row["support_card_id"]) for row in store.entities("supports")}
     if sum(identity not in owned for identity in deck) > 1:
         raise ValueError("A deck may use at most one borrowed support")

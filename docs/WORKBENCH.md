@@ -1,8 +1,8 @@
-# Collection and training workbench
+# My collection and career plans
 
 This fork is the main Windows application. It uses the existing Qt shell and
 inheritance engines; the previous Tkinter companion is replaced by the native
-**Workbench** page.
+**My collection** page.
 
 ## Start from source
 
@@ -19,17 +19,41 @@ whole built directory together. Source does not contain a prebuilt executable.
 
 ## Import and search
 
-1. Open **Workbench → Sync**. Select the game's `master.mdb` and
-   save the paths. The **Local data** page shares the same selected MDB.
-2. Choose **Import dump or JSON** and select your umadump ZIP or individual
-   collection/race JSON files. ZIP executables are neither extracted nor run.
-3. Browse trainees, supports and veterans in **Collection**. Double-click a
-   row to inspect its recorded skills, Sparks, ancestry, locks and other fields.
-4. Choose **Use collection for lineage search**. The app creates a private
-   veteran snapshot, links it with its own inheritance engine, and opens Search.
-5. Select the Ace, future parent and race profile in Search and run an existing
-   local or uma.moe search. After a new veteran import, use the collection for
-   lineage search again to refresh the snapshot.
+1. From **Home**, choose **1 · Set up and import**. In **Setup**, choose the
+   game's `master.mdb` file and click **Save setup**. This loads character,
+   support and skill names.
+2. Click **Import my collection** and select your umadump ZIP or collection/race
+   JSON files. Executables inside a ZIP are neither extracted nor run.
+3. Open **My collection**. Switch between **Trainees**, **Support cards** and
+   **Veterans**, or search by name. Each item has a portrait or card illustration.
+   Click **View** for readable stats, learned skills and inheritance sparks.
+   Raw fields are available only on the separate **Technical data** tab.
+4. Open **Career plans → Plan a career**. Choose a trainee, parents and supports
+   from illustrated menus. Optional stat targets and skill checklists use names.
+   Duplicate veteran copies are distinguished by their stats. No IDs need typing.
+5. Use **Team Trials** to compare recorded runners and skill activations.
+   Double-click a runner for its picture, stats and a readable race summary.
+   **Train a better version** starts a plan with that character already chosen.
+6. Click **Find inheritance parents** above the collection to prepare your
+   veterans and open the existing inheritance search. Choose a target and open
+   results for the illustrated lineage. Repeat after importing new veterans.
+
+The **Home** page explains each workflow. **Show advanced tools** in the sidebar
+reveals the original data, transfer and weight editors, plus raw game-data
+browsing. These tools are hidden initially; their saved settings still apply.
+
+Pictures load on demand from GameTora. If a portrait or support image cannot
+load, the app tries the corresponding asset in
+[Hakuraku](https://github.com/ayaliz/hakuraku/tree/main/public/assets).
+Successful images are cached for offline browsing. Missing artwork shows initials;
+names and collection actions still work. Disable online downloads in **Setup**
+or **Settings**. No artwork or account data is bundled in the executable.
+
+The portrait selectors and expandable runner overview were informed by
+Hakuraku's [PortraitSelect](https://github.com/ayaliz/hakuraku/blob/main/src/pages/MultiRacePage/components/PortraitSelect.tsx)
+and [CharaCard](https://github.com/ayaliz/hakuraku/blob/main/src/components/RaceDataPresenter/components/CharaList/CharaCard.tsx).
+The Qt implementation is native to this fork; Hakuraku's race simulator is not
+integrated into this release.
 
 The exported veteran snapshot can include a borrowed veteran from an ongoing
 career. Collection displays the exported records; the inheritance engine
@@ -42,11 +66,11 @@ different positive account identities from being combined in that database.
 
 ## Daemon exports
 
-Select your existing umadump output folder and start file monitoring. The app
+Select your existing umadump output folder and click **Start live updates**. The app
 reads new JSON files separately, retries partial writes, and deduplicates
 imports. Closing the app stops its file watcher.
 
-The optional **Launch upstream daemon** button runs the separate executable you
+The optional **Open umadump** button runs the separate executable you
 selected, using exactly:
 
 ```text
@@ -73,7 +97,7 @@ per character and three per division, with optional distinct styles. Its
 shortlist spans recorded cohorts; historical comparisons can be confounded.
 It does not model teammate interactions or simulate an untrained runner.
 
-Training goals record target stats, skills, support decks, parents, scenario,
+Career plans record target stats, skills, support decks, parents, scenario,
 prerequisites, attempt limits and stop conditions. The editor validates
 collection ownership and character conflicts. Dependencies must be complete
 before starting a goal. Completion remains manual; career observations are
