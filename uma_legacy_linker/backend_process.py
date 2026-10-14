@@ -51,7 +51,7 @@ def run_process_task(task: ProcessTask, connection: Any, cancel_event: Any) -> N
 
     def checkpoint() -> None:
         if cancel_event.is_set():
-            raise ProcessTaskCancelled("Tâche annulée par l'utilisateur.")
+            raise ProcessTaskCancelled('Task cancelled by the user.')
 
     def log(message: str) -> None:
         checkpoint()

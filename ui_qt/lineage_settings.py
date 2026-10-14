@@ -21,7 +21,7 @@ from uma_legacy_linker.course_presets import (
     ordered_course_presets,
     racecourse_names_match,
 )
-from uma_legacy_linker.i18n import profile_values
+from uma_legacy_linker.labels import profile_values
 from ui_qt.accessibility import describe_control, label_control
 from ui_qt.components import (
     CollapsibleSection,
@@ -49,21 +49,21 @@ PROFILE_CODES = {
 
 CONDITION_ITEMS: dict[str, list[tuple[str, object]]] = {
     "season": [
-        ("Non précisé", None),
-        ("Printemps", [1, 5]),
-        ("Été", 2),
-        ("Automne", 3),
-        ("Hiver", 4),
+        ('Unspecified', None),
+        ('Spring', [1, 5]),
+        ('Summer', 2),
+        ('Autumn', 3),
+        ('Winter', 4),
     ],
     "weather": [
-        ("Non précisé", None),
-        ("Ensoleillé", 1),
-        ("Nuageux", 2),
-        ("Pluie", 3),
-        ("Neige", 4),
+        ('Unspecified', None),
+        ('Sunny', 1),
+        ('Cloudy', 2),
+        ('Rain', 3),
+        ('Snow', 4),
     ],
     "ground_condition": [
-        ("Non précisé", None),
+        ('Unspecified', None),
         ("Firm", 1),
         ("Good", 2),
         ("Soft", 3),
@@ -72,7 +72,7 @@ CONDITION_ITEMS: dict[str, list[tuple[str, object]]] = {
 }
 
 
-ROTATION_SOURCE_BY_VALUE = {1: "Droite", 2: "Gauche"}
+ROTATION_SOURCE_BY_VALUE = {1: 'Right', 2: 'Left'}
 
 
 def _distance_bucket(distance_m: int) -> str:
@@ -212,8 +212,8 @@ class LineageRaceEditor(QWidget):
         self.course_file_label = QLabel("")
         self.course_picker = PathPicker(
             self.context.course_overrides_path,
-            title="Sélectionner les overrides de course",
-            file_filter="JSON (*.json);;Tous les fichiers (*)",
+            title='Select course overrides',
+            file_filter='JSON (*.json);;All files (*)',
         )
         self.track_label = QLabel("")
         self.track_combo = SearchableComboBox()
@@ -227,8 +227,8 @@ class LineageRaceEditor(QWidget):
         self.priority_label = QLabel("")
         self.priority_picker = PathPicker(
             self.context.lineage_state().skill_priorities_path,
-            title="Choisir un profil de priorités white",
-            file_filter="JSON (*.json);;Tous les fichiers (*)",
+            title='Choose a white priority profile',
+            file_filter='JSON (*.json);;All files (*)',
         )
 
         advanced_controls = (
@@ -314,12 +314,9 @@ class LineageRaceEditor(QWidget):
         )
         self.context.lineage_changed.connect(self.sync_from_context)
         self.context.configuration_changed.connect(self._configuration_changed)
-        self.context.language_changed.connect(self._language_changed)
 
         self.retranslate()
 
-    def _language_changed(self, _language: str) -> None:
-        self.retranslate()
 
     @staticmethod
     def _find_data(combo: QComboBox, value: object) -> int:
@@ -336,7 +333,7 @@ class LineageRaceEditor(QWidget):
     @staticmethod
     def _condition_source(combo: QComboBox) -> str:
         return str(
-            combo.currentData(Qt.ItemDataRole.UserRole + 1) or "Non précisé"
+            combo.currentData(Qt.ItemDataRole.UserRole + 1) or 'Unspecified'
         )
 
     def _populate_profile_combo(
@@ -389,7 +386,7 @@ class LineageRaceEditor(QWidget):
     def _populate_track_combo(self, selected: int) -> None:
         self.track_combo.blockSignals(True)
         self.track_combo.clear()
-        self.track_combo.addItem(self.context.t("Non précisé"), None)
+        self.track_combo.addItem(self.context.t('Unspecified'), None)
         for track_id, display_name, _course_turns in self._track_options:
             self.track_combo.addItem(display_name, track_id)
         index = self.track_combo.findData(selected)
@@ -405,7 +402,7 @@ class LineageRaceEditor(QWidget):
         self.course_combo.blockSignals(True)
         self.course_combo.clear()
         self.course_combo.addItem(
-            self.context.t("Aucun preset — profil manuel"), None
+            self.context.t('No preset — manual profile'), None
         )
         for key, course in self._course_definitions.items():
             self.course_combo.addItem(
@@ -421,38 +418,38 @@ class LineageRaceEditor(QWidget):
         t = self.context.t
         self.shared_hint.setText(
             t(
-                "Ces réglages forment le contexte partagé des recherches locales et uma.moe. Les options de scoring restent synchronisées avec Pondérations."
+                'These settings form the shared context for local and uma.moe searches. Scoring options remain synchronised with Weights.'
             )
         )
         self.surface_label.setText(t("Surface"))
         self.distance_label.setText(t("Distance"))
-        self.style_label.setText(t("Style"))
-        self.course_label.setText(t("Preset de course"))
-        self.advanced.set_title(t("Options avancées et conditions de course"))
-        self.course_file_label.setText(t("Fichier de presets / overrides"))
-        self.track_label.setText(t("Hippodrome"))
-        self.season_label.setText(t("Saison"))
-        self.weather_label.setText(t("Météo"))
-        self.ground_label.setText(t("État du terrain"))
-        self.custom_scoring.setText(t("Utiliser mes pondérations personnalisées"))
-        self.priority_label.setText(t("Priorités individuelles des white skills"))
+        self.style_label.setText(t('Running style'))
+        self.course_label.setText(t('Course preset'))
+        self.advanced.set_title(t('Advanced options and race conditions'))
+        self.course_file_label.setText(t('Preset / override file'))
+        self.track_label.setText(t('Racecourse'))
+        self.season_label.setText(t('Season'))
+        self.weather_label.setText(t('Weather'))
+        self.ground_label.setText(t('Track condition'))
+        self.custom_scoring.setText(t('Use my custom weights'))
+        self.priority_label.setText(t('Individual white skill priorities'))
         self.course_picker.dialog_title = t(
-            "Sélectionner les overrides de course"
+            'Select course overrides'
         )
         self.course_picker.file_filter = (
-            f"JSON (*.json);;{t('Tous les fichiers')} (*)"
+            f"JSON (*.json);;{t('All files')} (*)"
         )
         self.priority_picker.dialog_title = t(
-            "Choisir un profil de priorités white"
+            'Choose a white priority profile'
         )
         self.priority_picker.file_filter = (
-            f"JSON (*.json);;{t('Tous les fichiers')} (*)"
+            f"JSON (*.json);;{t('All files')} (*)"
         )
-        self.course_picker.set_button_text(t("Parcourir…"))
-        self.priority_picker.set_button_text(t("Parcourir…"))
+        self.course_picker.set_button_text(t('Browse…'))
+        self.priority_picker.set_button_text(t('Browse…'))
         self.priority_picker.setToolTip(
             t(
-                "Ce fichier règle la valeur de chaque white skill par surface, distance et style. Un profil partiel est accepté : il est fusionné avec default_skill_priorities.json avant chaque calcul."
+                'This file controls the value of each white skill by surface, distance and running style. Partial profiles are accepted and merged with default_skill_priorities.json before every calculation.'
             )
         )
         for label, combo in (
@@ -643,7 +640,7 @@ class LineageRaceEditor(QWidget):
         )
         if value is not None:
             return ROTATION_SOURCE_BY_VALUE[value]
-        return "Non précisé"
+        return 'Unspecified'
 
     def _course_path_changed(self, value: str) -> None:
         if self._syncing:
@@ -791,7 +788,7 @@ class LineageRaceEditor(QWidget):
 
     def current_course_label(self) -> str:
         if self.course_combo.currentIndex() < 0:
-            return self.context.t("Aucun preset — profil manuel")
+            return self.context.t('No preset — manual profile')
         return self.course_combo.currentText()
 
     def static_condition_labels(self) -> list[str]:
@@ -805,19 +802,19 @@ class LineageRaceEditor(QWidget):
         if self.track_combo.currentIndex() > 0:
             labels.append(self.track_combo.currentText())
         rotation = self.context.lineage_state().rotation
-        if rotation != "Non précisé":
+        if rotation != 'Unspecified':
             labels.append(self.context.t(rotation))
         for combo in (
             self.season_combo,
             self.weather_combo,
             self.ground_combo,
         ):
-            if self._condition_source(combo) != "Non précisé":
+            if self._condition_source(combo) != 'Unspecified':
                 labels.append(combo.currentText())
         if self.custom_scoring.isChecked():
-            labels.append(self.context.t("pondérations personnalisées"))
+            labels.append(self.context.t('custom weights'))
         if self.priority_picker.text().strip():
-            labels.append(self.context.t("priorités white personnalisées"))
+            labels.append(self.context.t('custom White priorities'))
         return labels
 
     def has_static_conditions(self) -> bool:
@@ -832,10 +829,10 @@ class LineageRaceEditor(QWidget):
         """
         self.context.update_lineage(
             track_id=0,
-            rotation="Non précisé",
-            season="Non précisé",
-            weather="Non précisé",
-            ground_condition="Non précisé",
+            rotation='Unspecified',
+            season='Unspecified',
+            weather='Unspecified',
+            ground_condition='Unspecified',
         )
         self.changed.emit()
 

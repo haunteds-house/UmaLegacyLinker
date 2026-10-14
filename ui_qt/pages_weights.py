@@ -33,18 +33,17 @@ from PySide6.QtWidgets import (
 )
 
 from uma_legacy_linker.error_guidance import actionable_error
-from uma_legacy_linker.i18n import scoring_label, translate_text
+from uma_legacy_linker.labels import scoring_label, display_text
 
 # `scoring_label` is a flat leaf-name lookup shared with course_conditions,
 # which reuses the same "parent_branch" / "parent_pair" leaf names for its own
 # per-mode overrides. Give the mode_weights breadcrumb, editor title and
-# distribution list their own more specific French source wording here
+# distribution list their own more specific display wording here
 # instead of changing the shared dict, so course_conditions keeps its
-# current generic labels. Routed through translate_text like every other
-# source string, so the EN side stays covered by tests/check_i18n.py.
+# current generic labels.
 _MODE_WEIGHTS_LABEL_OVERRIDES = {
-    "parent_branch": "Branche parent",
-    "parent_pair": "Paire de parents finale",
+    "parent_branch": 'Parent branch',
+    "parent_pair": 'Final parent pair',
 }
 
 
@@ -52,7 +51,7 @@ def _mode_weights_aware_label(path: tuple[str, ...], key: str, language: str) ->
     if path and path[0] == "mode_weights":
         override = _MODE_WEIGHTS_LABEL_OVERRIDES.get(key)
         if override is not None:
-            return str(translate_text(override, language))
+            return str(display_text(override, language))
     return scoring_label(key, language)
 from uma_legacy_linker.scoring_config import (
     ScoringConfigError,
@@ -476,8 +475,8 @@ class WeightsPage(QWidget):
         priority_row = QHBoxLayout()
         self.priority_picker = PathPicker(
             context.lineage_state().skill_priorities_path,
-            title="Choisir un profil de priorités white",
-            file_filter="JSON (*.json);;Tous les fichiers (*)",
+            title='Choose a white priority profile',
+            file_filter='JSON (*.json);;All files (*)',
         )
         self.create_priority_button = QPushButton("")
         self.open_priority_button = QPushButton("")
@@ -538,12 +537,9 @@ class WeightsPage(QWidget):
         for widget in self._focus_commit_widgets:
             widget.installEventFilter(self)
         self.context.lineage_changed.connect(self._sync_shared_settings)
-        self.context.language_changed.connect(self._language_changed)
         self.reload()
         self.retranslate()
 
-    def _language_changed(self, _language: str) -> None:
-        self.retranslate()
 
     def reload(self) -> None:
         try:
@@ -553,7 +549,7 @@ class WeightsPage(QWidget):
         except (OSError, ScoringConfigError) as exc:
             QMessageBox.warning(
                 self,
-                self.context.t("Profil de pondération invalide"),
+                self.context.t('Invalid scoring profile'),
                 actionable_error(exc, translate=self.context.t),
             )
             self.default = read_json_object(default_scoring_path())
@@ -602,7 +598,7 @@ class WeightsPage(QWidget):
                 advanced=not _is_primary_setting(path),
             )
             category_key = weight_category(path)
-            category_source = dict(CATEGORY_SOURCES).get(category_key, "Autres")
+            category_source = dict(CATEGORY_SOURCES).get(category_key, 'Other')
             category_label = self.context.t(category_source)
             subcategory_key, subcategory_source, subcategory_order = weight_subcategory(path)
             subcategory_label = self.context.t(subcategory_source)
@@ -627,14 +623,11 @@ class WeightsPage(QWidget):
                     "active": active_value,
                     "default": default_display,
                     "changed": changed,
-                    "state": self.context.t("Modifié" if changed else "Défaut"),
+                    "state": self.context.t('Changed' if changed else 'Default'),
                     "help": help_info,
                     "sort_key": weight_sort_key(path),
                     "_tooltip": (
-                        f"{subcategory_label} › {labels[-1]}\n\n{help_info.summary}\n\n"
-                        f"{self.context.t('Effet')} : {help_info.impact}\n\n"
-                        f"{self.context.t('Actuel')} : {active_value}  ·  "
-                        f"{self.context.t('Défaut')} : {default_display}"
+                        f"{subcategory_label} › {labels[-1]}\n\n{help_info.summary}\n\n{self.context.t('Effect')}: {help_info.impact}\n\n{self.context.t('Current')}: {active_value}  ·  {self.context.t('Default')}: {default_display}"
                     ),
                 }
             )
@@ -662,7 +655,7 @@ class WeightsPage(QWidget):
             points = _compact_number(float(value) * 100.0, 1)
             effective = _compact_number(share * 100.0, 1)
             return (
-                self.context.t("{points} pts · {share} % effectifs")
+                self.context.t('{points} pts · {share}% effective')
                 .replace("{points}", points)
                 .replace("{share}", effective)
             )
@@ -672,15 +665,15 @@ class WeightsPage(QWidget):
             rendered = _compact_number(value, 2)
             return f"×{rendered}"
         if isinstance(value, bool):
-            return self.context.t("Activé" if value else "Désactivé")
+            return self.context.t('Enabled' if value else 'Disabled')
         if isinstance(value, (list, dict)):
-            return self.context.t("{count} points de courbe").replace(
+            return self.context.t('{count} curve points').replace(
                 "{count}", str(len(value))
             )
         if value == "floor":
-            return self.context.t("Plancher")
+            return self.context.t('Minimum floor')
         if value == "override":
-            return self.context.t("Remplacement")
+            return self.context.t('Override')
         return str(value)
 
     def _selected_category(self) -> str:
@@ -712,9 +705,9 @@ class WeightsPage(QWidget):
 
     def _tree_headers(self) -> list[str]:
         return [
-            self.context.t("Réglage"),
-            self.context.t("Actuel"),
-            self.context.t("État"),
+            self.context.t('Setting'),
+            self.context.t('Current'),
+            self.context.t('Status'),
         ]
 
     def _make_group_item(
@@ -733,7 +726,7 @@ class WeightsPage(QWidget):
         )
         suffix = f"  ·  {count}"
         if changed_count:
-            suffix += "  ·  " + self.context.t("{count} modifié(s)").replace(
+            suffix += "  ·  " + self.context.t('{count} changed').replace(
                 "{count}", str(changed_count)
             )
         item.setText(0, f"{label}{suffix}")
@@ -755,7 +748,7 @@ class WeightsPage(QWidget):
             item.setForeground(0, QBrush(accent))
             item.setToolTip(
                 0,
-                self.context.t("Ce bloc contient {count} réglage(s) modifié(s).").replace(
+                self.context.t('This block contains {count} changed setting(s).').replace(
                     "{count}", str(changed_count)
                 ),
             )
@@ -841,7 +834,7 @@ class WeightsPage(QWidget):
             category_parent: QTreeWidgetItem | None = None
             if category == "all":
                 category_parent = self._make_group_item(
-                    self.context.t(category_sources.get(category_key, "Autres")),
+                    self.context.t(category_sources.get(category_key, 'Other')),
                     len(category_rows),
                     key=f"category:{category_key}",
                     changed_count=sum(1 for row in category_rows if row["changed"]),
@@ -879,7 +872,7 @@ class WeightsPage(QWidget):
                 first.child(0).setExpanded(True)
         self.tree.blockSignals(False)
         self.visible_count.setText(
-            self.context.t("{shown} / {total} réglages")
+            self.context.t('{shown} / {total} settings')
             .replace("{shown}", str(len(rows)))
             .replace("{total}", str(len(self._all_rows)))
         )
@@ -949,30 +942,30 @@ class WeightsPage(QWidget):
             self._active_help = None
             self.distribution_panel.setVisible(False)
             self.editor_breadcrumb.setText("")
-            self.editor_title.setText(self.context.t("Sélectionne un réglage"))
-            self.scope_badge.setText(self.context.t("Aide contextuelle"))
+            self.editor_title.setText(self.context.t('Select a setting'))
+            self.scope_badge.setText(self.context.t('Contextual help'))
             self.type_badge.setText("")
             self.state_badge.setText("")
             self.type_badge.setVisible(False)
             self.state_badge.setVisible(False)
             self.editor_summary.setText(
                 self.context.t(
-                    "Chaque réglage affiche ici son rôle, son impact et la direction de sa valeur."
+                    'Each setting shows its purpose, impact, and value direction here.'
                 )
             )
-            self.impact_title.setText(self.context.t("Comment utiliser cet écran"))
+            self.impact_title.setText(self.context.t('How to use this screen'))
             self.impact_text.setText(
                 self.context.t(
-                    "Choisis un domaine, déplie un bloc de calcul, puis sélectionne un réglage. La recherche traverse toute l’arborescence."
+                    'Choose a domain, expand a calculation block, then select a setting. Search covers the entire tree.'
                 )
             )
-            self.current_label.setText(self.context.t("Valeur active"))
+            self.current_label.setText(self.context.t('Active value'))
             self.value_stack.setMaximumHeight(72)
             self.value_stack.setCurrentWidget(self.empty_page)
             self.default_value.setText("—")
             self.draft_state.setText("—")
             self.editor_hint.setText(
-                self.context.t("Choisis un réglage dans la liste pour afficher le contrôle adapté.")
+                self.context.t('Choose a setting from the list to display the appropriate control.')
             )
             self.reset_button.setEnabled(False)
             self.reset_group_button.setVisible(False)
@@ -991,7 +984,7 @@ class WeightsPage(QWidget):
         self.type_badge.setVisible(True)
         self.state_badge.setVisible(True)
         self.editor_summary.setText(help_info.summary)
-        self.impact_title.setText(self.context.t("Effet sur le classement"))
+        self.impact_title.setText(self.context.t('Effect on ranking'))
         self.impact_text.setText(help_info.impact)
         self._editor_loading = True
         try:
@@ -1000,11 +993,11 @@ class WeightsPage(QWidget):
             self._editor_loading = False
         self._editor_pending = False
         if self._editor_kind == "relative_weight":
-            self.percent_low.setText(self.context.t("0 pt · ignoré"))
-            self.percent_high.setText(self.context.t("Plus de points · plus d’impact"))
+            self.percent_low.setText(self.context.t('0 pt · ignored'))
+            self.percent_high.setText(self.context.t('More points · more impact'))
         elif self._editor_kind == "multiplier":
-            self.percent_low.setText(self.context.t("×0 · ignoré"))
-            self.percent_high.setText(self.context.t("×1 · référence"))
+            self.percent_low.setText(self.context.t('×0 · ignored'))
+            self.percent_high.setText(self.context.t('×1 · reference'))
         else:
             self.percent_low.setText(help_info.low_label)
             self.percent_high.setText(help_info.high_label)
@@ -1013,7 +1006,7 @@ class WeightsPage(QWidget):
         )
         changed = self._path_changed(path, value, default)
         self.state_badge.setText(
-            self.context.t("Réglage avancé" if help_info.advanced else "Réglage standard")
+            self.context.t('Advanced setting' if help_info.advanced else 'Standard setting')
         )
         self.state_badge.setObjectName("pillWarning" if help_info.advanced else "pill")
         self.state_badge.style().unpolish(self.state_badge)
@@ -1026,13 +1019,13 @@ class WeightsPage(QWidget):
 
     def _set_draft_state(self, *, changed: bool, pending: bool) -> None:
         if pending:
-            text = self.context.t("Modification en cours")
+            text = self.context.t('Editing in progress')
             object_name = "pillWarning"
         elif changed:
-            text = self.context.t("Brouillon modifié")
+            text = self.context.t('Modified draft')
             object_name = "pillAccent"
         else:
-            text = self.context.t("Valeur d’origine")
+            text = self.context.t('Original value')
             object_name = "pill"
         self.draft_state.setText(text)
         self.draft_state.setObjectName(object_name)
@@ -1062,7 +1055,7 @@ class WeightsPage(QWidget):
     def _set_editor_type(self, source: str) -> None:
         translated = self.context.t(source)
         self.current_label.setText(
-            f"{self.context.t('Valeur active')} · {translated}"
+            f"{self.context.t('Active value')} · {translated}"
         )
         self.type_badge.setText(translated)
         controls = {
@@ -1117,10 +1110,10 @@ class WeightsPage(QWidget):
             self._set_percentage_range_label(limit)
             self.value_stack.setMaximumHeight(118)
             self.value_stack.setCurrentWidget(self.percent_page)
-            self._set_editor_type("Poids indépendant")
+            self._set_editor_type('Independent weight')
             self.editor_hint.setText(
                 self.context.t(
-                    "Seul ce poids est modifié. La part effective affichée dans la roue est recalculée sans réécrire les autres valeurs."
+                    'Only this weight is changed. The effective share shown in the wheel is recalculated without rewriting the other values.'
                 )
             )
             self._update_distribution_preview()
@@ -1135,25 +1128,25 @@ class WeightsPage(QWidget):
                 y_probability=y_probability,
             )
             if x_probability:
-                x_label = self.context.t("Probabilité (%)")
+                x_label = self.context.t('Probability (%)')
             else:
-                x_label = self.context.t("Valeur d’entrée")
-            y_label = self.context.t("Utilité (%)" if y_probability else "Score d’utilité")
-            self.curve_edit.add_button.setText(self.context.t("Ajouter un point"))
-            self.curve_edit.remove_button.setText(self.context.t("Supprimer le point"))
+                x_label = self.context.t('Input value')
+            y_label = self.context.t('Utility (%)' if y_probability else 'Utility score')
+            self.curve_edit.add_button.setText(self.context.t('Add point'))
+            self.curve_edit.remove_button.setText(self.context.t('Remove point'))
             self.curve_edit.set_labels(
                 x_label,
                 y_label,
                 self.context.t(
-                    "Déplace les points directement sur la courbe ou ajuste les valeurs dans le tableau. Les points restent ordonnés et la courbe reste croissante."
+                    'Drag points directly on the curve or adjust values in the table. Points remain ordered and the curve remains increasing.'
                 ),
             )
             self.value_stack.setMaximumHeight(560)
             self.value_stack.setCurrentWidget(self.curve_page)
-            self._set_editor_type("Courbe interactive")
+            self._set_editor_type('Interactive curve')
             self.editor_hint.setText(
                 self.context.t(
-                    "Cette courbe transforme une probabilité ou un seuil brut en utilité de classement."
+                    'This curve converts a probability or raw threshold into ranking utility.'
                 )
             )
             return
@@ -1165,9 +1158,9 @@ class WeightsPage(QWidget):
             self._update_bool_text(bool(value))
             self.value_stack.setMaximumHeight(62)
             self.value_stack.setCurrentWidget(self.bool_page)
-            self._set_editor_type("Interrupteur")
+            self._set_editor_type('Toggle')
             self.editor_hint.setText(
-                self.context.t("Active ou désactive ce comportement dans le calcul.")
+                self.context.t('Enable or disable this behaviour in the calculation.')
             )
             return
 
@@ -1192,10 +1185,10 @@ class WeightsPage(QWidget):
                 self._set_percentage_range_label(limit)
                 self.value_stack.setMaximumHeight(118)
                 self.value_stack.setCurrentWidget(self.percent_page)
-                self._set_editor_type("Coefficient ×")
+                self._set_editor_type('× coefficient')
                 self.editor_hint.setText(
                     self.context.t(
-                        "Coefficient indépendant : ×1 est la valeur de référence. Il ne partage pas un budget de 100 % avec ses voisins."
+                        'Independent coefficient: ×1 is the reference value. It does not share a 100% budget with neighbouring settings.'
                     )
                 )
                 return
@@ -1222,11 +1215,11 @@ class WeightsPage(QWidget):
             self.value_stack.setMaximumHeight(118)
             self.value_stack.setCurrentWidget(self.percent_page)
             if is_threshold_percentage(path):
-                self._set_editor_type("Seuil en %")
-                hint = "Seuil absolu borné de 0 à 100 %. Il n’est pas renormalisé avec d’autres valeurs."
+                self._set_editor_type('Percentage threshold')
+                hint = 'Absolute threshold bounded from 0 to 100%. It is not normalised with other values.'
             else:
-                self._set_editor_type("Probabilité")
-                hint = "Probabilité bornée à 100 %. Le champ numérique permet un réglage précis."
+                self._set_editor_type('Probability')
+                hint = 'Probability capped at 100%. Use the numeric field for precise adjustment.'
             self.editor_hint.setText(self.context.t(hint))
             return
 
@@ -1235,9 +1228,9 @@ class WeightsPage(QWidget):
             self.integer_edit.setValue(int(value))
             self.value_stack.setMaximumHeight(72)
             self.value_stack.setCurrentWidget(self.integer_page)
-            self._set_editor_type("Nombre entier")
+            self._set_editor_type('Whole number')
             self.editor_hint.setText(
-                self.context.t("Valeur entière positive ou nulle.")
+                self.context.t('A whole number greater than or equal to zero.')
             )
             return
 
@@ -1246,9 +1239,9 @@ class WeightsPage(QWidget):
             self.decimal_edit.setValue(float(value))
             self.value_stack.setMaximumHeight(72)
             self.value_stack.setCurrentWidget(self.decimal_page)
-            self._set_editor_type("Nombre décimal")
+            self._set_editor_type('Decimal number')
             self.editor_hint.setText(
-                self.context.t("Valeur décimale positive ou nulle.")
+                self.context.t('A decimal number greater than or equal to zero.')
             )
             return
 
@@ -1262,9 +1255,9 @@ class WeightsPage(QWidget):
             self.enum_edit.setCurrentIndex(index if index >= 0 else 0)
             self.value_stack.setMaximumHeight(72)
             self.value_stack.setCurrentWidget(self.enum_page)
-            self._set_editor_type("Choix")
+            self._set_editor_type('Choice')
             self.editor_hint.setText(
-                self.context.t("Sélectionne le comportement appliqué par le moteur.")
+                self.context.t('Select the behaviour applied by the engine.')
             )
             return
 
@@ -1273,9 +1266,9 @@ class WeightsPage(QWidget):
             self.text_edit.setText(str(value))
             self.value_stack.setMaximumHeight(72)
             self.value_stack.setCurrentWidget(self.text_page)
-            self._set_editor_type("Texte")
+            self._set_editor_type('Text')
             self.editor_hint.setText(
-                self.context.t("Valeur textuelle utilisée par le moteur.")
+                self.context.t('Text value used by the engine.')
             )
             return
 
@@ -1283,9 +1276,9 @@ class WeightsPage(QWidget):
         self.structured_edit.setPlainText(_editor_text(value))
         self.value_stack.setMaximumHeight(180)
         self.value_stack.setCurrentWidget(self.structured_page)
-        self._set_editor_type("Courbe ou liste")
+        self._set_editor_type('Curve or list')
         self.editor_hint.setText(
-            self.context.t("Éditeur avancé : conserve une liste JSON valide et ordonnée.")
+            self.context.t('Advanced editor: keep the JSON list valid and ordered.')
         )
 
     @staticmethod
@@ -1304,13 +1297,13 @@ class WeightsPage(QWidget):
     def _enum_options(self, path: tuple[str, ...]) -> list[tuple[str, str]]:
         if path == ("transfer_helper", "analysis_mode"):
             return [
-                (self.context.t("Rapide"), "fast"),
-                (self.context.t("Audit exhaustif"), "exhaustive"),
+                (self.context.t('Fast'), "fast"),
+                (self.context.t('Exhaustive audit'), "exhaustive"),
             ]
         if path[:2] == ("course_conditions", "modes"):
             return [
-                (self.context.t("Plancher"), "floor"),
-                (self.context.t("Remplacement"), "override"),
+                (self.context.t('Minimum floor'), "floor"),
+                (self.context.t('Override'), "override"),
             ]
         return []
 
@@ -1339,25 +1332,25 @@ class WeightsPage(QWidget):
         if self._editor_kind == "relative_weight":
             self.percent_range.setText(
                 self.context.t(
-                    "Plage du slider : 0 à {maximum} points · la roue normalise le total"
+                    'Slider range: 0 to {maximum} points · the wheel normalises the total'
                 ).replace("{maximum}", f"{maximum:g}")
             )
             return
         if self._editor_kind == "multiplier":
             self.percent_range.setText(
-                self.context.t("Plage du slider : ×0 à ×{maximum} · référence ×1").replace(
+                self.context.t('Slider range: ×0 to ×{maximum} · ×1 reference').replace(
                     "{maximum}", f"{maximum:g}"
                 )
             )
             return
         self.percent_range.setText(
-            self.context.t("Plage du slider : 0 % à {maximum} %").replace(
+            self.context.t('Slider range: 0% to {maximum}%').replace(
                 "{maximum}", f"{maximum:g}"
             )
         )
 
     def _update_bool_text(self, checked: bool) -> None:
-        self.bool_edit.setText(self.context.t("Activé" if checked else "Désactivé"))
+        self.bool_edit.setText(self.context.t('Enabled' if checked else 'Disabled'))
         self._editor_value_changed()
 
     def _read_editor_value(self) -> object:
@@ -1399,14 +1392,14 @@ class WeightsPage(QWidget):
                 value = json.loads(self.structured_edit.toPlainText().strip())
             except json.JSONDecodeError as exc:
                 raise ValueError(
-                    f"JSON invalide, ligne {exc.lineno}, colonne {exc.colno}."
+                    f'Invalid JSON, line {exc.lineno}, column {exc.colno}.'
                 ) from exc
             if isinstance(self._editor_reference, list) and not isinstance(value, list):
-                raise ValueError("Une liste JSON est attendue.")
+                raise ValueError('A JSON list is required.')
             if isinstance(self._editor_reference, dict) and not isinstance(value, dict):
-                raise ValueError("Un objet JSON est attendu.")
+                raise ValueError('A JSON object is required.')
             return value
-        raise ValueError("Sélectionne un réglage.")
+        raise ValueError('Select a setting.')
 
     def _update_distribution_preview(self) -> None:
         if not self._relative_paths or not self._selected_path:
@@ -1436,7 +1429,7 @@ class WeightsPage(QWidget):
         self.distribution_title.setText(self.context.t(subcategory_source))
         self.distribution_explanation.setText(
             self.context.t(
-                "Chaque poids reste indépendant. La roue montre seulement la part effective obtenue après normalisation du groupe."
+                'Each weight remains independent. The wheel only shows the effective share after the group is normalised.'
             )
         )
         total_share = sum(share for _path, share in distribution)
@@ -1449,22 +1442,22 @@ class WeightsPage(QWidget):
         self.distribution_total.setText(
             (
                 self.context.t(
-                    "Répartition effective : 100 % · somme des poids : {total} pts"
+                    'Effective distribution: 100% · weight sum: {total} pts'
                 ).replace(
                     "{total}",
                     _compact_number(raw_total * 100.0, 1),
                 )
                 if total_share > 0.999999
                 else self.context.t(
-                    "Groupe désactivé · tous les poids indépendants sont à 0"
+                    'Disabled group · all independent weights are 0'
                 )
             )
         )
         self.distribution_chart.setAccessibleName(
-            self.context.t("Répartition du groupe de pondération")
+            self.context.t('Weight-group distribution')
         )
         self.distribution_chart.set_distribution(
-            items, selected_index, self.context.t("effectifs")
+            items, selected_index, self.context.t('effective')
         )
         self.distribution_panel.setVisible(True)
 
@@ -1480,7 +1473,7 @@ class WeightsPage(QWidget):
             if show_warning:
                 QMessageBox.warning(
                     self,
-                    self.context.t("Valeur refusée"),
+                    self.context.t('Value rejected'),
                     actionable_error(exc, translate=self.context.t),
                 )
             return False
@@ -1561,8 +1554,8 @@ class WeightsPage(QWidget):
     def reset_all(self) -> None:
         answer = QMessageBox.question(
             self,
-            self.context.t("Réinitialiser les pondérations"),
-            self.context.t("Rétablir toutes les valeurs par défaut dans l’éditeur ?"),
+            self.context.t('Reset weights'),
+            self.context.t('Restore all default values in the editor?'),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
@@ -1580,7 +1573,7 @@ class WeightsPage(QWidget):
         except (OSError, ScoringConfigError) as exc:
             QMessageBox.warning(
                 self,
-                self.context.t("Profil de pondération invalide"),
+                self.context.t('Invalid scoring profile'),
                 actionable_error(exc, translate=self.context.t),
             )
             return
@@ -1591,7 +1584,7 @@ class WeightsPage(QWidget):
         self.context.update_lineage(use_custom_scoring=True)
         self._rebuild_rows()
         self._refresh_status()
-        QMessageBox.information(self, self.context.t("Pondérations"), self.context.t("Profil enregistré et activé."))
+        QMessageBox.information(self, self.context.t('Weights'), self.context.t('Profile saved and enabled.'))
 
     def _active_changed(self, active: bool) -> None:
         committed_pending = False
@@ -1611,7 +1604,7 @@ class WeightsPage(QWidget):
                 self.active_check.blockSignals(False)
                 QMessageBox.warning(
                     self,
-                    self.context.t("Profil de pondération invalide"),
+                    self.context.t('Invalid scoring profile'),
                     actionable_error(exc, translate=self.context.t),
                 )
                 return
@@ -1625,20 +1618,20 @@ class WeightsPage(QWidget):
         count = count_override_leaves(overrides)
         if self.saved_current and self.current != self.saved_current:
             text = self.context.t(
-                "Modifications non enregistrées · utilise « Enregistrer le profil »."
+                'Unsaved changes · use “Save profile”.'
             )
         elif self.active_check.isChecked():
-            text = self.context.t("Profil personnalisé actif · {count} valeur(s) modifiée(s)").replace("{count}", str(count))
+            text = self.context.t('Custom profile active · {count} changed value(s)').replace("{count}", str(count))
         elif count:
-            text = self.context.t("Profil par défaut actif · {count} modification(s) enregistrée(s) mais désactivée(s)").replace("{count}", str(count))
+            text = self.context.t('Default profile active · {count} saved change(s), currently disabled').replace("{count}", str(count))
         else:
-            text = self.context.t("Profil par défaut actif")
+            text = self.context.t('Default profile active')
         self.status.setText(text)
         self._refresh_priority_status()
 
     def import_profile(self) -> None:
         filename, _ = QFileDialog.getOpenFileName(
-            self, self.context.t("Importer un profil de pondération"), str(Path.home()), "JSON (*.json)"
+            self, self.context.t('Import scoring profile'), str(Path.home()), "JSON (*.json)"
         )
         if not filename:
             return
@@ -1653,7 +1646,7 @@ class WeightsPage(QWidget):
         except ScoringConfigError as exc:
             QMessageBox.warning(
                 self,
-                self.context.t("Import impossible"),
+                self.context.t('Import failed'),
                 actionable_error(exc, translate=self.context.t),
             )
             return
@@ -1670,7 +1663,7 @@ class WeightsPage(QWidget):
             self._rebuild_rows()
         filename, _ = QFileDialog.getSaveFileName(
             self,
-            self.context.t("Exporter le profil effectif"),
+            self.context.t('Export effective profile'),
             str(Path(self.context.output_dir).expanduser() / "parent_scoring_profile.json"),
             "JSON (*.json)",
         )
@@ -1681,7 +1674,7 @@ class WeightsPage(QWidget):
         except (OSError, ScoringConfigError) as exc:
             QMessageBox.warning(
                 self,
-                self.context.t("Export impossible"),
+                self.context.t('Export failed'),
                 actionable_error(exc, translate=self.context.t),
             )
             return
@@ -1705,11 +1698,11 @@ class WeightsPage(QWidget):
     def _refresh_priority_status(self) -> None:
         text = self.priority_picker.text()
         if text and Path(text).expanduser().is_file():
-            status = self.context.t("Profil personnalisé actif") + f" · {Path(text).name}"
+            status = self.context.t('Custom profile active') + f" · {Path(text).name}"
         elif text:
-            status = self.context.t("Fichier introuvable") + f" · {text}"
+            status = self.context.t('File not found') + f" · {text}"
         else:
-            status = self.context.t("Profil par défaut actif") + f" · {default_skill_priorities_path().name}"
+            status = self.context.t('Default profile active') + f" · {default_skill_priorities_path().name}"
         self.priority_status.setText(status)
 
     def create_priority_copy(self) -> None:
@@ -1717,8 +1710,8 @@ class WeightsPage(QWidget):
         if destination.exists():
             answer = QMessageBox.question(
                 self,
-                self.context.t("Copie personnalisée"),
-                self.context.t("Écraser la copie personnalisée existante ?"),
+                self.context.t('Custom copy'),
+                self.context.t('Overwrite the existing custom copy?'),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No,
             )
@@ -1732,14 +1725,14 @@ class WeightsPage(QWidget):
         except OSError as exc:
             QMessageBox.critical(
                 self,
-                self.context.t("Erreur"),
+                self.context.t('Error'),
                 actionable_error(exc, translate=self.context.t),
             )
 
     def open_priority(self) -> None:
         path = Path(self.priority_picker.text()).expanduser() if self.priority_picker.text() else default_skill_priorities_path()
         if not path.is_file():
-            QMessageBox.warning(self, self.context.t("Fichier introuvable"), str(path))
+            QMessageBox.warning(self, self.context.t('File not found'), str(path))
             return
         open_path(path)
 
@@ -1750,53 +1743,53 @@ class WeightsPage(QWidget):
     def retranslate(self) -> None:
         t = self.context.t
         self.header.set_text(
-            t("Pondérations"),
-            t("Comprends l’effet de chaque réglage, ajuste-le avec un contrôle adapté, puis enregistre uniquement tes différences."),
+            t('Weights'),
+            t('Understand what each setting does, adjust it with the appropriate control, then save only your changes.'),
         )
-        self.active_check.setText(t("Utiliser mes pondérations personnalisées"))
-        self.import_button.setText(t("Importer…"))
-        self.export_button.setText(t("Exporter le profil…"))
-        self.save_button.setText(t("Enregistrer le profil"))
-        self.search.setPlaceholderText(t("Rechercher un réglage…"))
-        self.category_filter_label.setText(t("Domaine de calcul"))
+        self.active_check.setText(t('Use my custom weights'))
+        self.import_button.setText(t('Import…'))
+        self.export_button.setText(t('Export profile…'))
+        self.save_button.setText(t('Save profile'))
+        self.search.setPlaceholderText(t('Search settings…'))
+        self.category_filter_label.setText(t('Scoring domain'))
         self.category_combo.setToolTip(
-            t("Choisis un domaine ; les réglages restent séparés par bloc de calcul dans l’arborescence.")
+            t('Choose a domain; settings remain separated by calculation block in the tree.')
         )
-        self.changed_only.setText(t("Modifiés uniquement"))
-        self.show_advanced.setText(t("Afficher les réglages avancés"))
-        self.reset_all_button.setText(t("Rétablir tout"))
-        self.settings_title.setText(t("Réglages par bloc"))
+        self.changed_only.setText(t('Changed only'))
+        self.show_advanced.setText(t('Show advanced settings'))
+        self.reset_all_button.setText(t('Restore all'))
+        self.settings_title.setText(t('Settings by calculation block'))
         self.hover_hint.setText(
-            t("Déplie un bloc de calcul, puis survole un réglage pour son résumé.")
+            t('Expand a calculation block, then hover over a setting for its summary.')
         )
-        self.empty_label.setText(t("Aucun réglage sélectionné."))
-        self.current_label.setText(t("Valeur active"))
-        self.default_label.setText(t("Valeur par défaut"))
-        self.reset_button.setText(t("Rétablir la valeur"))
-        self.reset_group_button.setText(t("Rétablir le bloc"))
+        self.empty_label.setText(t('No setting selected.'))
+        self.current_label.setText(t('Active value'))
+        self.default_label.setText(t('Default value'))
+        self.reset_button.setText(t('Restore value'))
+        self.reset_group_button.setText(t('Restore block'))
         self.reset_group_button.setToolTip(
-            t("Rétablit tous les réglages du bloc de calcul sélectionné.")
+            t('Restores every setting in the selected calculation block.')
         )
         self.save_hint.setText(
-            t("Les changements valides rejoignent automatiquement le brouillon. Enregistre le profil pour les conserver sur disque.")
+            t('Valid changes are added to the draft automatically. Save the profile to keep them on disk.')
         )
-        self.priorities.set_title(t("Priorités individuelles des White Skills · avancé"))
+        self.priorities.set_title(t('Individual White Skill priorities · advanced'))
         self.priority_help.setText(
             t(
-                "Même source que dans Recherche de lignées, pour les calculs locaux et uma.moe. Un JSON partiel est fusionné avec default_skill_priorities.json avant chaque calcul."
+                'This is the same source used by Lineage Search for local and uma.moe calculations. A partial JSON file is merged with default_skill_priorities.json before every calculation.'
             )
         )
-        self.priority_picker.dialog_title = t("Choisir un profil de priorités white")
-        self.priority_picker.file_filter = f"JSON (*.json);;{t('Tous les fichiers')} (*)"
-        self.priority_picker.set_button_text(t("Parcourir…"))
+        self.priority_picker.dialog_title = t('Choose a white priority profile')
+        self.priority_picker.file_filter = f"JSON (*.json);;{t('All files')} (*)"
+        self.priority_picker.set_button_text(t('Browse…'))
         self.priority_picker.setToolTip(
             t(
-                "Ce fichier règle la valeur de chaque white skill par surface, distance et style. Un profil partiel est accepté : il est fusionné avec default_skill_priorities.json avant chaque calcul."
+                'This file controls the value of each white skill by surface, distance and running style. Partial profiles are accepted and merged with default_skill_priorities.json before every calculation.'
             )
         )
-        self.create_priority_button.setText(t("Créer une copie modifiable"))
-        self.open_priority_button.setText(t("Ouvrir le fichier"))
-        self.reset_priority_button.setText(t("Rétablir le défaut"))
+        self.create_priority_button.setText(t('Create editable copy'))
+        self.open_priority_button.setText(t('Open file'))
+        self.reset_priority_button.setText(t('Restore default'))
         describe_control(
             self.search,
             self.search.placeholderText(),

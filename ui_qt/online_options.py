@@ -258,7 +258,7 @@ class OnlineRetrievalSection(SummarySection):
     def _pick_filter(self, kind: str) -> None:
         selected = self._allowed_ids if kind == "allowed" else self._excluded_ids
         title = self.context.t(
-            "Costumes autorisés" if kind == "allowed" else "Costumes exclus"
+            'Allowed costumes' if kind == "allowed" else 'Excluded costumes'
         )
         options = [(item.card_id, item.display_name) for item in self._ace_options]
         dialog = CardFilterDialog(self.context, options, set(selected), title, self)
@@ -346,7 +346,7 @@ class OnlineRetrievalSection(SummarySection):
         t = self.context.t
         lines: list[str] = []
         if self.surface_cohort.isChecked():
-            lines.append(f"{t('Mode')}: {t('cohorte Surface')}")
+            lines.append(f"{t('Mode')}: {t('Surface cohort')}")
         required = [
             t(label)
             for widget, label in (
@@ -357,7 +357,7 @@ class OnlineRetrievalSection(SummarySection):
             if widget.isChecked()
         ]
         if required:
-            lines.append(f"{t('Exigences')}: {', '.join(required)}")
+            lines.append(f"{t('Requirements')}: {', '.join(required)}")
         lineage_filters: list[str] = []
         if self.pink_spin.value() > 1:
             lineage_filters.append(f"pink ≥ {self.pink_spin.value()}★")
@@ -369,50 +369,50 @@ class OnlineRetrievalSection(SummarySection):
             if selected:
                 lineage_filters.append(f"{selected[0]} ≥ {selected[1]}★")
         if lineage_filters:
-            lines.append(f"{t('Filtres de lignée')}: {' · '.join(lineage_filters)}")
+            lines.append(f"{t('Lineage filters')}: {' · '.join(lineage_filters)}")
         costume_filters: list[str] = []
         if self._allowed_ids:
             costume_filters.append(
-                t("{count} autorisés").replace("{count}", str(len(self._allowed_ids)))
+                t('{count} allowed').replace("{count}", str(len(self._allowed_ids)))
             )
         if self._excluded_ids:
             costume_filters.append(
-                t("{count} exclus").replace("{count}", str(len(self._excluded_ids)))
+                t('{count} excluded').replace("{count}", str(len(self._excluded_ids)))
             )
         if costume_filters:
             lines.append(f"{t('Costumes')}: {' · '.join(costume_filters)}")
-        self.set_summary("\n".join(lines) if lines else t("Récupération par défaut"))
-        self.set_modified(bool(lines), t("Modifié"))
+        self.set_summary("\n".join(lines) if lines else t('Default retrieval'))
+        self.set_modified(bool(lines), t('Changed'))
         self.allowed_button.setText(
-            f"{t('Autorisés')} ({len(self._allowed_ids)})"
+            f"{t('Allowed')} ({len(self._allowed_ids)})"
         )
         self.excluded_button.setText(
-            f"{t('Exclus')} ({len(self._excluded_ids)})"
+            f"{t('Excluded')} ({len(self._excluded_ids)})"
         )
 
     def retranslate(self) -> None:
         t = self.context.t
-        self.set_title(t("uma.moe · Récupération"))
+        self.set_title(t('uma.moe · Retrieval'))
         self.hint.setText(
             t(
-                "Ces contraintes s’appliquent aux deux recherches distantes. La clé et l’URL se règlent dans Paramètres."
+                'These constraints apply to both remote searches. Configure the key and URL under Settings.'
             )
         )
-        self.prefer_profile.setText(t("Favoriser les whites du profil"))
-        self.prefer_lineage.setText(t("Favoriser leur répétition dans la lignée"))
-        self.surface_cohort.setText(t("Cohorte Surface dédiée"))
-        self.require_surface.setText(t("Exiger la surface cible"))
-        self.require_distance.setText(t("Exiger la distance cible"))
-        self.require_style.setText(t("Exiger le style cible"))
-        self.pink_label.setText(t("Étoiles pink minimum"))
+        self.prefer_profile.setText(t('Prefer profile-relevant whites'))
+        self.prefer_lineage.setText(t('Prefer their repetition in the lineage'))
+        self.surface_cohort.setText(t('Dedicated Surface cohort'))
+        self.require_surface.setText(t('Require target surface'))
+        self.require_distance.setText(t('Require target distance'))
+        self.require_style.setText(t('Require target running style'))
+        self.pink_label.setText(t('Minimum pink stars'))
         self.lineage_hint.setText(
-            t("Somme sur le Main distant et ses deux parents, appliquée avant pagination.")
+            t('Sum across the remote Main and both parents, applied before pagination.')
         )
-        self.lineage_blue_label.setText(t("Stat Blue"))
-        self.lineage_pink_label.setText(t("Aptitude Pink"))
+        self.lineage_blue_label.setText(t('Blue stat'))
+        self.lineage_pink_label.setText(t('Pink aptitude'))
         for spin in (self.lineage_blue_stars, self.lineage_pink_stars):
-            spin.setSpecialValueText(t("désactivé"))
-        self.costume_label.setText(t("Filtres de costumes"))
+            spin.setSpecialValueText(t('disabled'))
+        self.costume_label.setText(t('Costume filters'))
         description = self.hint.text()
         for check in (
             self.prefer_profile,
@@ -527,8 +527,8 @@ class OnlineModeSection(SummarySection):
             self.opposing_json_label = QLabel("")
             self.opposing_picker = PathPicker(
                 context.store.get("uma_moe_opposing_path"),
-                title="Sélectionner un JSON de parent opposé",
-                file_filter="JSON (*.json);;Tous les fichiers (*)",
+                title='Select an opposing-parent JSON',
+                file_filter='JSON (*.json);;All files (*)',
             )
             self.opposing_extract_button = QPushButton("")
             self.g1_budget_label = QLabel("")
@@ -582,8 +582,8 @@ class OnlineModeSection(SummarySection):
         self.import_label = QLabel("")
         self.import_picker = PathPicker(
             strategy_value(context, self.mode, "response_path"),
-            title="Sélectionner une réponse JSON de l’API uma.moe",
-            file_filter="JSON (*.json);;Tous les fichiers (*)",
+            title='Select a JSON response from the uma.moe API',
+            file_filter='JSON (*.json);;All files (*)',
         )
         grid.addWidget(self.import_label, row, 0, 1, 2)
         row += 1
@@ -647,7 +647,7 @@ class OnlineModeSection(SummarySection):
         )
         self.required_combo.blockSignals(True)
         self.required_combo.clear()
-        self.required_combo.addItem(self.context.t("Aucun costume requis"), None)
+        self.required_combo.addItem(self.context.t('No required costume'), None)
         for option in self._ace_options:
             self.required_combo.addItem(option.display_name, option.card_id)
         index = self.required_combo.findData(selected)
@@ -671,8 +671,8 @@ class OnlineModeSection(SummarySection):
             if show_errors:
                 QMessageBox.warning(
                     self,
-                    self.context.t("Parent opposé (contexte)"),
-                    self.context.t("Sélectionne d’abord un JSON de parent opposé."),
+                    self.context.t('Opposing parent (context)'),
+                    self.context.t('Select an opposing-parent JSON first.'),
                 )
             return
         try:
@@ -684,7 +684,7 @@ class OnlineModeSection(SummarySection):
             if show_errors:
                 QMessageBox.warning(
                     self,
-                    self.context.t("Parent opposé (contexte)"),
+                    self.context.t('Opposing parent (context)'),
                     actionable_error(exc, translate=self.context.t),
                 )
         self._refresh_opposing_options()
@@ -698,8 +698,7 @@ class OnlineModeSection(SummarySection):
             or f"card:{member.get('card_id')}"
         )
         return (
-            f"{self.context.t('Externe')} — {member.get('uma_name') or '?'} — "
-            f"{member.get('card_name') or member.get('card_id')} — {suffix}"
+            f"{self.context.t('External')} — {member.get('uma_name') or '?'} — {member.get('card_name') or member.get('card_id')} — {suffix}"
         )
 
     def _refresh_opposing_options(self) -> None:
@@ -709,7 +708,7 @@ class OnlineModeSection(SummarySection):
         self.opposing_combo.blockSignals(True)
         self.opposing_combo.clear()
         self.opposing_combo.addItem(
-            self.context.t("(aucun — recherche GP polyvalente)"), "none"
+            self.context.t('(none — generic GP search)'), "none"
         )
         for option in self._local_options:
             self.opposing_combo.addItem(
@@ -826,10 +825,10 @@ class OnlineModeSection(SummarySection):
             return ""
         allowed = set(allowed_ids)
         if required in set(excluded_ids):
-            return self.context.t("Le costume requis est également exclu.")
+            return self.context.t('The required costume is also excluded.')
         if allowed and required not in allowed:
             return self.context.t(
-                "Le costume requis doit être présent dans les costumes autorisés."
+                'The required costume must be included in the allowed costumes.'
             )
         return ""
 
@@ -843,72 +842,69 @@ class OnlineModeSection(SummarySection):
         t = self.context.t
         lines: list[str] = []
         if self.auto_pairs.isChecked():
-            lines.append(f"{t('Appariement')}: {t('automatique')}")
+            lines.append(f"{t('Pairing')}: {t('automatic')}")
         else:
             fixed = self.fixed_combo.currentText().strip()
             lines.append(
-                f"{t('Vétéran local')}: {fixed or t('aucun vétéran fixé')}"
+                f"{t('Local veteran')}: {fixed or t('no fixed veteran')}"
             )
-        lines.append(f"{t('Candidats API')}: {self.fetch_spin.value()}")
+        lines.append(f"{t('API candidates')}: {self.fetch_spin.value()}")
         lines.append(
-            f"{t('Pool de paires')}: "
-            f"{self.local_pool.value()} × {self.remote_pool.value()}"
+            f"{t('Pair pool')}: {self.local_pool.value()} × {self.remote_pool.value()}"
         )
         if self.mode == PARENT_MODE:
             if self.snapshot_values()["required_parent_card_id"] is not None:
                 lines.append(
-                    f"{t('Costume requis')}: "
-                    f"{self.required_combo.currentText().strip()}"
+                    f"{t('Required costume')}: {self.required_combo.currentText().strip()}"
                 )
         else:
             selection = str(self.opposing_combo.currentData() or "none")
             if selection != "none":
                 lines.append(
-                    f"{t('Parent opposé')}: "
-                    f"{self.opposing_combo.currentText().strip()}"
+                    f"{t('Opposing parent')}: {self.opposing_combo.currentText().strip()}"
                 )
-            lines.append(f"{t('Budget G1')}: {self.g1_budget.value()}")
+            lines.append(f"{t('G1 budget')}: {self.g1_budget.value()}")
         self.set_summary("\n".join(lines))
         # A conflict has to stay visible once the section is closed, so it takes
         # the header badge over the ordinary modified marker.
         self.set_modified(
             bool(self._validation_message),
-            t("Conflit") if self._validation_message else "",
+            t('Conflict') if self._validation_message else "",
             warning=True,
         )
 
     def retranslate(self) -> None:
         t = self.context.t
         self.set_title(
-            t("moe · Parents distants")
+            t('moe · Remote parents')
             if self.mode == PARENT_MODE
-            else t("moe · Grands-parents distants")
+            else t('moe · Remote GPs')
         )
-        self.auto_pairs.setText(t("Tester toutes les paires local × distant"))
+        self.auto_pairs.setText(t('Test every local × remote pair'))
         self.fixed_label.setText(
-            t("Parent local fixé (manuel)")
+            t('Fixed local parent (manual)')
             if self.mode == PARENT_MODE
-            else t("GP local fixé (manuel)")
+            else t('Fixed local GP (manual)')
         )
-        self.local_pool_label.setText(t("Pool local"))
-        self.remote_pool_label.setText(t("Pool distant"))
-        self.fetch_label.setText(t("Fetch API"))
+        self.local_pool_label.setText(t('Local pool'))
+        self.remote_pool_label.setText(t('Remote pool'))
+        self.fetch_label.setText(t('API fetch'))
         if self.mode == PARENT_MODE:
-            self.required_label.setText(t("Costume requis dans la paire"))
+            self.required_label.setText(t('Required costume in pair'))
             if self.required_combo.count():
-                self.required_combo.setItemText(0, t("Aucun costume requis"))
+                self.required_combo.setItemText(0, t('No required costume'))
         else:
-            self.opposing_label.setText(t("Parent opposé (contexte)"))
-            self.opposing_json_label.setText(t("JSON du parent opposé"))
-            self.opposing_extract_button.setText(t("Extraire les candidats"))
-            self.opposing_picker.set_button_text(t("Parcourir…"))
-            self.g1_budget_label.setText(t("G1 prévues sur le parent"))
+            self.opposing_label.setText(t('Opposing parent (context)'))
+            self.opposing_json_label.setText(t('Opposing-parent JSON'))
+            self.opposing_extract_button.setText(t('Extract candidates'))
+            self.opposing_picker.set_button_text(t('Browse…'))
+            self.g1_budget_label.setText(t('Planned G1 races on parent'))
             self.g1_weight_label.setText(
-                t("Chance de victoire minimale (Independent Training)")
+                t('Minimum win chance (Independent Training)')
             )
             self._refresh_opposing_options()
-        self.import_label.setText(t("Réponse JSON à classer hors ligne"))
-        self.import_picker.set_button_text(t("Parcourir…"))
+        self.import_label.setText(t('JSON response to rank offline'))
+        self.import_picker.set_button_text(t('Browse…'))
         description = self.toggle.text()
         describe_control(self.auto_pairs, self.auto_pairs.text(), description)
         for label, control in (

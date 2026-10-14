@@ -467,7 +467,7 @@ def _text_map(connection: sqlite3.Connection, category: int) -> dict[int, str]:
 def load_ace_options(master_path: str | Path) -> list[AceOption]:
     master = Path(master_path).expanduser().resolve()
     if not master.is_file():
-        raise OptimizerError(f"MDB introuvable : {master}")
+        raise OptimizerError(f'MDB not found: {master}')
     connection = sqlite3.connect(master)
     try:
         card_names = _text_map(connection, 4)
@@ -508,7 +508,7 @@ def load_ace_options(master_path: str | Path) -> list[AceOption]:
 def load_track_options(master_path: str | Path) -> list[TrackOption]:
     master = Path(master_path).expanduser().resolve()
     if not master.is_file():
-        raise OptimizerError(f"MDB introuvable : {master}")
+        raise OptimizerError(f'MDB not found: {master}')
     connection = sqlite3.connect(master)
     try:
         names = _text_map(connection, 35)
@@ -570,7 +570,7 @@ class AffinityResolver:
         self.available_tables = available
         missing = sorted(required - available)
         if missing:
-            raise OptimizerError(f"Tables MDB manquantes : {', '.join(missing)}")
+            raise OptimizerError(f"Missing MDB tables: {', '.join(missing)}")
 
         self.relation_points = {
             int(row["relation_type"]): int(row["relation_point"])
@@ -619,7 +619,7 @@ class AffinityResolver:
     def card_details(self, card_id: int) -> dict[str, Any]:
         chara_id = self.card_to_chara.get(card_id)
         if chara_id is None:
-            raise OptimizerError(f"Card inconnue dans le MDB courant : {card_id}")
+            raise OptimizerError(f'Unknown costume variant in the current MDB: {card_id}')
         return {
             "card_id": card_id,
             "chara_id": chara_id,
@@ -815,13 +815,13 @@ class AffinityResolver:
     def ace_details(self, card_id: int, surface: str, distance: str, style: str) -> dict[str, Any]:
         chara_id = self.card_to_chara.get(card_id)
         if chara_id is None:
-            raise OptimizerError(f"Card Ace inconnue dans le MDB courant : {card_id}")
+            raise OptimizerError(f'Unknown Ace costume variant in the current MDB: {card_id}')
         row = self.connection.execute(
             "SELECT * FROM card_rarity_data WHERE card_id = ? ORDER BY rarity DESC LIMIT 1",
             (card_id,),
         ).fetchone()
         if row is None:
-            raise OptimizerError(f"Aptitudes introuvables pour la card Ace {card_id}")
+            raise OptimizerError(f'Aptitudes not found for Ace costume variant {card_id}')
         aptitudes = {
             dimension: int(row[columns[key]])
             for dimension, columns, key in (
@@ -1051,7 +1051,7 @@ def _selected_weight_lookup(
             course_profile = course.get("profile") or {}
             if course_profile.get("surface") != surface or course_profile.get("distance") != distance:
                 raise OptimizerError(
-                    f"Le preset {course_key!r} ne correspond pas au profil {surface}/{distance}."
+                    f'Preset {course_key!r} does not match profile {surface}/{distance}.'
                 )
             course_skills = (((course.get("style_weights") or {}).get(style) or {}).get("skills") or {})
             source_label = str(course.get("label") or course_key)
@@ -1226,13 +1226,7 @@ def _scenario_stat_targets(factor: dict[str, Any]) -> tuple[list[str], str]:
 
 
 def _factor_identity(factor: dict[str, Any]) -> str:
-    """Return a stable game identity without collapsing punctuation in names.
-
-    Scenario factors such as ``Racing Spirit PWR`` and ``Racing Spirit PWR+``
-    can share the same :func:`slugify` result.  Linked factors retain their MDB
-    ids, so factor comparisons and diagnostics must prefer those ids and only
-    fall back to the exact display name for legacy payloads.
-    """
+    'Return a stable game identity without collapsing punctuation in names.\n\n    Scenario factors such as ``Racing Spirit PWR`` and ``Racing Spirit PWR+``\n    can share the same:func:`slugify` result.  Linked factors retain their MDB\n    ids, so factor comparisons and diagnostics must prefer those ids and only\n    fall back to the exact display name for legacy payloads.\n    '
     for field, prefix in (("factor_group_id", "group"), ("factor_id", "factor")):
         try:
             value = int(factor.get(field))
@@ -2382,14 +2376,7 @@ def _race_scenario_score(
     checkpoint: Callable[[], None] | None = None,
     include_details: bool = True,
 ) -> tuple[float, dict[str, Any]]:
-    """Score the small generic stat side of Race Sparks.
-
-    Skills granted by Race Sparks are scored in :func:`_white_score` with their
-    actual 1/2/3% inheritance rates, preventing both an arbitrary multiplier and
-    double counting in this component.  The function keeps its historical name
-    and output key for export compatibility; Scenario Sparks now contribute to
-    :func:`_blue_score` from their actual stat targets and expected proc count.
-    """
+    'Score the small generic stat side of Race Sparks.\n\n    Skills granted by Race Sparks are scored in:func:`_white_score` with their\n    actual 1/2/3% inheritance rates, preventing both an arbitrary multiplier and\n    double counting in this component.  The function keeps its historical name\n    and output key for export compatibility; Scenario Sparks now contribute to\n   :func:`_blue_score` from their actual stat targets and expected proc count.\n    '
     check = checkpoint or _noop_checkpoint
     check()
     position_weights = config.get("position_transmission") or {}
@@ -2634,12 +2621,12 @@ def evaluate_parent_branch(
     check()
     ace_chara = int(ace.get("chara_id") or 0)
     if ace_chara <= 0:
-        raise OptimizerError("Ace invalide pour l'évaluation de branche parent.")
+        raise OptimizerError('Invalid Ace for parent-branch evaluation.')
     parent_chara = int(veteran.get("chara_id") or 0)
     if parent_chara <= 0:
-        raise OptimizerError("Parent invalide pour l'évaluation de branche.")
+        raise OptimizerError('Invalid parent for branch evaluation.')
     if parent_chara == ace_chara:
-        raise OptimizerError("L'Ace ne peut pas être utilisé comme son propre parent.")
+        raise OptimizerError('The Ace cannot be used as its own parent.')
 
     affinity_cfg = config.get("affinity") or {}
     resolved_g1_bonus = int(
@@ -2765,9 +2752,9 @@ def evaluate_parent_pair(
     chara_1 = int(parent_1.get("chara_id") or 0)
     chara_2 = int(parent_2.get("chara_id") or 0)
     if chara_1 <= 0 or chara_2 <= 0:
-        raise OptimizerError("Paire de parents invalide : personnage non résolu.")
+        raise OptimizerError('Invalid parent pair: unresolved character.')
     if chara_1 == chara_2:
-        raise OptimizerError("Les deux parents doivent être deux personnages différents.")
+        raise OptimizerError('The two parents must be different characters.')
 
     affinity_cfg = config.get("affinity") or {}
     resolved_g1_bonus = int(
@@ -3037,9 +3024,9 @@ def optimize_parents(
         checkpoint()
     check = cooperative_checkpoint(checkpoint)
     if surface not in SURFACES or distance not in DISTANCES or style not in STYLES:
-        raise OptimizerError(f"Profil invalide : {surface}/{distance}/{style}")
+        raise OptimizerError(f'Invalid profile: {surface}/{distance}/{style}')
     if search_kind not in {"all", "pairs", "branches", "future"}:
-        raise OptimizerError(f"Type de recherche locale invalide : {search_kind}")
+        raise OptimizerError(f'Invalid local search type: {search_kind}')
     top_n = max(1, min(int(top_n), 500))
     evaluate_branches = search_kind in {"all", "pairs", "branches"}
     evaluate_pairs = search_kind in {"all", "pairs"}
@@ -3047,7 +3034,7 @@ def optimize_parents(
     if evaluate_future and (
         future_parent_card_id is None or int(future_parent_card_id) <= 0
     ):
-        raise OptimizerError("Sélectionne le parent à produire.")
+        raise OptimizerError('Select the parent to produce.')
 
     master = Path(master_path).expanduser().resolve()
     linked_path = Path(linked_veterans_path).expanduser().resolve()
@@ -3064,12 +3051,12 @@ def optimize_parents(
 
     for required in (master, linked_path, weights_path, race_catalog_path, skill_catalog_path_resolved, config_path):
         if not required.is_file():
-            raise OptimizerError(f"Fichier requis introuvable : {required}")
+            raise OptimizerError(f'Required file not found: {required}')
     if course_key and (course_path is None or not course_path.is_file()):
-        raise OptimizerError("Un preset de course a été choisi, mais course_skill_weights.json est introuvable.")
+        raise OptimizerError('A course preset was selected, but course_skill_weights.json was not found.')
 
     destination.mkdir(parents=True, exist_ok=True)
-    log("Chargement des vétérans enrichis et des poids skills…")
+    log('Loading enriched veterans and skill weights…')
     linked_payload = _read_json(linked_path)
     weights_payload = _read_json(weights_path)
     race_catalog = _read_json(race_catalog_path)
@@ -3078,7 +3065,7 @@ def optimize_parents(
     course_payload = _read_json(course_path) if course_path and course_path.is_file() else None
     veterans = list(linked_payload.get("veterans") or [])
     if not veterans:
-        raise OptimizerError("Aucun vétéran dans veterans_legacy_linked.json")
+        raise OptimizerError('No veteran found in veterans_legacy_linked.json')
 
     resolver = AffinityResolver(master)
     try:
@@ -3090,9 +3077,9 @@ def optimize_parents(
             else None
         )
         if evaluate_future and future_parent is None:
-            raise OptimizerError("Sélectionne le parent à produire.")
+            raise OptimizerError('Select the parent to produce.')
         if evaluate_future and future_parent is not None and int(future_parent["chara_id"]) == ace_chara:
-            raise OptimizerError("L'Ace et le parent à produire doivent être deux personnages différents.")
+            raise OptimizerError('The Ace and the parent to produce must be different characters.')
         normalized_conditions: dict[str, set[int]] = {}
         for key, raw_value in (course_conditions or {}).items():
             if raw_value is None or raw_value == "":
@@ -3145,7 +3132,7 @@ def optimize_parents(
             if int(veteran.get("chara_id") or 0) != ace_chara
         ]
         if evaluate_branches and not valid_veterans:
-            raise OptimizerError("Aucun vétéran compatible après exclusion de l'Ace lui-même.")
+            raise OptimizerError('No compatible veteran remains after excluding the Ace itself.')
 
         affinity_config = config.get("affinity") or {}
         g1_bonus_value = int(affinity_config.get("g1_common_bonus", 3))
@@ -3160,7 +3147,7 @@ def optimize_parents(
         )
         branch_rows: list[dict[str, Any]] = []
         if evaluate_branches:
-            log(f"Évaluation de {len(valid_veterans)} lignées candidates…")
+            log(f'Evaluating {len(valid_veterans)} candidate lineages…')
             for index, veteran in enumerate(valid_veterans, 1):
                 branch_rows.append(
                     evaluate_parent_branch(
@@ -3179,14 +3166,14 @@ def optimize_parents(
                     )
                 )
                 if index % 50 == 0 or index == len(valid_veterans):
-                    log(f"Lignées : {index}/{len(valid_veterans)}")
+                    log(f'Lineages: {index}/{len(valid_veterans)}')
 
         branch_p95 = _quantile((row["affinity"]["total"] for row in branch_rows), 0.95)
         branch_rows.sort(key=lambda row: (row["score"], row["affinity"]["total"]), reverse=True)
 
         pair_rows: list[dict[str, Any]] = []
         if evaluate_pairs:
-            log("Recherche des meilleures paires de parents…")
+            log('Searching for the best parent pairs…')
             # Full search is cheap for the current 259-veteran export (~33k pairs).
             total_pairs = len(branch_rows) * max(0, len(branch_rows) - 1) // 2
             processed_pairs = 0
@@ -3234,8 +3221,7 @@ def optimize_parents(
                     or left_index + 1 == len(branch_rows))
                 ):
                     log(
-                        f"Paires évaluées : {processed_pairs}/{total_pairs} — "
-                        f"{len(pair_rows)} valides."
+                        f'Pairs evaluated: {processed_pairs}/{total_pairs} — {len(pair_rows)} valid.'
                     )
 
 
@@ -3316,7 +3302,7 @@ def optimize_parents(
             else None
         )
         if evaluate_future:
-            log("Évaluation des futurs grands-parents…")
+            log('Evaluating future grandparents…')
         for future_index, veteran in enumerate(future_candidates, 1):
             check()
             members = [(veteran, "grandparent", "candidate")]
@@ -3383,7 +3369,7 @@ def optimize_parents(
             )
             if future_index % 25 == 0 or future_index == len(future_candidates):
                 log(
-                    f"Grands-parents: {future_index}/{len(future_candidates)}"
+                    f'Grandparents: {future_index}/{len(future_candidates)}'
                 )
         future_affinity_p95 = _quantile((row["affinity_raw"] for row in future_rows), 0.95)
         future_g1_p95 = max(1.0, _quantile((row["g1_count"] for row in future_rows), 0.95))
@@ -3639,7 +3625,7 @@ def optimize_parents(
             ["rank", "score", "trained_chara_id", "rank_score", "candidate", "affinity_contribution", "future_parent_base_affinity", "future_branch_base_total", "affinity_mode", "g1_count", "affinity_component_score", "g1_component_score", "blue", "pink", "white_skill", "white_generation", "unique"],
         )
 
-        log(f"Classement terminé : {rankings_json}")
+        log(f'Ranking complete: {rankings_json}')
         return OptimizerResult(
             rankings_json_path=rankings_json,
             parent_candidates_csv_path=parent_candidates_csv,

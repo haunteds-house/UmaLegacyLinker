@@ -207,19 +207,19 @@ class ZoomControl(QWidget):
         self.setAccessibleName(accessible_name)
         self.label.setToolTip(accessible_name)
         self.zoom_out_button.setAccessibleName(
-            self.context.t("Réduire le zoom")
+            self.context.t('Zoom out')
         )
-        self.zoom_out_button.setToolTip(self.context.t("Réduire le zoom"))
+        self.zoom_out_button.setToolTip(self.context.t('Zoom out'))
         self.zoom_in_button.setAccessibleName(
-            self.context.t("Agrandir le zoom")
+            self.context.t('Zoom in')
         )
-        self.zoom_in_button.setToolTip(self.context.t("Agrandir le zoom"))
+        self.zoom_in_button.setToolTip(self.context.t('Zoom in'))
         self.reset_button.setAccessibleName(
-            self.context.t("Réinitialiser le zoom")
+            self.context.t('Reset zoom')
         )
         self.reset_button.setToolTip(
             self.context.t(
-                "Réinitialiser le zoom · Ctrl+molette pour zoomer · Ctrl+0 pour réinitialiser"
+                'Reset zoom · Ctrl+wheel to zoom · Ctrl+0 to reset'
             )
         )
 
@@ -289,40 +289,40 @@ class LineageTree(ZoomableCanvas):
         t = self.context.t
         if self.mode in {"grandparent_pair", "online_grandparent", "future"}:
             self._role_labels = {
-                "target": t("Parent à produire"),
-                "p1": t("GP local") if self.mode != "future" else t("GP candidat"),
-                "p2": t("GP distant"),
-                "p1-1": t("Parent actuel du GP 1A"),
-                "p1-2": t("Parent actuel du GP 1B"),
-                "p2-1": t("Parent actuel du GP 2A"),
-                "p2-2": t("Parent actuel du GP 2B"),
+                "target": t('Parent to produce'),
+                "p1": t('Local GP') if self.mode != "future" else t('Candidate grandparent'),
+                "p2": t('Remote GP'),
+                "p1-1": t('Current parent of GP 1A'),
+                "p1-2": t('Current parent of GP 1B'),
+                "p2-1": t('Current parent of GP 2A'),
+                "p2-2": t('Current parent of GP 2B'),
             }
             self._generation_labels = {
-                "target": t("Parent à produire"),
-                "parent": t("Grands-parents sélectionnés"),
-                "grandparent": t("Parents actuels des grands-parents"),
-                "great": t("Historique antérieur"),
+                "target": t('Parent to produce'),
+                "parent": t('Selected grandparents'),
+                "grandparent": t('Current parents of the grandparents'),
+                "great": t('Earlier lineage'),
             }
         else:
             self._role_labels = {
-                "target": t("Ace visé"),
-                "p1": t("Parent candidat") if self.mode == "branch" else t("Parent 1"),
+                "target": t('Target Ace'),
+                "p1": t('Candidate parent') if self.mode == "branch" else t("Parent 1"),
                 "p2": t("Parent 2"),
-                "p1-1": t("GP 1A"),
-                "p1-2": t("GP 1B"),
-                "p2-1": t("GP 2A"),
-                "p2-2": t("GP 2B"),
+                "p1-1": t('Grandparent 1A'),
+                "p1-2": t('Grandparent 1B'),
+                "p2-1": t('Grandparent 2A'),
+                "p2-2": t('Grandparent 2B'),
             }
             self._generation_labels = {
-                "target": t("Cible"),
-                "parent": t("Parent candidat") if self.mode == "branch" else t("Parents directs"),
-                "grandparent": t("Grands-parents"),
-                "great": t("Arrière-grands-parents · historique visuel"),
+                "target": t('Target'),
+                "parent": t('Candidate parent') if self.mode == "branch" else t('Direct parents'),
+                "grandparent": t('Grandparents'),
+                "great": t('Great-grandparents · visual history'),
             }
         for position in GREAT_GRANDPARENT_POSITIONS:
-            self._role_labels.setdefault(position, t("Historique antérieur"))
+            self._role_labels.setdefault(position, t('Earlier lineage'))
         names = [str(node.get("card_name") or node.get("uma_name") or "") for node in self.nodes.values()]
-        self.setAccessibleName(t("Vue de lignée"))
+        self.setAccessibleName(t('Lineage view'))
         self.setAccessibleDescription(" · ".join(name for name in names if name))
         self.update()
 
@@ -750,7 +750,7 @@ class LineageTree(ZoomableCanvas):
             )
         else:
             card_id = node.get("card_id")
-            secondary_visible = f"#{card_id}" if card_id else self.context.t("Costume inconnu")
+            secondary_visible = f"#{card_id}" if card_id else self.context.t('Unknown costume')
         painter.drawText(
             QRectF(text_left, rect.top() + 53.0, text_width, 18.0),
             Qt.AlignmentFlag.AlignVCenter,
@@ -807,7 +807,7 @@ class LineageTree(ZoomableCanvas):
         painter.drawText(
             rect.adjusted(12.0, 8.0, -12.0, -8.0),
             Qt.AlignmentFlag.AlignCenter,
-            self.context.t("Donnée indisponible"),
+            self.context.t('Data unavailable'),
         )
 
     def _draw_compact_card(
@@ -977,7 +977,7 @@ class LineageTree(ZoomableCanvas):
     def _card_tooltip(self, position: str) -> str:
         node = self.nodes.get(position)
         if not node:
-            return self.context.t("Donnée indisponible")
+            return self.context.t('Data unavailable')
         lines = [
             self._role_labels.get(position, position),
             str(node.get("card_name") or node.get("uma_name") or "—"),
@@ -988,7 +988,7 @@ class LineageTree(ZoomableCanvas):
             lines.append(f"ID: {node['card_id']}")
         affinity = _optional_number(node.get("inheritance_affinity"))
         if affinity is not None:
-            lines.append(f"{self.context.t('Affinité individuelle')}: {affinity:.0f}")
+            lines.append(f"{self.context.t('Individual affinity')}: {affinity:.0f}")
         return "\n".join(lines)
 
     def _spark_tooltip(self, factor: dict[str, Any]) -> str:
@@ -1000,31 +1000,31 @@ class LineageTree(ZoomableCanvas):
         if probability is not None:
             event_count = max(1, int(factor.get("inspiration_event_count") or 2))
             lines.append(
-                self.context.t("Probabilité sur la run : {probability}")
+                self.context.t('Run probability: {probability}')
                 .replace("{probability}", _probability_text(probability))
             )
             lines.append(
-                self.context.t("Au moins un proc parmi {count} Inspiration Events.")
+                self.context.t('At least one proc across {count} Inspiration Events.')
                 .replace("{count}", str(event_count))
             )
         if factor.get("is_score_priority"):
             rank = int(factor.get("score_priority_rank") or 0)
             lines.append(
-                self.context.t("Priorité White #{rank} selon sa contribution au score de la lignée.")
+                self.context.t('White priority #{rank} by lineage-score contribution.')
                 .replace("{rank}", str(rank))
             )
             skill_name = str(factor.get("priority_skill_name") or "")
             if skill_name and skill_name.casefold() != str(factor.get("name") or "").casefold():
                 lines.append(
-                    self.context.t("Skill valorisée : {skill}").replace("{skill}", skill_name)
+                    self.context.t('Valued skill: {skill}').replace("{skill}", skill_name)
                 )
         elif factor.get("is_score_useful"):
             profile_weight = _optional_number(factor.get("profile_weight"))
             useful_text = self.context.t(
-                "White compatible et utile pour ce profil, mise en avant même hors du top 3."
+                'White compatible with and useful for this profile, highlighted even outside the top three.'
             )
             if profile_weight is not None:
-                useful_text += " " + self.context.t("Poids effectif : {weight}.").replace(
+                useful_text += " " + self.context.t('Effective weight: {weight}.').replace(
                     "{weight}", f"{profile_weight:.2f}"
                 )
             lines.append(useful_text)
@@ -1055,18 +1055,18 @@ class RaceCalendarWidget(ZoomableCanvas):
     BASE_WIDTH = 1464
     YEAR_GAP = 18.0
     MONTHS = (
-        "Jan.",
-        "Fév.",
-        "Mars",
-        "Avr.",
-        "Mai",
-        "Juin",
-        "Juil.",
-        "Août",
-        "Sept.",
-        "Oct.",
-        "Nov.",
-        "Déc.",
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
     )
     YEAR_COLORS = {
         1: ("#17283a", COLORS["blue"]),
@@ -1161,10 +1161,10 @@ class RaceCalendarWidget(ZoomableCanvas):
             self.update()
 
     def retranslate(self) -> None:
-        self.setAccessibleName(self.context.t("Planning G1"))
+        self.setAccessibleName(self.context.t('G1 Planning'))
         self.setAccessibleDescription(
             self.context.t(
-                "G1 à gagner avec la nouvelle trainee : +6 si les deux parents l’ont gagnée, +3 si un seul parent l’a gagnée."
+                'G1 races to win with the new trainee: +6 if both parents won it, +3 if only one parent won it.'
             )
         )
         self.update()
@@ -1337,9 +1337,9 @@ class RaceCalendarWidget(ZoomableCanvas):
         year_font.setBold(True)
         painter.setFont(year_font)
         year_names = {
-            1: self.context.t("ANNÉE JUNIOR"),
-            2: self.context.t("ANNÉE CLASSIQUE"),
-            3: self.context.t("ANNÉE SENIOR"),
+            1: self.context.t('JUNIOR YEAR'),
+            2: self.context.t('CLASSIC YEAR'),
+            3: self.context.t('SENIOR YEAR'),
         }
         for year in (1, 2, 3):
             background, foreground = self.YEAR_COLORS[year]
@@ -1394,7 +1394,7 @@ class RaceCalendarWidget(ZoomableCanvas):
                         painter.setBrush(QColor(shade))
                         painter.setPen(QPen(QColor(COLORS["border"]), 0.75))
                         painter.drawRoundedRect(cell, 3.0, 3.0)
-                        period = self.context.t("Début") if half == 1 else self.context.t("Fin")
+                        period = self.context.t('Early') if half == 1 else self.context.t('Late')
                         header = f"{period} {self.context.t(self.MONTHS[month - 1])}"
                         painter.setFont(label_font)
                         painter.setPen(QColor(COLORS["muted"]))
@@ -1427,7 +1427,7 @@ class RaceCalendarWidget(ZoomableCanvas):
             painter.drawText(
                 title_rect,
                 Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-                self.context.t("COURSES NON PLACÉES DANS LE PLANNING OPTIMAL"),
+                self.context.t('RACES NOT INCLUDED IN THE OPTIMAL PLAN'),
             )
             chip_width = (width - 2.0 * margin - 3.0 * 8.0) / 4.0
             for index, (race_index, race) in enumerate(unscheduled):
@@ -1589,7 +1589,7 @@ class RaceCalendarWidget(ZoomableCanvas):
             str(value or "").strip().casefold()
             for value in race.get("source_origins") or []
         }
-        if origins & {"remote", "distant"}:
+        if origins & {"remote", 'remote'}:
             return "remote"
         if "local" in origins:
             return "local"
@@ -1600,9 +1600,9 @@ class RaceCalendarWidget(ZoomableCanvas):
     def _source_label(self, source_kind: str) -> str:
         labels = {
             "shared": "COMM.",
-            "local": self.context.t("LOC."),
-            "remote": self.context.t("DIST."),
-            "planned": self.context.t("PROJ."),
+            "local": self.context.t('LOCAL'),
+            "remote": self.context.t('REMOTE'),
+            "planned": self.context.t('PLAN.'),
             "objective": "OBJ.",
             "other": "G1",
         }
@@ -1619,12 +1619,12 @@ class RaceCalendarWidget(ZoomableCanvas):
             )
             lines = [
                 str(race.get("name") or "G1"),
-                self.context.t("Bonus d’affinité planifié : +{bonus}")
+                self.context.t('Planned affinity bonus: +{bonus}')
                 .replace("{bonus}", str(bonus)),
             ]
             if sources:
                 lines.append(
-                    self.context.t("Déjà gagnée par : {sources}")
+                    self.context.t('Already won by: {sources}')
                     .replace("{sources}", sources)
                 )
             origins = {
@@ -1633,15 +1633,15 @@ class RaceCalendarWidget(ZoomableCanvas):
             }
             if len(origins) == 1:
                 origin = next(iter(origins))
-                if origin in {"local", "remote", "distant", "planned"}:
+                if origin in {"local", "remote", 'remote', "planned"}:
                     if origin == "local":
-                        origin_label = self.context.t("locale")
+                        origin_label = self.context.t('local')
                     elif origin == "planned":
-                        origin_label = self.context.t("projetée")
+                        origin_label = self.context.t('projected')
                     else:
-                        origin_label = self.context.t("distant")
+                        origin_label = self.context.t('remote')
                     lines.append(
-                        self.context.t("Origine de la G1 : {origin}")
+                        self.context.t('G1 source: {origin}')
                         .replace("{origin}", origin_label)
                     )
             base_win = race.get("independent_training_base_win_probability")
@@ -1650,7 +1650,7 @@ class RaceCalendarWidget(ZoomableCanvas):
             if base_win is not None and cutoff is not None:
                 lines.append(
                     self.context.t(
-                        "Independent Training : {chance}% de victoire de base · seuil {cutoff}%."
+                        'Independent Training: {chance}% base win chance · {cutoff}% cutoff.'
                     )
                     .replace("{chance}", f"{100.0 * float(base_win):.0f}")
                     .replace("{cutoff}", f"{100.0 * float(cutoff):.0f}")
@@ -1661,7 +1661,7 @@ class RaceCalendarWidget(ZoomableCanvas):
                 )
                 lines.append(
                     self.context.t(
-                        "Chance effective : {chance}% après pénalité de série de {penalty} points."
+                        'Effective chance: {chance}% after a {penalty}-point streak penalty.'
                     )
                     .replace("{chance}", f"{100.0 * float(effective_win):.0f}")
                     .replace("{penalty}", f"{100.0 * penalty:.0f}")
@@ -1669,43 +1669,43 @@ class RaceCalendarWidget(ZoomableCanvas):
             if race.get("mandatory_objective"):
                 required = int(race.get("required_position") or 0)
                 objective_line = self.context.t(
-                    "Course d’objectif obligatoire du personnage visé."
+                    'Mandatory objective race for the target character.'
                 )
                 if required > 0:
                     objective_line += " " + self.context.t(
-                        "Position requise : {position} ou mieux."
+                        'Required finish: {position} or better.'
                     ).replace("{position}", str(required))
                 lines.append(objective_line)
             status = str(race.get("planning_status") or "")
             if status == "objective_conflict":
                 lines.append(
                     self.context.t(
-                        "G1 possible et utile pour l’affinité, mais non retenue : une course d’objectif obligatoire occupe ce tour."
+                        'Possible affinity G1, but not selected because a mandatory objective race occupies this turn.'
                     )
                 )
             elif status == "calendar_conflict":
                 lines.append(
                     self.context.t(
-                        "G1 possible et utile pour l’affinité, mais une course plus rentable occupe déjà ce tour."
+                        'Possible affinity G1, but a more valuable race already occupies this turn.'
                     )
                 )
             elif status == "below_win_cutoff":
                 lines.append(
                     self.context.t(
-                        "G1 ignorée dans le score : sa chance de victoire est sous le seuil configuré."
+                        'G1 excluded from scoring: its win chance is below the configured cutoff.'
                     )
                 )
             elif status in {"missing_calendar", "unsupported_calendar"}:
                 lines.append(
                     self.context.t(
-                        "Cette course reste dans le diagnostic, mais sa date ne permet pas un placement fiable."
+                        'This race remains in the diagnostic, but its date does not allow reliable placement.'
                     )
                 )
             if race.get("long_streak_warning"):
                 count = int(race.get("consecutive_race_count") or 4)
                 lines.append(
                     self.context.t(
-                        "Course possible et bonus d’affinité conservé. Elle fait partie d’une série de {count} courses consécutives, susceptible de réduire les chances de gagner."
+                        'This race is possible and still grants its affinity bonus. It is part of a {count}-race streak, which may reduce the chance of winning.'
                     ).replace("{count}", str(count))
                 )
             QToolTip.showText(event.globalPosition().toPoint(), "\n".join(lines), self)
@@ -2078,19 +2078,16 @@ class LineageDialog(QDialog):
         )
         if trackblazer:
             summary = t(
-                "Mode Trackblazer : objectifs ignorés · +{optimal} d’affinité · "
-                "{affinity_count} G1 · série maximale {streak}."
+                'Trackblazer mode: objectives ignored · +{optimal} affinity · {affinity_count} G1 races · longest streak {streak}.'
             )
         else:
             summary = t(
-                "Planning idéal : +{optimal} d’affinité · {affinity_count} G1 utiles · "
-                "{objective_count} course(s) d’objectif · série maximale {streak}."
+                'Ideal plan: +{optimal} affinity · {affinity_count} useful G1 races · {objective_count} objective race(s) · longest streak {streak}.'
             )
         self.planning_legend.setText(
             (
                 t(
-                    "+{shared} commune · +{single} gagnée par un seul parent. "
-                    "Une seule course par tour. "
+                    '+{shared} shared · +{single} won by one parent. One race per turn. '
                 )
                 + summary
             )
@@ -2116,40 +2113,40 @@ class LineageDialog(QDialog):
         ace_name = str(self.ace.get("uma_name") or self.ace.get("card_name") or "—")
         left_name = str((left if isinstance(left, dict) else {}).get("card_name") or "—")
         right_name = str((right if isinstance(right, dict) else {}).get("card_name") or "—")
-        self.setWindowTitle(t("Vue de lignée"))
+        self.setWindowTitle(t('Lineage view'))
         if self.mode in {"grandparent_pair", "online_grandparent"}:
-            self.title_label.setText(t("Paire de grands-parents"))
+            self.title_label.setText(t('Grandparent pair'))
             self.subtitle_label.setText(
-                t("{left} × {right} pour produire {target}")
+                t('{left} × {right} to produce {target}')
                 .replace("{left}", left_name)
                 .replace("{right}", right_name)
                 .replace("{target}", ace_name)
             )
         elif self.mode == "future":
-            self.title_label.setText(t("Futur grand-parent"))
+            self.title_label.setText(t('Future grandparent'))
             self.subtitle_label.setText(
-                t("{candidate} pour produire {target}")
+                t('{candidate} to produce {target}')
                 .replace("{candidate}", left_name)
                 .replace("{target}", ace_name)
             )
         elif self.mode == "branch":
-            self.title_label.setText(t("Lignée du parent candidat"))
+            self.title_label.setText(t('Candidate-parent lineage'))
             self.subtitle_label.setText(
-                t("{candidate} pour {ace}")
+                t('{candidate} for {ace}')
                 .replace("{candidate}", left_name)
                 .replace("{ace}", ace_name)
             )
         else:
-            self.title_label.setText(t("Vue de la paire"))
+            self.title_label.setText(t('Pair lineage'))
             self.subtitle_label.setText(
-                t("{left} × {right} pour {ace}")
+                t('{left} × {right} for {ace}')
                 .replace("{left}", left_name)
                 .replace("{right}", right_name)
                 .replace("{ace}", ace_name)
             )
 
         self.score_badge.set_metric(
-            t("Score de lignée"),
+            t('Lineage score'),
             f"{_number(self.row.get('score')):.2f}",
         )
         if self.mode in {"grandparent_pair", "online_grandparent"}:
@@ -2162,55 +2159,50 @@ class LineageDialog(QDialog):
                 final_affinity.get("potential_total", final_affinity.get("total"))
             )
             common = int(final_affinity.get("common_g1_count") or 0)
-            self.affinity_badge.set_metric(t("Potentiel final"), f"{potential:.0f}")
-            self.distance_badge.set_metric(t("G1 communes"), str(common), rank="")
+            self.affinity_badge.set_metric(t('Final potential'), f"{potential:.0f}")
+            self.distance_badge.set_metric(t('Shared G1'), str(common), rank="")
         elif self.mode == "future":
             affinity = _number(self.row.get("affinity_raw"))
-            self.affinity_badge.set_metric(t("Contribution affinité"), f"{affinity:.0f}")
+            self.affinity_badge.set_metric(t('Affinity contribution'), f"{affinity:.0f}")
             self.distance_badge.set_metric(
-                t("G1 différentes"), str(int(self.row.get("g1_count") or 0)), rank=""
+                t('Distinct G1 races'), str(int(self.row.get("g1_count") or 0)), rank=""
             )
         else:
             affinity = _number((self.row.get("affinity") or {}).get("total"))
             probability = 100.0 * _number(
                 (self.row.get("distance_s_summary") or {}).get("probability_reach_s")
             )
-            self.affinity_badge.set_metric(t("Affinité"), f"{affinity:.0f}")
+            self.affinity_badge.set_metric(t('Affinity'), f"{affinity:.0f}")
             self.distance_badge.set_metric("P(S)", f"{probability:.1f}%", rank="S")
-        self.online_toggle.setText(t("Illustrations en ligne (cache local)"))
-        self.clear_cache_button.setText(t("Vider le cache d’images"))
-        self.tabs.setTabText(self.tabs.indexOf(self.visual_page), t("Vue de lignée"))
-        self.tree_zoom_control.retranslate(t("Zoom de la lignée"))
+        self.online_toggle.setText(t('Online artwork (local cache)'))
+        self.clear_cache_button.setText(t('Clear image cache'))
+        self.tabs.setTabText(self.tabs.indexOf(self.visual_page), t('Lineage view'))
+        self.tree_zoom_control.retranslate(t('Lineage zoom'))
         if self.planning_page is not None:
-            self.tabs.setTabText(self.tabs.indexOf(self.planning_page), t("Planning G1"))
+            self.tabs.setTabText(self.tabs.indexOf(self.planning_page), t('G1 Planning'))
         if self.calendar_zoom_control is not None:
-            self.calendar_zoom_control.retranslate(t("Zoom du planning G1"))
+            self.calendar_zoom_control.retranslate(t('G1 planning zoom'))
         if self.planning_title is not None:
-            self.planning_title.setText(t("Planning optimal proposé"))
+            self.planning_title.setText(t('Proposed optimal plan'))
         if self.trackblazer_toggle is not None:
-            self.trackblazer_toggle.setText(t("Planning pour Trackblazer"))
+            self.trackblazer_toggle.setText(t('Schedule for Trackblazer'))
             if self.trackblazer_toggle.isEnabled():
                 self.trackblazer_toggle.setToolTip(
                     t(
-                        "Ignore les courses d’objectif du personnage visé et optimise uniquement les G1 d’affinité."
+                        "Ignore the target character's objective races and optimise only affinity G1 races."
                     )
                 )
             else:
                 self.trackblazer_toggle.setToolTip(
-                    t("Aucune course d’objectif fixe à ignorer pour ce personnage.")
+                    t('This character has no fixed objective race to ignore.')
                 )
         if self.planning_key is not None:
             self.planning_key.setText(
                 t(
-                    '<span style="color:#e6bd55">● Commune</span> &nbsp; '
-                    '<span style="color:#5d9ee8">● Locale</span> &nbsp; '
-                    '<span style="color:#9b7adb">● Distante</span> &nbsp; '
-                    '<span style="color:#55aebe">● Projetée</span> &nbsp; '
-                    '<span style="color:#d87b86">● Objectif obligatoire</span> &nbsp; '
-                    '<span style="color:#8a929d">● Série de 4+ (risquée)</span>'
+                    '<span style="color:#e6bd55">● Shared</span> &nbsp; <span style="color:#5d9ee8">● Local</span> &nbsp; <span style="color:#9b7adb">● Remote</span> &nbsp; <span style="color:#55aebe">● Projected</span> &nbsp; <span style="color:#d87b86">● Mandatory objective</span> &nbsp; <span style="color:#8a929d">● 4+ streak (risky)</span>'
                 )
             )
-        self.tabs.setTabText(self.tabs.indexOf(self.details), t("Diagnostic"))
+        self.tabs.setTabText(self.tabs.indexOf(self.details), t('Diagnostics'))
         component_details = self.row.get("component_details") or {}
         if not isinstance(component_details, dict):
             component_details = {}
@@ -2220,19 +2212,16 @@ class LineageDialog(QDialog):
         event_count = max(1, int(white_details.get("inspiration_event_count") or 2))
         self.spark_legend.setText(
             t(
-                "Whites : le % indique la chance d’au moins un proc sur les {count} Inspiration Events "
-                "de la run lorsqu’elle est disponible · [Priorité] = contribution majeure · [Utile] = white compatible, utile ou rare pour le profil."
+                'Whites: the percentage is the chance of at least one proc across the run’s {count} Inspiration Events when available · [Priority] = major contribution · [Useful] = a compatible, useful or rare white for the profile.'
             ).replace("{count}", str(event_count))
         )
         self._update_planning_copy()
         self.attribution.setText(
             t(
-                'Les bannières G1, illustrations de trainees et icônes de skills sont chargées à la demande depuis '
-                '<a href="https://gametora.com/umamusume/races">GameTora</a> et conservées uniquement '
-                'dans le cache local. Visuels du jeu © Cygames, Inc.'
+                'G1 banners, trainee artwork and skill icons are loaded on demand from <a href="https://gametora.com/umamusume/races">GameTora</a> and kept only in the local cache. Game visuals © Cygames, Inc.'
             )
         )
-        self.close_button.setText(t("Fermer"))
+        self.close_button.setText(t('Close'))
         describe_control(
             self.online_toggle,
             self.online_toggle.text(),
@@ -2250,7 +2239,7 @@ class LineageDialog(QDialog):
         )
         describe_control(
             self.details,
-            t("Diagnostic"),
+            t('Diagnostics'),
             self.subtitle_label.text(),
         )
         if self.trackblazer_toggle is not None:
@@ -2273,15 +2262,15 @@ class LineageDialog(QDialog):
 
     def _update_cache_label(self) -> None:
         count, size = self.repository.cache_stats()
-        state = self.context.t("activées" if self.repository.enabled else "désactivées")
+        state = self.context.t('enabled' if self.repository.enabled else 'disabled')
         self.cache_label.setText(
-            self.context.t("{state} · {count} image(s) · {size}")
+            self.context.t('{state} · {count} cached image(s) · {size}')
             .replace("{state}", state)
             .replace("{count}", str(count))
             .replace("{size}", _human_size(size))
         )
         self.cache_label.setToolTip(str(self.repository.cache_dir))
-        self.cache_label.setAccessibleName(self.context.t("Cache d’images"))
+        self.cache_label.setAccessibleName(self.context.t('Image cache'))
         self.cache_label.setAccessibleDescription(self.cache_label.text())
         self.online_toggle.setAccessibleDescription(self.cache_label.text())
         self.clear_cache_button.setAccessibleDescription(self.cache_label.text())
@@ -2289,9 +2278,9 @@ class LineageDialog(QDialog):
     def _clear_cache(self) -> None:
         answer = QMessageBox.question(
             self,
-            self.context.t("Cache d’images"),
+            self.context.t('Image cache'),
             self.context.t(
-                "Supprimer les illustrations téléchargées ? Elles pourront être rechargées à la prochaine ouverture."
+                'Delete downloaded artwork? It can be loaded again next time the view is opened.'
             ),
         )
         if answer != QMessageBox.StandardButton.Yes:

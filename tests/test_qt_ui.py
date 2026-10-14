@@ -8,8 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from tests.check_i18n import FRENCH_MARKERS
-from uma_legacy_linker.i18n import EXACT_EN, scoring_label, translate_text
+from uma_legacy_linker.labels import scoring_label, display_text
 from uma_legacy_linker.output_history import read_json_output_revision
 from uma_legacy_linker.parent_optimizer import OptimizerError
 from uma_legacy_linker.scoring_config import iter_leaf_paths, read_json_object
@@ -298,10 +297,10 @@ class QtUiCoreTests(unittest.TestCase):
         ]
         sources = {weight_subcategory(path)[1] for path in paths}
         self.assertEqual(len(sources), 54)
-        self.assertNotIn("Autres réglages", sources)
+        self.assertNotIn('Other settings', sources)
         for source in sources:
             with self.subTest(source=source):
-                self.assertNotEqual(translate_text(source, "en"), source)
+                self.assertTrue(source)
         ordered = sorted(paths, key=weight_sort_key)
         self.assertEqual(ordered[0][:2], ("mode_weights", "parent_branch"))
         self.assertEqual(ordered[-1][0], "transfer_helper")
@@ -315,7 +314,7 @@ class QtUiCoreTests(unittest.TestCase):
         for path, _value in iter_leaf_paths(config):
             if any(key in hidden or key.endswith("description") for key in path):
                 continue
-            for language in ("fr", "en"):
+            for language in ("en",):
                 for key in path:
                     if "_" in key and scoring_label(key, language) == key:
                         missing.append(f"{language}: {key}")
@@ -327,7 +326,7 @@ class QtUiCoreTests(unittest.TestCase):
         # rows for mode_weights must still read as the final-pair-specific
         # variant instead of silently falling back to the generic one.
         for language, branch, pair in (
-            ("fr", "Branche parent", "Paire de parents finale"),
+
             ("en", "Parent branch", "Final parent pair"),
         ):
             with self.subTest(language=language):
@@ -345,7 +344,7 @@ class QtUiCoreTests(unittest.TestCase):
                     scoring_label("parent_pair", language),
                 )
 
-    def test_every_visible_weight_has_bilingual_contextual_help(self) -> None:
+    def test_every_visible_weight_has_contextual_help(self) -> None:
         config = read_json_object(
             PROJECT_DIR / "resources" / "default_parent_scoring.json"
         )
@@ -354,21 +353,13 @@ class QtUiCoreTests(unittest.TestCase):
         for path, value in iter_leaf_paths(config):
             if any(key in hidden or key.endswith("description") for key in path):
                 continue
-            french = describe_weight(path, value, "fr")
             english = describe_weight(path, value, "en")
             with self.subTest(path=path):
-                self.assertTrue(french.summary)
-                self.assertTrue(french.impact)
-                self.assertTrue(french.scope)
-                self.assertTrue(french.low_label)
-                self.assertTrue(french.high_label)
                 self.assertTrue(english.summary)
                 self.assertTrue(english.impact)
                 self.assertTrue(english.scope)
                 self.assertTrue(english.low_label)
                 self.assertTrue(english.high_label)
-                self.assertNotEqual(french.summary, english.summary)
-                self.assertFalse(french.summary.startswith("Règle «"))
             checked += 1
         self.assertEqual(checked, 229)
 
@@ -376,7 +367,7 @@ class QtUiCoreTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "config.json"
             path.write_text(
-                json.dumps({"uma_moe_query": "distance = 3", "ui_language": "fr"}),
+                json.dumps({"uma_moe_query": "distance = 3", "ui_language": "en"}),
                 encoding="utf-8",
             )
             store = SettingsStore(path)
@@ -398,7 +389,7 @@ class QtUiCoreTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "ranking.json"
             path.write_text("[]", encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "objet JSON"):
+            with self.assertRaisesRegex(ValueError, "JSON object"):
                 read_json_output_revision(path)
 
     def test_result_diagnostic_escapes_names_and_keeps_score(self) -> None:
@@ -585,7 +576,7 @@ class QtUiCoreTests(unittest.TestCase):
             result_detail_html(
                 {"score": 1.0, "parent_1": {"card_name": "A"}, "parent_2": {"card_name": "B"}},
                 "pair",
-                "fr",
+                "en",
             ),
             online_detail_html(
                 {
@@ -594,9 +585,9 @@ class QtUiCoreTests(unittest.TestCase):
                     "candidate": {"card_name": "B", "online": {"friend_code": "1"}},
                 },
                 "parent",
-                "fr",
+                "en",
             ),
-            transfer_detail_html({"card_name": "A", "status": "keep"}, "fr"),
+            transfer_detail_html({"card_name": "A", "status": "keep"}, "en"),
         ]
         for panel in panels:
             for block in panel.split("<style>")[1:]:
@@ -607,7 +598,7 @@ class QtUiCoreTests(unittest.TestCase):
 
     def test_transfer_detail_explains_spark_protection_deficits(self) -> None:
         row = {
-            "card_name": "Candidate",
+            "card_name": 'Candidatee',
             "status": "likely_keep",
             "reason_code": "protected_direct_future_gp_spark",
             "dominated_by": {
@@ -753,18 +744,6 @@ class QtUiCoreTests(unittest.TestCase):
         self.assertIn(">×3</td>", rendered)
         self.assertIn("present on the direct parent", rendered)
 
-    def test_qt_navigation_and_diagnostics_are_translated(self) -> None:
-        sources = (
-            "Vue d’ensemble",
-            "Données locales",
-            "Calcul du score global",
-            "Sélectionne une ligne pour afficher le diagnostic.",
-            "Recherche locale et uma.moe",
-            "Grand-parent distant",
-        )
-        for source in sources:
-            with self.subTest(source=source):
-                self.assertNotEqual(translate_text(source, "en"), source)
 
     def test_optimizer_ui_uses_the_existing_backend_pipeline(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -852,7 +831,7 @@ class QtUiCoreTests(unittest.TestCase):
 
             self.assertEqual(optimise.call_args.kwargs["search_kind"], "branches")
             self.assertEqual(optimise.call_args.kwargs["future_parent_card_id"], 0)
-            progress.assert_any_call(70, "Classement des parents locaux…")
+            progress.assert_any_call(70, 'Ranking local parents…')
 
     def test_future_grandparent_search_still_requires_target_parent(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -872,7 +851,7 @@ class QtUiCoreTests(unittest.TestCase):
                 style="pace_chaser",
                 search_kind="future",
             )
-            with self.assertRaisesRegex(OptimizerError, "parent à produire"):
+            with self.assertRaisesRegex(OptimizerError, "parent to produce"):
                 run_optimization(request, logger=Mock(), progress=Mock())
 
     def test_transfer_page_uses_existing_analysis_pipeline(self) -> None:
@@ -1226,7 +1205,7 @@ class QtUiCoreTests(unittest.TestCase):
                 patch("uma_legacy_linker.application.load_ace_options", return_value=ace_options),
                 patch("uma_legacy_linker.application.load_local_veteran_options", return_value=[local]),
             ):
-                with self.assertRaisesRegex(UmaMoeError, "même Uma"):
+                with self.assertRaisesRegex(UmaMoeError, "same Uma"):
                     run_online_search(
                         request,
                         logger=lambda _message: None,
@@ -1292,44 +1271,6 @@ class QtUiCoreTests(unittest.TestCase):
         ):
             self.assertGreaterEqual(contrast(foreground, background), 4.5)
 
-    def test_visible_qt_copy_has_an_english_translation(self) -> None:
-        neutral = {
-            "Transfer Helper", "Score", "Trainer", "Surface", "Distance", "Distance S",
-            "Whites", "ID", "Copies", "Minimum pink", "Parent", "Parent 1", "Parent 2", "Local",
-            "G1", "Points", "Aptitude", "Sparks", "Export", "Verdict", "base",
-            "Support", "Spark", "Stats",
-            "Fichier introuvable", "Profil par défaut actif", "Profil personnalisé actif",
-        }
-        missing: list[str] = []
-        for path in (PROJECT_DIR / "ui_qt").glob("*.py"):
-            tree = ast.parse(path.read_text(encoding="utf-8"))
-            for node in ast.walk(tree):
-                if not isinstance(node, ast.Call) or not node.args:
-                    continue
-                source = node.args[0]
-                if not isinstance(source, ast.Constant) or not isinstance(source.value, str):
-                    continue
-                is_translation = (
-                    isinstance(node.func, ast.Name) and node.func.id in {"t", "_t"}
-                ) or (
-                    isinstance(node.func, ast.Attribute) and node.func.attr == "t"
-                )
-                if not is_translation or source.value in neutral:
-                    continue
-                if any(character.isalpha() for character in source.value):
-                    english = translate_text(source.value, "en")
-                    if english == source.value:
-                        if EXACT_EN.get(source.value) != source.value:
-                            missing.append(f"{path.name}:{node.lineno}: {source.value}")
-                    elif FRENCH_MARKERS.search(english):
-                        # Partial fragment substitution: the exact key never
-                        # matched (a straight/typographic apostrophe mismatch
-                        # is the usual cause) and the copy stays French.
-                        missing.append(
-                            f"{path.name}:{node.lineno}: still French after "
-                            f"translation: {english[:80]}"
-                        )
-        self.assertEqual(missing, [], "Missing Qt translations:\n" + "\n".join(missing))
 
 
 if __name__ == "__main__":

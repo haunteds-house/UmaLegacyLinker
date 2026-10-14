@@ -405,7 +405,6 @@ class SearchPage(QWidget):
         context.configuration_changed.connect(self._schedule_refresh)
         context.configuration_changed.connect(self._refresh_freshness)
         context.integration_changed.connect(self._refresh_integration)
-        context.language_changed.connect(self._language_changed)
         self._refresh_timer = QTimer(self)
         self._refresh_timer.setSingleShot(True)
         self._refresh_timer.timeout.connect(self._initial_refresh)
@@ -483,12 +482,12 @@ class SearchPage(QWidget):
     def _retranslate_rail_toggle(self) -> None:
         t = self.context.t
         collapsed = self.rail_toggle.isChecked()
-        self.rail_toggle.setText(t("Contexte"))
+        self.rail_toggle.setText(t('Context'))
         self.rail_toggle.setIcon(
             icon("rail-expand" if collapsed else "rail-collapse", COLORS["muted"], size=16)
         )
         self.rail_toggle.setToolTip(
-            t("Afficher le contexte") if collapsed else t("Masquer le contexte")
+            t('Show context') if collapsed else t('Hide context')
         )
         describe_control(
             self.rail_toggle,
@@ -502,8 +501,6 @@ class SearchPage(QWidget):
     def _initial_result(self) -> None:
         self.load_latest(show_errors=False)
 
-    def _language_changed(self, _language: str) -> None:
-        self.retranslate()
 
     def _schedule_refresh(self) -> None:
         self._refresh_timer.start(120)
@@ -519,7 +516,7 @@ class SearchPage(QWidget):
             if show_errors:
                 QMessageBox.warning(
                     self,
-                    self.context.t("Configuration incomplète"),
+                    self.context.t('Incomplete configuration'),
                     actionable_error(exc, translate=self.context.t),
                 )
             self._refresh_source_badges()
@@ -629,7 +626,7 @@ class SearchPage(QWidget):
                 state.weather,
                 state.ground_condition,
             )
-            if value and value != "Non précisé"
+            if value and value != 'Unspecified'
         ]
         text = profile_summary(profile, self.context.language)
         text += f" · {self.race_editor.current_course_label()}"
@@ -716,7 +713,7 @@ class SearchPage(QWidget):
             if ace_id
             else "—"
         )
-        text = f"{t('Ace visé')}: {ace_text}"
+        text = f"{t('Target Ace')}: {ace_text}"
         objective_lines.append(text)
         objective_rows.append(SummaryVisualRow(text, (self._summary_avatar(ace_id),)))
 
@@ -725,19 +722,19 @@ class SearchPage(QWidget):
             if target_id
             else "—"
         )
-        text = f"{t('Parent à produire')}: {target_text}"
+        text = f"{t('Parent to produce')}: {target_text}"
         objective_lines.append(text)
         objective_rows.append(SummaryVisualRow(text, (self._summary_avatar(target_id),)))
 
-        results_text = f"{t('Résultats')}: {state.top_n}"
+        results_text = f"{t('Results')}: {state.top_n}"
         objective_lines.append(results_text)
         objective_rows.append(SummaryVisualRow(results_text))
         self.section_objective.set_visual_summary(
             objective_rows, plain_text="\n".join(objective_lines)
         )
 
-        profile_text = f"{t('Profil')}: {profile_summary(profile, self.context.language)}"
-        race_text = f"{t('Course')}: {self.race_editor.current_course_label()}"
+        profile_text = f"{t('Profile')}: {profile_summary(profile, self.context.language)}"
+        race_text = f"{t('Race')}: {self.race_editor.current_course_label()}"
         self.section_course.set_visual_summary(
             (
                 SummaryVisualRow(profile_text, self._summary_profile_icons(profile)),
@@ -750,7 +747,7 @@ class SearchPage(QWidget):
         static_rows: list[SummaryVisualRow] = []
         static_lines: list[str] = []
         if self.race_editor.track_combo.currentIndex() > 0:
-            text = f"{t('Piste')}: {self.race_editor.track_combo.currentText()}"
+            text = f"{t('Track')}: {self.race_editor.track_combo.currentText()}"
             static_lines.append(text)
             static_rows.append(SummaryVisualRow(text))
         condition_values = [
@@ -761,7 +758,7 @@ class SearchPage(QWidget):
                 state.weather,
                 state.ground_condition,
             )
-            if value and value != "Non précisé"
+            if value and value != 'Unspecified'
         ]
         if condition_values:
             text = f"{t('Conditions')}: {' · '.join(condition_values)}"
@@ -769,11 +766,11 @@ class SearchPage(QWidget):
             static_rows.append(SummaryVisualRow(text, self._summary_condition_icons()))
         overrides: list[str] = []
         if self.race_editor.custom_scoring.isChecked():
-            overrides.append(t("pondérations personnalisées"))
+            overrides.append(t('custom weights'))
         if self.race_editor.priority_picker.text().strip():
-            overrides.append(t("priorités white personnalisées"))
+            overrides.append(t('custom White priorities'))
         if overrides:
-            text = f"{t('Personnalisation')}: {' · '.join(overrides)}"
+            text = f"{t('Overrides')}: {' · '.join(overrides)}"
             static_lines.append(text)
             static_rows.append(SummaryVisualRow(text))
         if static_rows:
@@ -781,8 +778,8 @@ class SearchPage(QWidget):
                 static_rows, plain_text="\n".join(static_lines)
             )
         else:
-            self.section_conditions.set_summary(t("Aucune condition fixée"))
-        self.section_conditions.set_modified(bool(static_labels), t("Modifié"))
+            self.section_conditions.set_summary(t('No condition set'))
+        self.section_conditions.set_modified(bool(static_labels), t('Changed'))
 
     def _refresh_online_validation(self) -> None:
         """Surface a costume conflict where it can be fixed, not on a save click."""
@@ -793,7 +790,7 @@ class SearchPage(QWidget):
 
     def _refresh_source_badges(self) -> None:
         self.local_badge.setText(
-            self.context.t("{count} vétérans").replace(
+            self.context.t('{count} veterans').replace(
                 "{count}", str(len(self._local_options))
             )
         )
@@ -801,9 +798,9 @@ class SearchPage(QWidget):
 
     def _refresh_integration(self) -> None:
         status = (
-            self.context.t("API configurée")
+            self.context.t('API configured')
             if self.context.uma_moe_api_key
-            else self.context.t("Clé API absente")
+            else self.context.t('API key missing')
         )
         self.online_badge.setText(status)
 
@@ -829,15 +826,15 @@ class SearchPage(QWidget):
     def _optimization_request(self, kind: str) -> OptimizationRequest:
         ace_id, target_id = self._selected_ids()
         if ace_id <= 0:
-            raise OptimizerError("Sélectionne l’Ace cible.")
+            raise OptimizerError('Select the target Ace.')
         if kind == "future" and target_id <= 0:
-            raise OptimizerError("Sélectionne le parent à produire.")
+            raise OptimizerError('Select the parent to produce.')
         if (
             kind == "future"
             and self._card_to_chara.get(ace_id) == self._card_to_chara.get(target_id)
         ):
             raise OptimizerError(
-                "L'Ace et le parent à produire doivent être deux personnages différents."
+                'The Ace and the parent to produce must be different characters.'
             )
         profile = self.race_editor.current_profile()
         return OptimizationRequest(
@@ -864,14 +861,14 @@ class SearchPage(QWidget):
         except (OptimizerError, ValueError) as exc:
             QMessageBox.warning(
                 self,
-                self.context.t("Configuration incomplète"),
+                self.context.t('Incomplete configuration'),
                 actionable_error(exc, translate=self.context.t),
             )
             return
         labels = {
-            "pairs": "Recherche des paires finales locales…",
-            "branches": "Classement des parents locaux…",
-            "future": "Classement des grands-parents locaux…",
+            "pairs": 'Searching local final pairs…',
+            "branches": 'Ranking local parents…',
+            "future": 'Ranking local grandparents…',
         }
         self.context.update_lineage(
             ace_card_id=request.ace_card_id,
@@ -957,9 +954,9 @@ class SearchPage(QWidget):
         try:
             ace_id, target_id = self._selected_ids()
             if ace_id <= 0:
-                raise UmaMoeError("Sélectionne l’Ace cible.")
+                raise UmaMoeError('Select the target Ace.')
             if mode == "grandparent" and target_id <= 0:
-                raise UmaMoeError("Sélectionne le parent à produire.")
+                raise UmaMoeError('Select the parent to produce.')
             options = self._online_options_snapshot(mode)
             profile = self.race_editor.current_profile()
             request = OnlineSearchRequest(
@@ -997,7 +994,7 @@ class SearchPage(QWidget):
         except (UmaMoeError, OptimizerError, ValueError) as exc:
             QMessageBox.warning(
                 self,
-                self.context.t("Configuration incomplète"),
+                self.context.t('Incomplete configuration'),
                 actionable_error(exc, translate=self.context.t),
             )
             return
@@ -1015,9 +1012,9 @@ class SearchPage(QWidget):
             updates["future_parent_card_id"] = request.target_parent_card_id
         self.context.update_lineage(**updates)
         label = (
-            "Classement des paires de GP locales…"
+            'Ranking local GP pairs…'
             if local_pairs
-            else "Recherche et classement uma.moe…"
+            else 'Searching and ranking with uma.moe…'
         )
         self.task_requested.emit(
             ProcessTask(partial(run_online_search, request)),
@@ -1117,12 +1114,12 @@ class SearchPage(QWidget):
         self.local_badge.setVisible(not online)
         self.result_badge.setVisible(bool(view.result_kind))
         labels = {
-            "local:pairs": "Local · paires finales",
+            "local:pairs": 'Local · final pairs',
             "local:branches": "Local · parents",
-            "local:future": "Local · grands-parents",
-            "uma.moe:online_parent": "uma.moe · parents distants",
-            "uma.moe:online_grandparent": "uma.moe · grands-parents distants",
-            "local:online_grandparent": "Local · paires de grands-parents",
+            "local:future": 'Local · grandparents',
+            "uma.moe:online_parent": 'uma.moe · remote parents',
+            "uma.moe:online_grandparent": 'uma.moe · remote grandparents',
+            "local:online_grandparent": 'Local · grandparent pairs',
         }
         self.result_badge.setText(
             t(labels.get(view.result_kind, view.result_kind))
@@ -1140,7 +1137,7 @@ class SearchPage(QWidget):
         )
         describe_control(
             self.provenance_badge,
-            t("Traçabilité"),
+            t('Provenance'),
             self.provenance_badge.toolTip(),
         )
         pane = self._result_pane(family)
@@ -1157,7 +1154,7 @@ class SearchPage(QWidget):
         stale = view.is_stale()
         self.stale_badge.setVisible(stale)
         self.results_context.setToolTip(
-            t("Le contexte a changé depuis ce calcul") if stale else ""
+            t('The context changed since this computation') if stale else ""
         )
         self.results_context.setAccessibleDescription(
             " · ".join(
@@ -1214,7 +1211,7 @@ class SearchPage(QWidget):
         )
         if not revisions:
             action = self.history_menu.addAction(
-                self.context.t("Aucune exécution enregistrée")
+                self.context.t('No saved run')
             )
             action.setEnabled(False)
             return
@@ -1231,7 +1228,7 @@ class SearchPage(QWidget):
         if {CURRENT_REVISION, PREVIOUS_REVISION}.issubset(revision_keys):
             self.history_menu.addSeparator()
             compare = self.history_menu.addAction(
-                self.context.t("Comparer courant ↔ précédent")
+                self.context.t('Compare current ↔ previous')
             )
             compare.triggered.connect(self.compare_history)
 
@@ -1274,7 +1271,7 @@ class SearchPage(QWidget):
     def _show_comparison_error(self, message: str) -> None:
         QMessageBox.information(
             self,
-            self.context.t("Comparaison"),
+            self.context.t('Comparison'),
             self.context.t(message),
         )
 
@@ -1284,26 +1281,26 @@ class SearchPage(QWidget):
         rows = self._pane_rows(pane)
         if len(rows) < 2:
             self._show_comparison_error(
-                "Cette vue doit contenir au moins deux candidats à comparer."
+                'This view must contain at least two candidates to compare.'
             )
             return
         view = self.families.view(family)
         base = search_comparison_dataset(
             family,
             rows,
-            title=self.context.t("Résultat affiché"),
+            title=self.context.t('Displayed result'),
             profile=view.profile,
             provenance=view.provenance,
         )
         left = ComparisonDataset(
-            self.context.t("Candidat A"),
+            self.context.t('Candidate A'),
             base.items,
             profile=base.profile,
             mode=base.mode,
             provenance=base.provenance,
         )
         right = ComparisonDataset(
-            self.context.t("Candidat B"),
+            self.context.t('Candidate B'),
             base.items,
             profile=base.profile,
             mode=base.mode,
@@ -1322,7 +1319,7 @@ class SearchPage(QWidget):
         right_index = (left_index + 1) % len(right.items)
         ResultComparisonDialog(
             self.context,
-            title="Comparer deux candidats",
+            title='Compare two candidates',
             left=left,
             right=right,
             metrics=SEARCH_METRICS,
@@ -1345,7 +1342,7 @@ class SearchPage(QWidget):
         except (OSError, json.JSONDecodeError, ValueError) as exc:
             QMessageBox.warning(
                 self,
-                self.context.t("Comparaison"),
+                self.context.t('Comparison'),
                 actionable_error(exc, translate=self.context.t),
             )
             return
@@ -1362,26 +1359,26 @@ class SearchPage(QWidget):
         current = search_comparison_dataset(
             family,
             search_payload_rows(family, current_payload),
-            title=self.context.t("Exécution courante"),
+            title=self.context.t('Current run'),
             profile=current_profile if isinstance(current_profile, dict) else {},
             provenance=current_provenance,
         )
         previous = search_comparison_dataset(
             family,
             search_payload_rows(family, previous_payload),
-            title=self.context.t("Exécution précédente"),
+            title=self.context.t('Previous run'),
             profile=previous_profile if isinstance(previous_profile, dict) else {},
             provenance=previous_provenance,
         )
         current, previous = intersect_datasets(current, previous)
         if not current.items:
             self._show_comparison_error(
-                "Aucun candidat identifiable n’est commun aux deux exécutions."
+                'No identifiable candidate is shared by both runs.'
             )
             return
         ResultComparisonDialog(
             self.context,
-            title="Comparer avant / après recalcul",
+            title='Compare before / after recomputation',
             left=previous,
             right=current,
             metrics=SEARCH_METRICS,
@@ -1416,9 +1413,9 @@ class SearchPage(QWidget):
             if show_errors:
                 QMessageBox.information(
                     self,
-                    self.context.t("Dernier résultat"),
+                    self.context.t('Latest result'),
                     self.context.t(
-                        "Cette vue n’a pas encore de calcul enregistré sur le disque."
+                        'This tab has no saved computation on disk yet.'
                     ),
                 )
             return
@@ -1430,7 +1427,7 @@ class SearchPage(QWidget):
             if show_errors:
                 QMessageBox.warning(
                     self,
-                    self.context.t("Dernier résultat"),
+                    self.context.t('Latest result'),
                     actionable_error(exc, translate=self.context.t),
                 )
             return
@@ -1479,9 +1476,9 @@ class SearchPage(QWidget):
             if show_errors:
                 QMessageBox.information(
                     self,
-                    self.context.t("Dernier résultat"),
+                    self.context.t('Latest result'),
                     self.context.t(
-                        "Le dernier calcul local ne couvre pas cette vue."
+                        'The latest local computation does not cover this tab.'
                     ),
                 )
             return
@@ -1505,7 +1502,7 @@ class SearchPage(QWidget):
             QMessageBox.information(
                 self,
                 self.context.t("Export"),
-                self.context.t("Sélectionne d'abord une paire à exporter."),
+                self.context.t('Select a pair to export first.'),
             )
             return
         parent_1 = row.get("parent_1") or {}
@@ -1519,7 +1516,7 @@ class SearchPage(QWidget):
         )
         filename, _ = QFileDialog.getSaveFileName(
             self,
-            self.context.t("Exporter la paire vers uma.moe Lineage Planner"),
+            self.context.t('Export pair to uma.moe Lineage Planner'),
             str(suggested),
             "JSON (*.json)",
         )
@@ -1537,14 +1534,14 @@ class SearchPage(QWidget):
         except (OSError, ValueError, LineagePlannerError) as exc:
             QMessageBox.critical(
                 self,
-                self.context.t("Erreur d’export"),
+                self.context.t('Export error'),
                 actionable_error(exc, translate=self.context.t),
             )
             return
         QMessageBox.information(
             self,
-            self.context.t("Export terminé"),
-            self.context.t("Fichier créé : {path}").replace("{path}", str(path)),
+            self.context.t('Export complete'),
+            self.context.t('File created: {path}').replace("{path}", str(path)),
         )
 
     def set_busy(self, busy: bool) -> None:
@@ -1573,52 +1570,52 @@ class SearchPage(QWidget):
         except OSError as exc:
             QMessageBox.critical(
                 self,
-                self.context.t("Erreur"),
+                self.context.t('Error'),
                 actionable_error(exc, translate=self.context.t),
             )
 
     def retranslate(self) -> None:
         t = self.context.t
         self.header.set_text(
-            t("Recherche de lignées"),
+            t('Lineage Search'),
             t(
-                "Définis le contexte une seule fois, puis lance chaque onglet quand tu en as besoin."
+                'Set the context once, then run each tab whenever you need it.'
             ),
         )
-        self.rail_title.setText(t("Contexte commun"))
-        self.section_objective.set_title(t("Objectif"))
-        self.section_course.set_title(t("Course et profil"))
-        self.section_conditions.set_title(t("Conditions statiques"))
+        self.rail_title.setText(t('Shared context'))
+        self.section_objective.set_title(t('Target'))
+        self.section_course.set_title(t('Race and profile'))
+        self.section_conditions.set_title(t('Static conditions'))
         self.section_conditions.set_reset_text(
-            t("Réinitialiser"),
-            t("Remet les conditions statiques sur « Non précisé »."),
+            t('Reset'),
+            t('Reset static conditions to “Unspecified”.'),
         )
         self._retranslate_rail_toggle()
-        self.refresh_button.setText(t("Actualiser"))
-        self.ace_label.setText(t("Ace visé"))
+        self.refresh_button.setText(t('Refresh'))
+        self.ace_label.setText(t('Target Ace'))
         self.target_label.setText(
-            t("Parent à produire") + " · " + t("pour les recherches GP")
+            t('Parent to produce') + " · " + t('for GP searches')
         )
-        self.top_label.setText(t("Résultats"))
-        self.export_button.setText(t("Exporter…"))
-        self.load_button.setText(t("Historique"))
+        self.top_label.setText(t('Results'))
+        self.export_button.setText(t('Export…'))
+        self.load_button.setText(t('History'))
         self.load_button.setToolTip(
-            t("Charge l’exécution courante ou l’unique exécution précédente conservée sur le disque.")
+            t('Loads the current run or the single previous run retained on disk.')
         )
-        self.compare_button.setText(t("Comparer…"))
+        self.compare_button.setText(t('Compare…'))
         self.compare_button.setToolTip(
-            t("Compare côte à côte deux candidats du résultat affiché.")
+            t('Compares two candidates from the displayed result side by side.')
         )
-        self.import_button.setText(t("Reclasser JSON…"))
+        self.import_button.setText(t('Re-rank JSON…'))
         self.import_button.setToolTip(
             t(
-                "Reclasse une réponse JSON uma.moe déjà téléchargée avec les réglages actuels, sans appel à l’API."
+                'Re-ranks an already downloaded uma.moe JSON response using the current settings, without calling the API.'
             )
         )
-        self.options_button.setText(t("Options…"))
-        self.local_gp_pairs_button.setText(t("GP locaux"))
-        self.open_button.setText(t("Sortie"))
-        self.stale_badge.setText(t("Obsolète"))
+        self.options_button.setText(t('Filters…'))
+        self.local_gp_pairs_button.setText(t('Local GPs'))
+        self.open_button.setText(t('Output folder'))
+        self.stale_badge.setText(t('Out of date'))
         objective_description = self.section_objective.toggle.text()
         label_control(self.ace_label, self.ace_combo, objective_description)
         label_control(self.target_label, self.target_combo, objective_description)
@@ -1630,7 +1627,7 @@ class SearchPage(QWidget):
         )
         describe_control(
             self.results_context,
-            t("Contexte"),
+            t('Context'),
             self.results_context.text(),
         )
         self.families.retranslate()

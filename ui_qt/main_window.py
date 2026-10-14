@@ -23,9 +23,7 @@ from PySide6.QtWidgets import (
 
 from uma_legacy_linker.backend_process import ProcessTask
 from uma_legacy_linker.error_guidance import actionable_error
-from uma_legacy_linker.i18n import LANGUAGE_LABELS
 from ui_qt.accessibility import describe_control, label_control
-from ui_qt.components import ThemedComboBox
 from ui_qt.context import AppContext
 from uma_legacy_linker.application import APP_NAME, APP_VERSION
 from ui_qt.icon_catalog import stateful_icon
@@ -35,6 +33,7 @@ NAV_ICON_SIZE = QSize(18, 18)
 NAV_ICON_KEYS = {
     "home": "nav-home",
     "data": "nav-data",
+    "workbench": "nav-data",
     "search": "nav-search",
     "transfer": "nav-transfer",
     "weights": "nav-weights",
@@ -45,6 +44,7 @@ from ui_qt.pages_search import SearchPage
 from ui_qt.pages_tools import ToolsPage
 from ui_qt.pages_transfer import TransferPage
 from ui_qt.pages_weights import WeightsPage
+from ui_qt.pages_workbench import WorkbenchPage
 from ui_qt.workers import FunctionWorker, ProcessFunctionWorker
 
 
@@ -59,14 +59,15 @@ class MainWindow(QMainWindow):
         self._workers: list[TaskWorker] = []
         self._active_worker: TaskWorker | None = None
         self._busy = False
-        self._status_source = "Prêt"
-        self._nav_order = ["home", "data", "search", "transfer", "weights", "tools"]
+        self._status_source = 'Ready'
+        self._nav_order = ["home", "workbench", "data", "search", "transfer", "weights", "tools"]
         self._nav_buttons: dict[str, QPushButton] = {}
         self._nav_sections: dict[str, QLabel] = {}
         self._pages: dict[str, QWidget] = {}
         self._page_factories: dict[str, Callable[[AppContext], QWidget]] = {
             "home": HomePage,
             "data": DataPage,
+            "workbench": WorkbenchPage,
             "search": SearchPage,
             "transfer": TransferPage,
             "weights": WeightsPage,
@@ -108,7 +109,7 @@ class MainWindow(QMainWindow):
         nav_group.setExclusive(True)
         nav_sections = (
             ("overview", ("home",)),
-            ("prepare", ("data",)),
+            ("prepare", ("workbench", "data")),
             ("analyse", ("search", "transfer")),
             ("configure", ("weights", "tools")),
         )
@@ -137,17 +138,6 @@ class MainWindow(QMainWindow):
             sidebar_layout.addSpacing(2)
         sidebar_layout.addStretch(1)
 
-        self.language_label = QLabel("")
-        self.language_label.setObjectName("muted")
-        self.language_combo = ThemedComboBox()
-        for code, label in LANGUAGE_LABELS.items():
-            self.language_combo.addItem(label, code)
-        self.language_combo.setCurrentIndex(
-            max(0, self.language_combo.findData(self.context.language))
-        )
-        self.language_combo.currentIndexChanged.connect(self._language_selected)
-        sidebar_layout.addWidget(self.language_label)
-        sidebar_layout.addWidget(self.language_combo)
         outer.addWidget(sidebar)
 
         right = QWidget()
@@ -203,12 +193,9 @@ class MainWindow(QMainWindow):
 
         self._ensure_page("home")
         self._install_shortcuts()
-        self.context.language_changed.connect(self._language_changed)
         self.retranslate()
         self.show_page("home")
 
-    def _language_changed(self, _language: str) -> None:
-        self.retranslate()
 
     def _ensure_page(self, key: str) -> QWidget:
         existing = self._pages.get(key)
@@ -217,9 +204,9 @@ class MainWindow(QMainWindow):
         page = self._page_factories[key](self.context)
         self._pages[key] = page
         self.stack.addWidget(page)
-        if key == "home":
-            assert isinstance(page, HomePage)
-            page.navigate_requested.connect(self.show_page)
+        navigate_signal = getattr(page, "navigate_requested", None)
+        if navigate_signal is not None:
+            navigate_signal.connect(self.show_page)
         task_signal = getattr(page, "task_requested", None)
         if task_signal is not None:
             task_signal.connect(self.start_task)
@@ -266,47 +253,42 @@ class MainWindow(QMainWindow):
 
     def retranslate(self) -> None:
         t = self.context.t
-        self.cancel_button.setText(t("Annuler la tâche"))
+        self.cancel_button.setText(t('Cancel task'))
         labels = {
-            "home": "Accueil",
-            "data": "Données locales",
-            "search": "Recherche de lignées",
+            "home": 'Home',
+            "data": 'Local data',
+            "workbench": "Workbench",
+            "search": 'Lineage Search',
             "transfer": "Transfer Helper",
-            "weights": "Pondérations",
-            "tools": "Paramètres",
+            "weights": 'Weights',
+            "tools": 'Settings',
         }
         for key, source in labels.items():
             translated = t(source)
             self._nav_buttons[key].setText(translated)
             self._nav_buttons[key].setAccessibleName(translated)
         section_labels = {
-            "overview": "VUE D’ENSEMBLE",
-            "prepare": "PRÉPARER",
-            "analyse": "ANALYSER",
-            "configure": "CONFIGURER",
+            "overview": 'OVERVIEW',
+            "prepare": 'PREPARE',
+            "analyse": 'ANALYSE',
+            "configure": 'CONFIGURE',
         }
         for key, source in section_labels.items():
             self._nav_sections[key].setText(t(source))
-        self.language_label.setText(t("Langue"))
-        self.log_title.setText(t("Journal d’exécution"))
-        self.clear_log_button.setText(t("Effacer"))
-        self.log_button.setText(t("Journal"))
+        self.log_title.setText(t('Activity log'))
+        self.clear_log_button.setText(t('Clear'))
+        self.log_button.setText(t('Log'))
         self.status_label.setText(t(self._status_source))
-        label_control(self.language_label, self.language_combo)
-        describe_control(self.clear_log_button, t("Effacer le journal"))
-        describe_control(self.log, t("Journal d’exécution"))
-        describe_control(self.log_button, t("Journal"), t("Journal d’exécution"))
-        describe_control(self.cancel_button, t("Annuler la tâche"))
+        describe_control(self.clear_log_button, t('Clear log'))
+        describe_control(self.log, t('Activity log'))
+        describe_control(self.log_button, t('Log'), t('Activity log'))
+        describe_control(self.cancel_button, t('Cancel task'))
         describe_control(
             self.progress,
-            t("Progression de la tâche"),
+            t('Task progress'),
             t(self._status_source),
         )
 
-    @Slot(int)
-    def _language_selected(self, _index: int) -> None:
-        code = str(self.language_combo.currentData() or "fr")
-        self.context.set_language(code)
 
     @Slot(str)
     def show_page(self, key: str) -> None:
@@ -336,7 +318,6 @@ class MainWindow(QMainWindow):
             setter = getattr(page, "set_busy", None)
             if callable(setter):
                 setter(busy)
-        self.language_combo.setEnabled(not busy)
         self.progress.setVisible(busy)
         if not busy:
             self.progress.setValue(0)
@@ -351,8 +332,8 @@ class MainWindow(QMainWindow):
         if self._busy:
             QMessageBox.information(
                 self,
-                self.context.t("Opération en cours"),
-                self.context.t("Attends la fin du calcul actuel avant d’en lancer un autre."),
+                self.context.t('Operation in progress'),
+                self.context.t('Wait for the current calculation to finish before starting another one.'),
             )
             return
         self._set_busy(True)
@@ -384,13 +365,13 @@ class MainWindow(QMainWindow):
             return
         worker.request_cancel()
         self.cancel_button.setEnabled(False)
-        self._status_source = "Annulation demandée — arrêt à la prochaine étape…"
+        self._status_source = 'Cancellation requested — stopping at the next step…'
         self.status_label.setText(self.context.t(self._status_source))
         self.append_log(self.context.t(self._status_source))
 
     @Slot()
     def _task_cancelled(self) -> None:
-        self._status_source = "Tâche annulée."
+        self._status_source = 'Task cancelled.'
         self.append_log(self.context.t(self._status_source))
 
     @Slot(int, str)
@@ -404,11 +385,11 @@ class MainWindow(QMainWindow):
         try:
             callback(result)
         except Exception as exc:
-            raw_message = f"Erreur d’affichage : {exc}"
+            raw_message = f'Error d’affichage: {exc}'
             self.append_log(raw_message)
             QMessageBox.critical(
                 self,
-                self.context.t("Erreur"),
+                self.context.t('Error'),
                 actionable_error(raw_message, translate=self.context.t),
             )
 
@@ -419,7 +400,7 @@ class MainWindow(QMainWindow):
         self.log_button.setChecked(True)
         QMessageBox.critical(
             self,
-            self.context.t("L’opération a échoué"),
+            self.context.t('The operation failed'),
             actionable_error(message, translate=self.context.t),
         )
 
@@ -430,7 +411,7 @@ class MainWindow(QMainWindow):
             self._active_worker = None
         self.cancel_button.setEnabled(False)
         self._set_busy(False)
-        self.set_status("Prêt")
+        self.set_status('Ready')
         for page in self._pages.values():
             refresher = getattr(page, "refresh", None)
             if callable(refresher) and page is self._pages.get("home"):
@@ -438,12 +419,13 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
         if not self._busy:
+            self._shutdown_pages()
             event.accept()
             return
         answer = QMessageBox.question(
             self,
-            self.context.t("Calcul en cours"),
-            self.context.t("Un calcul est encore en cours. Fermer l’application maintenant ?"),
+            self.context.t('Running'),
+            self.context.t('A calculation is still running. Close the application now?'),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
@@ -451,6 +433,13 @@ class MainWindow(QMainWindow):
             worker = self._active_worker
             if worker is not None:
                 worker.request_cancel(force=True)
+            self._shutdown_pages()
             event.accept()
         else:
             event.ignore()
+
+    def _shutdown_pages(self) -> None:
+        for page in self._pages.values():
+            shutdown = getattr(page, "shutdown", None)
+            if callable(shutdown):
+                shutdown()

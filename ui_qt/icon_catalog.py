@@ -1,24 +1,4 @@
-"""Vendored SVG icons, tinted at paint time.
-
-A bare Unicode character used as an icon is a request addressed to the host
-font stack, not a self-contained glyph: if the selected UI font lacks the
-character, Qt falls back through whatever fonts are installed, and that
-fallback chain depends on the OS version, installed fonts and locale. When
-it lands on a legacy symbol-encoded font (Symbol, Wingdings, Webdings), the
-codepoint is remapped onto that font's own encoding and an unrelated letter
-is drawn instead of the intended shape.
-
-SVG assets avoid this entirely: the file is self-contained, recoloured for
-the active theme with :class:`QPainter`, and stays crisp at any DPI or
-window scale.
-
-Chrome icons are vendored from `Lucide <https://lucide.dev>`_ (ISC licence —
-see ``docs/THIRD_PARTY.md``) as flat 24x24 ``stroke="currentColor"`` SVGs and
-registered in :data:`ICON_FILES`. Domain badges whose colour is itself useful
-information (weather, season and running style) live beside them in
-:data:`FIXED_ICON_FILES` and are rendered as authored instead of being tinted.
-Call sites only reference semantic keys, never file names directly.
-"""
+'Vendored SVG icons, tinted at paint time.\n\nA bare Unicode character used as an icon is a request addressed to the host\nfont stack, not a self-contained glyph: if the selected UI font lacks the\ncharacter, Qt falls back through whatever fonts are installed, and that\nfallback chain depends on the OS version, installed fonts and locale. When\nit lands on a legacy symbol-encoded font (Symbol, Wingdings, Webdings), the\ncodepoint is remapped onto that font\'s own encoding and an unrelated letter\nis drawn instead of the intended shape.\n\nSVG assets avoid this entirely: the file is self-contained, recoloured for\nthe active theme with:class:`QPainter`, and stays crisp at any DPI or\nwindow scale.\n\nChrome icons are vendored from `Lucide <https://lucide.dev>`_ (ISC licence —\nsee ``docs/THIRD_PARTY.md``) as flat 24x24 ``stroke="currentColor"`` SVGs and\nregistered in:data:`ICON_FILES`. Domain badges whose colour is itself useful\ninformation (weather, season and running style) live beside them in\n:data:`FIXED_ICON_FILES` and are rendered as authored instead of being tinted.\nCall sites only reference semantic keys, never file names directly.\n'
 
 from __future__ import annotations
 
@@ -110,7 +90,7 @@ def tinted_pixmap(key: str, color: str, size: int = DEFAULT_SIZE) -> QPixmap:
 
 
 def icon(key: str, color: str, size: int = DEFAULT_SIZE) -> QIcon:
-    """A flat, single-colour :class:`QIcon` for ``key``."""
+    'A flat, single-colour:class:`QIcon` for ``key``.'
     return QIcon(tinted_pixmap(key, color, size))
 
 
@@ -131,7 +111,7 @@ def native_pixmap(key: str, size: int = DEFAULT_SIZE) -> QPixmap:
 
 
 def native_icon(key: str, size: int = DEFAULT_SIZE) -> QIcon:
-    """Return a :class:`QIcon` for a fixed-palette domain badge."""
+    'Return a:class:`QIcon` for a fixed-palette domain badge.'
 
     return QIcon(native_pixmap(key, size))
 
@@ -143,13 +123,7 @@ def stateful_icon(
     on_color: str,
     size: int = DEFAULT_SIZE,
 ) -> QIcon:
-    """A :class:`QIcon` that recolours itself with a checkable button's state.
-
-    Qt paints a checkable :class:`QAbstractButton` using the icon's
-    ``QIcon.State.On`` pixmap while checked and ``QIcon.State.Off``
-    otherwise, with no extra wiring needed on the caller's side once the
-    icon carries both.
-    """
+    "A:class:`QIcon` that recolours itself with a checkable button's state.\n\n    Qt paints a checkable:class:`QAbstractButton` using the icon's\n    ``QIcon.State.On`` pixmap while checked and ``QIcon.State.Off``\n    otherwise, with no extra wiring needed on the caller's side once the\n    icon carries both.\n    "
     result = QIcon()
     result.addPixmap(tinted_pixmap(key, off_color, size), QIcon.Mode.Normal, QIcon.State.Off)
     result.addPixmap(tinted_pixmap(key, on_color, size), QIcon.Mode.Normal, QIcon.State.On)

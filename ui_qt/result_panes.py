@@ -206,9 +206,9 @@ class ResultPane(QWidget):
                 ),
                 Column(t("Distance"), lambda row: distance_status(row, self.context.language)),
                 Column("P(S) %", lambda row: 100 * float((row.get("distance_s_summary") or {}).get("probability_reach_s") or 0), RIGHT),
-                Column(t("Affinité"), nested("affinity", "total"), RIGHT),
+                Column(t('Affinity'), nested("affinity", "total"), RIGHT),
                 Column(t("Whites"), nested("components", "white_skill"), RIGHT),
-                Column(t("Bleues"), nested("components", "blue"), RIGHT),
+                Column(t('Blue Sparks'), nested("components", "blue"), RIGHT),
             ]
         if self.kind == "branch":
             return [
@@ -221,14 +221,14 @@ class ResultPane(QWidget):
                     decoration_getter=lambda row: self._avatar_for(row),
                 ),
                 Column(
-                    t("Grand-parent 1"),
+                    t('Grandparent 1'),
                     nested("grandparent_1"),
                     decoration_getter=lambda row: self._avatar_for(
                         row, "lineage_preview", "p1-1"
                     ),
                 ),
                 Column(
-                    t("Grand-parent 2"),
+                    t('Grandparent 2'),
                     nested("grandparent_2"),
                     decoration_getter=lambda row: self._avatar_for(
                         row, "lineage_preview", "p1-2"
@@ -242,17 +242,17 @@ class ResultPane(QWidget):
             rank,
             score,
             Column(
-                t("Candidat"),
+                t('Candidate'),
                 canonical_veteran_label,
                 tooltip_getter=technical_veteran_tooltip,
                 decoration_getter=lambda row: self._avatar_for(row),
             ),
-            Column(t("Contribution affinité"), nested("affinity_raw"), RIGHT),
+            Column(t('Affinity contribution'), nested("affinity_raw"), RIGHT),
             Column(t("G1"), nested("g1_count"), RIGHT),
             Column(t("Whites"), nested("components", "white_skill"), RIGHT),
-            Column(t("Bleues"), nested("components", "blue"), RIGHT),
-            Column(t("Roses"), nested("components", "pink"), RIGHT),
-            Column(t("ID technique"), nested("trained_chara_id"), RIGHT),
+            Column(t('Blue Sparks'), nested("components", "blue"), RIGHT),
+            Column(t('Pink Sparks'), nested("components", "pink"), RIGHT),
+            Column(t('Technical ID'), nested("trained_chara_id"), RIGHT),
         ]
 
     def _configure_header(self) -> None:
@@ -350,9 +350,9 @@ class ResultPane(QWidget):
             self.detail_toggle.setChecked(hidden)
             self.detail_toggle.blockSignals(False)
         self.detail_toggle.setText(
-            self.context.t("Détail")
+            self.context.t('Details')
             if hidden
-            else self.context.t("Masquer le détail")
+            else self.context.t('Hide details')
         )
         describe_control(
             self.detail_toggle,
@@ -369,16 +369,16 @@ class ResultPane(QWidget):
         selected = self.selected_row()
         selected_rank = selected.get("_rank") if selected else None
         names = {
-            "pair": t("paires finales"),
-            "branch": t("lignées candidates"),
-            "future": t("futurs grands-parents"),
+            "pair": t('final pairs'),
+            "branch": t('candidate lineages'),
+            "future": t('future grandparents'),
         }
         self.summary.setText(
-            t("{count} {name} · clique sur un en-tête pour trier")
+            t('{count} {name} · click a header to sort')
             .replace("{count}", str(self.model.rowCount()))
             .replace("{name}", names[self.kind])
         )
-        self.lineage_button.setText(t("Voir la lignée"))
+        self.lineage_button.setText(t('View lineage'))
         self.model.set_columns(self._columns())
         self._configure_header()
         if selected_rank is not None:
@@ -396,7 +396,7 @@ class ResultPane(QWidget):
         describe_control(self.table, result_name, self.summary.text())
         describe_control(
             self.detail,
-            f"{t('Détail')} · {result_name}",
+            f"{t('Details')} · {result_name}",
             self.summary.text(),
         )
         describe_control(
@@ -410,7 +410,7 @@ class ResultPane(QWidget):
             result_name,
         )
         self.table.horizontalHeader().setToolTip(
-            t("Clic droit pour choisir les colonnes affichées ; largeur, ordre et tri sont mémorisés.")
+            t('Right-click to choose visible columns; widths, order and sorting are remembered.')
         )
         self._update_lineage_button()
 
@@ -431,7 +431,7 @@ class CardFilterDialog(QDialog):
         root = QVBoxLayout(self)
         root.setContentsMargins(16, 16, 16, 16)
         self.search = QLineEdit()
-        self.search.setPlaceholderText(context.t("Rechercher un costume…"))
+        self.search.setPlaceholderText(context.t('Search costumes…'))
         root.addWidget(self.search)
         self.list = QListWidget()
         self.list.setAlternatingRowColors(True)
@@ -445,8 +445,8 @@ class CardFilterDialog(QDialog):
             self.list.addItem(item)
         root.addWidget(self.list, 1)
         selection = QHBoxLayout()
-        all_button = QPushButton(context.t("Tout sélectionner"))
-        clear_button = QPushButton(context.t("Tout effacer"))
+        all_button = QPushButton(context.t('Select all'))
+        clear_button = QPushButton(context.t('Clear all'))
         selection.addWidget(all_button)
         selection.addWidget(clear_button)
         selection.addStretch(1)
@@ -454,8 +454,8 @@ class CardFilterDialog(QDialog):
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
-        buttons.button(QDialogButtonBox.StandardButton.Ok).setText(context.t("Valider"))
-        buttons.button(QDialogButtonBox.StandardButton.Cancel).setText(context.t("Annuler"))
+        buttons.button(QDialogButtonBox.StandardButton.Ok).setText(context.t('Apply'))
+        buttons.button(QDialogButtonBox.StandardButton.Cancel).setText(context.t('Cancel'))
         describe_control(self.search, self.search.placeholderText(), title)
         describe_control(self.list, title, self.search.placeholderText())
         root.addWidget(buttons)
@@ -578,11 +578,8 @@ class OnlineResultsPane(QWidget):
         self.lineage_button.clicked.connect(self.open_lineage)
         self.export_button.clicked.connect(self.export_selected_pair)
         self.copy_export_button.clicked.connect(self.copy_selected_pair_export)
-        self.context.language_changed.connect(self._language_changed)
         self.retranslate()
 
-    def _language_changed(self, _language: str) -> None:
-        self.retranslate()
 
     def _avatar_for(self, row: dict[str, Any], key: str):
         payload = row.get(key)
@@ -602,14 +599,14 @@ class OnlineResultsPane(QWidget):
         if self.mode == "parent":
             return common + [
                 Column(
-                    t("Parent local"),
+                    t('Local parent'),
                     nested("fixed_parent", "card_name"),
                     decoration_getter=lambda row: self._avatar_for(
                         row, "fixed_parent"
                     ),
                 ),
                 Column(
-                    t("Parent distant"),
+                    t('Remote parent'),
                     nested("candidate", "card_name"),
                     decoration_getter=lambda row: self._avatar_for(
                         row, "candidate"
@@ -619,20 +616,20 @@ class OnlineResultsPane(QWidget):
                 Column("Friend ID", nested("candidate", "online", "friend_code")),
                 Column(t("Distance S"), lambda row: distance_status(row, self.context.language)),
                 Column("P(S) %", lambda row: 100 * float((row.get("distance_s_summary") or {}).get("probability_reach_s") or 0), RIGHT),
-                Column(t("Affinité"), nested("affinity", "total"), RIGHT),
+                Column(t('Affinity'), nested("affinity", "total"), RIGHT),
                 Column(t("Whites"), nested("components", "white_skill"), RIGHT),
-                Column(t("Bleues"), nested("components", "blue"), RIGHT),
+                Column(t('Blue Sparks'), nested("components", "blue"), RIGHT),
             ]
         return common + [
             Column(
-                t("GP local"),
+                t('Local GP'),
                 nested("fixed_grandparent", "card_name"),
                 decoration_getter=lambda row: self._avatar_for(
                     row, "fixed_grandparent"
                 ),
             ),
             Column(
-                t("GP distant"),
+                t('Remote GP'),
                 nested("candidate", "card_name"),
                 decoration_getter=lambda row: self._avatar_for(
                     row, "candidate"
@@ -640,11 +637,11 @@ class OnlineResultsPane(QWidget):
             ),
             Column(t("Trainer"), nested("candidate", "online", "trainer_name")),
             Column("Friend ID", nested("candidate", "online", "friend_code")),
-            Column(t("Potentiel final"), lambda row: (row.get("final_parent_affinity") or row.get("final_branch_affinity") or {}).get("potential_total", 0), RIGHT),
-            Column(t("G1 communes"), lambda row: (row.get("final_parent_affinity") or row.get("final_branch_affinity") or {}).get("common_g1_count", 0), RIGHT),
-            Column(t("Roses"), nested("components", "pink"), RIGHT),
+            Column(t('Final potential'), lambda row: (row.get("final_parent_affinity") or row.get("final_branch_affinity") or {}).get("potential_total", 0), RIGHT),
+            Column(t('Shared G1'), lambda row: (row.get("final_parent_affinity") or row.get("final_branch_affinity") or {}).get("common_g1_count", 0), RIGHT),
+            Column(t('Pink Sparks'), nested("components", "pink"), RIGHT),
             Column(t("Whites"), nested("components", "white_skill"), RIGHT),
-            Column(t("Bleues"), nested("components", "blue"), RIGHT),
+            Column(t('Blue Sparks'), nested("components", "blue"), RIGHT),
         ]
 
     def _configure_header(self) -> None:
@@ -773,7 +770,7 @@ class OnlineResultsPane(QWidget):
         friend = str(((row.get("candidate") or {}).get("online") or {}).get("friend_code") or "")
         if friend:
             QApplication.clipboard().setText(friend)
-            self.copy_button.setText(self.context.t("Copié !"))
+            self.copy_button.setText(self.context.t('Copied!'))
             QTimer.singleShot(1400, self.retranslate)
 
     def _selected_export_pair(
@@ -787,8 +784,8 @@ class OnlineResultsPane(QWidget):
         if not isinstance(parent_1, dict) or not isinstance(parent_2, dict):
             QMessageBox.warning(
                 self,
-                self.context.t("Erreur d’export"),
-                self.context.t("Sélectionne d'abord une paire à exporter."),
+                self.context.t('Export error'),
+                self.context.t('Select a pair to export first.'),
             )
             return None
         return self.ace, parent_1, parent_2
@@ -807,7 +804,7 @@ class OnlineResultsPane(QWidget):
         )
         filename, _ = QFileDialog.getSaveFileName(
             self,
-            self.context.t("Exporter la paire vers uma.moe Lineage Planner"),
+            self.context.t('Export pair to uma.moe Lineage Planner'),
             str(suggested),
             "JSON (*.json)",
         )
@@ -825,15 +822,15 @@ class OnlineResultsPane(QWidget):
         except (OSError, ValueError, LineagePlannerError) as exc:
             QMessageBox.critical(
                 self,
-                self.context.t("Erreur d’export"),
+                self.context.t('Export error'),
                 actionable_error(exc, translate=self.context.t),
             )
             return
         QMessageBox.information(
             self,
-            self.context.t("Export terminé"),
+            self.context.t('Export complete'),
             self.context.t(
-                "Fichier créé : {path}\n\nDans Lineage Planner, ouvre Save / Load puis importe ce JSON."
+                'File created: {path}\n\nIn Lineage Planner, open Save / Load and import this JSON.'
             ).replace("{path}", str(path)),
         )
 
@@ -853,14 +850,14 @@ class OnlineResultsPane(QWidget):
         except (OSError, ValueError, LineagePlannerError) as exc:
             QMessageBox.critical(
                 self,
-                self.context.t("Erreur d’export"),
+                self.context.t('Export error'),
                 actionable_error(exc, translate=self.context.t),
             )
             return
         QApplication.clipboard().setText(
             json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
         )
-        self.copy_export_button.setText(self.context.t("Export copié !"))
+        self.copy_export_button.setText(self.context.t('Export copied!'))
         QTimer.singleShot(1400, self.retranslate)
 
     def set_detail_hidden(self, hidden: bool) -> None:
@@ -870,9 +867,9 @@ class OnlineResultsPane(QWidget):
             self.detail_toggle.setChecked(hidden)
             self.detail_toggle.blockSignals(False)
         self.detail_toggle.setText(
-            self.context.t("Détail")
+            self.context.t('Details')
             if hidden
-            else self.context.t("Masquer le détail")
+            else self.context.t('Hide details')
         )
         describe_control(
             self.detail_toggle,
@@ -886,24 +883,24 @@ class OnlineResultsPane(QWidget):
     def retranslate(self) -> None:
         self.set_detail_hidden(self.detail_toggle.isChecked())
         t = self.context.t
-        summary = t("{count} paires classées · tri par en-tête · double-clic sur Friend ID pour copier").replace(
+        summary = t('{count} ranked pairs · sort by header · double-click Friend ID to copy').replace(
             "{count}", str(self.model.rowCount())
         )
         local_count = int(self.metadata.get("local_pool_count") or 0)
         remote_count = int(self.metadata.get("remote_pool_count") or 0)
         evaluated = int(self.metadata.get("evaluated_pair_count") or 0)
         if local_count or remote_count:
-            summary += f" · {local_count} × {remote_count} · {evaluated} {t('évaluées')}"
+            summary += f" · {local_count} × {remote_count} · {evaluated} {t('evaluated')}"
         self.summary.setText(summary)
-        self.copy_button.setText(t("Copier le Friend ID"))
-        self.lineage_button.setText(t("Voir la lignée"))
-        self.export_button.setText(t("Enregistrer JSON…"))
+        self.copy_button.setText(t('Copy Friend ID'))
+        self.lineage_button.setText(t('View lineage'))
+        self.export_button.setText(t('Save JSON…'))
         self.export_button.setToolTip(
-            t("Enregistrer la paire sélectionnée pour uma.moe Lineage Planner.")
+            t('Save the selected pair for uma.moe Lineage Planner.')
         )
-        self.copy_export_button.setText(t("Copier JSON"))
+        self.copy_export_button.setText(t('Copy JSON'))
         self.copy_export_button.setToolTip(
-            t("Copier l’export de la paire sélectionnée dans le presse-papiers.")
+            t('Copy the selected pair export to the clipboard.')
         )
         selected = self.selected_row()
         selected_rank = selected.get("_rank") if selected else None
@@ -924,14 +921,14 @@ class OnlineResultsPane(QWidget):
             )
         )
         result_name = (
-            t("Parents distants")
+            t('Remote parents')
             if self.mode == "parent"
-            else t("Grands-parents distants")
+            else t('Remote grandparents')
         )
         describe_control(self.table, result_name, self.summary.text())
         describe_control(
             self.detail,
-            f"{t('Détail')} · {result_name}",
+            f"{t('Details')} · {result_name}",
             self.summary.text(),
         )
         describe_control(
@@ -947,7 +944,7 @@ class OnlineResultsPane(QWidget):
         ):
             describe_control(button, button.text(), result_name)
         self.table.horizontalHeader().setToolTip(
-            t("Clic droit pour choisir les colonnes affichées ; largeur, ordre et tri sont mémorisés.")
+            t('Right-click to choose visible columns; widths, order and sorting are remembered.')
         )
         self._update_lineage_button()
         self._update_export_button()

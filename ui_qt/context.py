@@ -8,7 +8,6 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal
 
-from uma_legacy_linker.i18n import normalise_language, translate_text
 from uma_legacy_linker.secret_store import resolve_api_key, save_api_key
 from uma_legacy_linker.uma_moe import DEFAULT_API_BASE
 from uma_legacy_linker.application import (
@@ -93,10 +92,10 @@ class LineageContextState:
     course_key: str = ""
     top_n: int = 30
     track_id: int = 0
-    rotation: str = "Non précisé"
-    season: str = "Non précisé"
-    weather: str = "Non précisé"
-    ground_condition: str = "Non précisé"
+    rotation: str = 'Unspecified'
+    season: str = 'Unspecified'
+    weather: str = 'Unspecified'
+    ground_condition: str = 'Unspecified'
     use_custom_scoring: bool = False
     skill_priorities_path: str = ""
 
@@ -133,14 +132,14 @@ class LineageContextState:
                 min(200, _stored_integer(store.get("optimizer_top_n", "30"), 30)),
             ),
             track_id=_stored_integer(store.get("optimizer_track_id")),
-            rotation=store.get("optimizer_rotation", "Non précisé")
-            or "Non précisé",
-            season=store.get("optimizer_season", "Non précisé")
-            or "Non précisé",
-            weather=store.get("optimizer_weather", "Non précisé")
-            or "Non précisé",
-            ground_condition=store.get("optimizer_ground", "Non précisé")
-            or "Non précisé",
+            rotation=store.get("optimizer_rotation", 'Unspecified')
+            or 'Unspecified',
+            season=store.get("optimizer_season", 'Unspecified')
+            or 'Unspecified',
+            weather=store.get("optimizer_weather", 'Unspecified')
+            or 'Unspecified',
+            ground_condition=store.get("optimizer_ground", 'Unspecified')
+            or 'Unspecified',
             use_custom_scoring=_stored_boolean(store.get("use_custom_scoring")),
             skill_priorities_path=store.get("skill_priorities_path"),
         )
@@ -173,10 +172,10 @@ class LineageContextState:
             course_key=str(self.course_key or "").strip(),
             top_n=max(5, min(200, _stored_integer(self.top_n, 30))),
             track_id=_stored_integer(self.track_id),
-            rotation=str(self.rotation or "Non précisé"),
-            season=str(self.season or "Non précisé"),
-            weather=str(self.weather or "Non précisé"),
-            ground_condition=str(self.ground_condition or "Non précisé"),
+            rotation=str(self.rotation or 'Unspecified'),
+            season=str(self.season or 'Unspecified'),
+            weather=str(self.weather or 'Unspecified'),
+            ground_condition=str(self.ground_condition or 'Unspecified'),
             use_custom_scoring=bool(self.use_custom_scoring),
             skill_priorities_path=str(self.skill_priorities_path or "").strip(),
         )
@@ -205,7 +204,6 @@ class AppContext(QObject):
     integration_changed = Signal()
     online_options_changed = Signal()
     lineage_changed = Signal(object)
-    language_changed = Signal(str)
 
     def __init__(self, store: SettingsStore | None = None, parent=None):
         super().__init__(parent)
@@ -223,7 +221,7 @@ class AppContext(QObject):
         configured_course = self.store.get("course_overrides_path")
         resolved_course = active_course_overrides_path(configured_course)
         self.course_overrides_path = str(resolved_course) if resolved_course else ""
-        self.language = normalise_language(self.store.get("ui_language"))
+        self.language = "en"
         self.uma_moe_api_base = (
             self.store.get("uma_moe_base", DEFAULT_API_BASE) or DEFAULT_API_BASE
         ).strip()
@@ -260,7 +258,7 @@ class AppContext(QObject):
         return updated
 
     def t(self, text: object) -> str:
-        return str(translate_text(str(text), self.language))
+        return str(text)
 
     def update_paths(
         self,
@@ -291,14 +289,6 @@ class AppContext(QObject):
             self.store.update(updates)
             self.configuration_changed.emit()
 
-    def set_language(self, language: str) -> None:
-        normalized = normalise_language(language)
-        if normalized == self.language:
-            return
-        self.language = normalized
-        self.store.update({"ui_language": normalized})
-        self.language_changed.emit(normalized)
-        self.configuration_changed.emit()
 
     def update_uma_moe_integration(
         self,

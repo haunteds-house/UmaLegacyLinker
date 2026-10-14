@@ -113,7 +113,6 @@ class HomePage(QWidget):
         self.transfer_button.clicked.connect(lambda: self.navigate_requested.emit("transfer"))
         self.refresh_button.clicked.connect(self.refresh)
         self.context.configuration_changed.connect(self._schedule_refresh)
-        self.context.language_changed.connect(self._language_changed)
         self._refresh_timer = QTimer(self)
         self._refresh_timer.setSingleShot(True)
         self._refresh_timer.timeout.connect(self.refresh)
@@ -123,26 +122,24 @@ class HomePage(QWidget):
     def _schedule_refresh(self) -> None:
         self._refresh_timer.start(120)
 
-    def _language_changed(self, _language: str) -> None:
-        self.retranslate()
 
     def retranslate(self) -> None:
         t = self.context.t
         self.header.set_text(
-            t("Vue d’ensemble"),
-            t("Prépare les données, lance un calcul et retrouve immédiatement le dernier état utile."),
+            t('Overview'),
+            t('Prepare the data, run a calculation, and immediately see the latest useful state.'),
         )
-        self.quick_title.setText(t("Actions rapides"))
+        self.quick_title.setText(t('Quick actions'))
         self.quick_detail.setText(
-            t("Prépare ta collection, optimise une lignée ou lance directement une analyse ciblée.")
+            t('Prepare your collection, optimise a lineage, or start a focused analysis.')
         )
-        self.data_button.setText(t("Configurer les données"))
-        self.search_button.setText(t("Rechercher une lignée"))
-        self.transfer_button.setText(t("Analyser mes vétérans"))
-        self.refresh_button.setText(t("Actualiser"))
-        self.preview_title.setText(t("Recherche locale et uma.moe"))
+        self.data_button.setText(t('Configure data'))
+        self.search_button.setText(t('Search for a lineage'))
+        self.transfer_button.setText(t('Analyse my veterans'))
+        self.refresh_button.setText(t('Refresh'))
+        self.preview_title.setText(t('Local and uma.moe search'))
         self.preview_text.setText(
-            t("Les recherches locales et uma.moe partagent désormais le même contexte, le même espace de résultats et le même rendu de lignée.")
+            t('Local and uma.moe searches now share the same context, result workspace and lineage rendering.')
         )
         self.refresh()
 
@@ -151,31 +148,31 @@ class HomePage(QWidget):
         master = Path(self.context.master_path).expanduser()
         if master.is_file():
             self.master_card.set_content(
-                t("Base du jeu"), t("Détectée"), master.name, "ok"
+                t('Game database'), t('Detected'), master.name, "ok"
             )
         else:
             self.master_card.set_content(
-                t("Base du jeu"), t("À configurer"), t("master.mdb est requis"), "warning"
+                t('Game database'), t('Needs setup'), t('master.mdb is required'), "warning"
             )
 
         data_path = Path(self.context.veterans_json_path).expanduser()
         count = collection_size(data_path) if data_path.is_file() else None
         if count is not None:
             self.collection_card.set_content(
-                t("Collection locale"),
-                t("{count} vétérans").replace("{count}", str(count)),
+                t('Local collection'),
+                t('{count} veterans').replace("{count}", str(count)),
                 data_path.name,
                 "ok",
             )
         elif data_path.is_file():
             self.collection_card.set_content(
-                t("Collection locale"), t("JSON invalide"), data_path.name, "error"
+                t('Local collection'), t('Invalid JSON'), data_path.name, "error"
             )
         else:
             self.collection_card.set_content(
-                t("Collection locale"),
-                t("À sélectionner"),
-                t("Un export de collection est requis"),
+                t('Local collection'),
+                t('Select a file'),
+                t('A collection export is required'),
                 "warning",
             )
 
@@ -198,23 +195,23 @@ class HomePage(QWidget):
         )
         if linked.is_file() and freshness.state != "ready":
             self.results_card.set_content(
-                t("Dernier calcul"),
-                t("Sources modifiées"),
-                t("Relie à nouveau la collection avant une optimisation"),
+                t('Latest calculation'),
+                t('Inputs changed'),
+                t('Link the collection again before running an optimisation'),
                 "warning",
             )
         elif result_candidates:
             latest = max(result_candidates, key=lambda path: path.stat().st_mtime)
             self.results_card.set_content(
-                t("Dernier calcul"), t("Disponible"), latest.name, "ok"
+                t('Latest calculation'), t('Available'), latest.name, "ok"
             )
         elif linked.is_file():
             self.results_card.set_content(
-                t("Dernier calcul"), t("Données liées"), t("Prêt pour une optimisation"), "neutral"
+                t('Latest calculation'), t('Linked data'), t('Ready for optimisation'), "neutral"
             )
         else:
             self.results_card.set_content(
-                t("Dernier calcul"), t("Aucun"), t("Commence par préparer les données"), "neutral"
+                t('Latest calculation'), t('None'), t('Start by preparing the data'), "neutral"
             )
 
 
@@ -243,27 +240,27 @@ class DataPage(QWidget):
         self.master_label = QLabel("")
         self.master_picker = PathPicker(
             self.context.master_path,
-            title="Sélectionner master.mdb",
-            file_filter="master.mdb (*.mdb);;Tous les fichiers (*)",
+            title='Select master.mdb',
+            file_filter='master.mdb (*.mdb);;All files (*)',
         )
         self.data_label = QLabel("")
         self.data_picker = PathPicker(
             self.context.veterans_json_path,
-            title="Sélectionner un export de collection",
-            file_filter="JSON (*.json);;Tous les fichiers (*)",
+            title='Select a collection export',
+            file_filter='JSON (*.json);;All files (*)',
         )
         self.extractor_label = QLabel("")
         self.extractor_label.setWordWrap(True)
         self.extractor_picker = PathPicker(
             self.context.extractor_path,
-            title="Sélectionner UmaExtractor ou umadump",
-            file_filter="Extracteur (*.exe *.py);;Tous les fichiers (*)",
+            title='Select UmaExtractor or umadump',
+            file_filter='Extracteur (*.exe *.py);;All files (*)',
         )
         self.output_label = QLabel("")
         self.output_picker = PathPicker(
             self.context.output_dir,
             mode="directory",
-            title="Sélectionner le dossier de sortie",
+            title='Select output directory',
         )
         sources = QGridLayout()
         sources.setHorizontalSpacing(14)
@@ -355,12 +352,9 @@ class DataPage(QWidget):
             lambda: QDesktopServices.openUrl(QUrl("https://github.com/Werseter/umadump"))
         )
         self.context.configuration_changed.connect(self.sync_from_context)
-        self.context.language_changed.connect(self._language_changed)
         self.retranslate()
         self.refresh_status()
 
-    def _language_changed(self, _language: str) -> None:
-        self.retranslate()
 
     def sync_from_context(self) -> None:
         self.master_picker.set_text(self.context.master_path)
@@ -372,72 +366,72 @@ class DataPage(QWidget):
     def retranslate(self) -> None:
         t = self.context.t
         self.header.set_text(
-            t("Données locales"),
-            t("Extrais ou sélectionne ta collection, puis prépare-la pour les analyses."),
+            t('Local data'),
+            t('Extract or select your collection, then prepare it for analysis.'),
         )
-        self.files_title.setText(t("Sources et sortie"))
-        self.prepare_title.setText(t("Préparer la collection"))
-        self.master_label.setText(t("Base actuelle du jeu — master.mdb"))
+        self.files_title.setText(t('Sources and output'))
+        self.prepare_title.setText(t('Prepare collection'))
+        self.master_label.setText(t('Current game database — master.mdb'))
         self.data_label.setText(
-            t("Collection exportée — data.json ou trained_chara_data.json")
+            t('Exported collection — data.json or trained_chara_data.json')
         )
-        self.extractor_label.setText(t("Extracteur — UmaExtractor ou umadump, optionnel pour créer le JSON"))
-        self.output_label.setText(t("Dossier de sortie"))
-        self.master_picker.dialog_title = t("Sélectionner master.mdb")
-        self.master_picker.file_filter = f"master.mdb (*.mdb);;{t('Tous les fichiers')} (*)"
-        self.data_picker.dialog_title = t("Sélectionner un export de collection")
-        self.data_picker.file_filter = f"JSON (*.json);;{t('Tous les fichiers')} (*)"
-        self.extractor_picker.dialog_title = t("Sélectionner UmaExtractor ou umadump")
-        self.extractor_picker.file_filter = f"{t('Extracteur')} (*.exe *.py);;{t('Tous les fichiers')} (*)"
-        self.output_picker.dialog_title = t("Sélectionner le dossier de sortie")
+        self.extractor_label.setText(t('Extractor — UmaExtractor or umadump, optional to create the JSON'))
+        self.output_label.setText(t('Output directory'))
+        self.master_picker.dialog_title = t('Select master.mdb')
+        self.master_picker.file_filter = f"master.mdb (*.mdb);;{t('All files')} (*)"
+        self.data_picker.dialog_title = t('Select a collection export')
+        self.data_picker.file_filter = f"JSON (*.json);;{t('All files')} (*)"
+        self.extractor_picker.dialog_title = t('Select UmaExtractor or umadump')
+        self.extractor_picker.file_filter = f"{t('Extractor')} (*.exe *.py);;{t('All files')} (*)"
+        self.output_picker.dialog_title = t('Select output directory')
         for picker in (self.master_picker, self.data_picker, self.extractor_picker, self.output_picker):
-            picker.set_button_text(t("Parcourir…"))
-        self.extract_button.setText(t("Extraire ma collection"))
+            picker.set_button_text(t('Browse…'))
+        self.extract_button.setText(t('Extract my collection'))
         self.extract_detail.setText(
-            t("Lance l’extracteur configuré, puis relie automatiquement le JSON obtenu.")
+            t('Run the configured extractor, then automatically link the resulting JSON.')
         )
-        self.link_button.setText(t("Relier un export existant"))
+        self.link_button.setText(t('Link an existing export'))
         self.link_detail.setText(
-            t("Utilise le JSON déjà sélectionné, sans lancer d’extracteur.")
+            t('Use the selected JSON without running an extractor.')
         )
-        self.force_link_button.setText(t("Relier quand même"))
-        self.catalog_button.setText(t("Générer les catalogues"))
-        self.open_button.setText(t("Ouvrir la sortie"))
-        self.maintenance_title.setText(t("Maintenance et fichiers"))
+        self.force_link_button.setText(t('Relink anyway'))
+        self.catalog_button.setText(t('Generate catalogues'))
+        self.open_button.setText(t('Open output'))
+        self.maintenance_title.setText(t('Maintenance and files'))
         self.maintenance_detail.setText(
-            t("La liaison génère déjà les catalogues ; ces commandes servent surtout au diagnostic et à la reprise.")
+            t('Linking already generates the catalogues; these commands are mainly for diagnostics and recovery.')
         )
-        self.extractor_download.setText(t("Télécharger UmaExtractor"))
-        self.umadump_link.setText(t("Télécharger umadump"))
+        self.extractor_download.setText(t('Download UmaExtractor'))
+        self.umadump_link.setText(t('Download umadump'))
         self.help_text.setText(
-            t("Aucun export original n’est modifié : toutes les données enrichies sont écrites dans le dossier de sortie.")
+            t('The original export is never modified: all enriched data is written to the output directory.')
         )
         self.master_picker.setToolTip(
-            t("Base de données du jeu utilisée pour résoudre les costumes, Sparks, skills et courses G1.")
+            t('Game database used to resolve costumes, Sparks, skills, and G1 races.')
         )
         self.data_picker.setToolTip(
-            t("Export JSON de tes vétérans. Il peut être créé par UmaExtractor ou umadump.")
+            t('JSON export of your veterans. It can be created with UmaExtractor or umadump.')
         )
         self.extractor_picker.setToolTip(
-            t("Programme externe utilisé uniquement par « Extraire ma collection ».")
+            t('External program used only by “Extract my collection”.')
         )
         self.output_picker.setToolTip(
-            t("Dossier qui reçoit les JSON, CSV, catalogues et rapports générés.")
+            t('Directory that receives generated JSON, CSV, catalogues, and reports.')
         )
         self.extract_button.setToolTip(
-            t("Exécute l’extracteur configuré, sélectionne le JSON produit et lance sa liaison.")
+            t('Run the configured extractor, select its JSON output, and link it.')
         )
         self.link_button.setToolTip(
-            t("Ne lance aucun extracteur : relie directement le fichier JSON sélectionné.")
+            t('Do not run an extractor: link the selected JSON file directly.')
         )
         self.force_link_button.setToolTip(
-            t("Ignore le cache et reconstruit toutes les sorties. Normalement inutile si l’état est « Prête ».")
+            t('Ignore the cache and rebuild every output. Normally unnecessary when the status is “Ready”.')
         )
         self.catalog_button.setToolTip(
-            t("Régénère uniquement les catalogues. La liaison les génère déjà automatiquement.")
+            t('Regenerate only the catalogues. Linking already generates them automatically.')
         )
         self.open_button.setToolTip(
-            t("Ouvre le dossier contenant les fichiers générés.")
+            t('Open the directory containing generated files.')
         )
         for label, picker in (
             (self.master_label, self.master_picker),
@@ -461,23 +455,23 @@ class DataPage(QWidget):
         self.force_link_button.setVisible(linked.is_file())
         if freshness.state == "ready":
             self.result_card.set_content(
-                t("État de la liaison"),
-                t("Prête"),
-                t("Les artefacts liés correspondent aux sources sélectionnées."),
+                t('Link status'),
+                t('Ready'),
+                t('The linked artifacts match the selected inputs.'),
                 "ok",
             )
         elif freshness.state == "inputs_changed":
             self.result_card.set_content(
-                t("État de la liaison"),
-                t("Sources modifiées"),
-                t("Le master.mdb ou l’export de collection a changé depuis la dernière liaison."),
+                t('Link status'),
+                t('Inputs changed'),
+                t('The master.mdb or collection export has changed since the last link.'),
                 "warning",
             )
         else:
             self.result_card.set_content(
-                t("État de la liaison"),
-                t("Pas encore générée"),
-                t("Le fichier enrichi apparaîtra ici après la liaison."),
+                t('Link status'),
+                t('Not generated yet'),
+                t('The enriched file will appear here after linking.'),
                 "neutral",
             )
 
@@ -501,15 +495,15 @@ class DataPage(QWidget):
             force_relink=force,
         )
         operation = partial(run_link, request)
-        self.task_requested.emit(operation, self.context.t("Liaison de la collection…"), self._link_done)
+        self.task_requested.emit(operation, self.context.t('Linking collection…'), self._link_done)
 
     def _link_done(self, result: object) -> None:
         self.refresh_status()
         veteran_count = getattr(result, "veteran_count", 0)
         self.result_card.set_content(
-            self.context.t("État de la liaison"),
-            self.context.t("Prête"),
-            self.context.t("{count} vétérans enrichis").replace("{count}", str(veteran_count)),
+            self.context.t('Link status'),
+            self.context.t('Ready'),
+            self.context.t('{count} enriched veterans').replace("{count}", str(veteran_count)),
             "ok",
         )
 
@@ -526,7 +520,7 @@ class DataPage(QWidget):
         )
         self.task_requested.emit(
             partial(run_extract_and_link, request),
-            self.context.t("Extraction et liaison…"),
+            self.context.t('Extracting and linking…'),
             self._extract_done,
         )
 
@@ -547,16 +541,16 @@ class DataPage(QWidget):
         )
         self.task_requested.emit(
             partial(run_catalog, request),
-            self.context.t("Génération des catalogues…"),
+            self.context.t('Generating catalogues…'),
             self._catalog_done,
         )
 
     def _catalog_done(self, result: object) -> None:
         count = getattr(result, "skill_count", 0)
         self.result_card.set_content(
-            self.context.t("Catalogues skills"),
-            self.context.t("Terminés"),
-            self.context.t("{count} skills indexées").replace("{count}", str(count)),
+            self.context.t('Skill catalogues'),
+            self.context.t('Complete'),
+            self.context.t('{count} skills indexed').replace("{count}", str(count)),
             "ok",
         )
 
@@ -568,6 +562,6 @@ class DataPage(QWidget):
         except OSError as exc:
             QMessageBox.critical(
                 self,
-                self.context.t("Erreur"),
+                self.context.t('Error'),
                 actionable_error(exc, translate=self.context.t),
             )

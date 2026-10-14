@@ -45,17 +45,17 @@ SPARK_COLORS = {
 
 # Text labels make Spark semantics independent from colour perception.  The
 # source strings are translated at the rendering boundary so this module stays
-# usable by contrast tests without importing Qt or the i18n layer.
+# usable by contrast tests without importing Qt or the label helpers.
 SPARK_SEMANTIC_LABELS = {
     "blue_stat": "Stat",
     "red_aptitude": "Aptitude",
     "unique": "Unique",
     "white_skill": "White",
-    "white_race": "Course",
-    "white_useful": "Utile",
-    "white_priority": "Priorité",
-    "scenario": "Scénario",
-    "other": "Autre",
+    "white_race": 'Race',
+    "white_useful": 'Useful',
+    "white_priority": 'Priority',
+    "scenario": 'Scenario',
+    "other": 'Other',
 }
 
 

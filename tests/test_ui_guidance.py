@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from uma_legacy_linker.i18n import translate_text
+from uma_legacy_linker.labels import display_text
 from uma_legacy_linker.application import OnlineSearchRequest, materialize_online_search_options
 
 
@@ -24,8 +24,8 @@ class DataPageHierarchyTests(unittest.TestCase):
             self.source.index("actions.addWidget(self.extract_card"),
             self.source.index("actions.addWidget(self.link_card"),
         )
-        self.assertIn('t("Extraire ma collection")', self.source)
-        self.assertIn('t("Relier un export existant")', self.source)
+        self.assertIn("t('Extract my collection')", self.source)
+        self.assertIn("t('Link an existing export')", self.source)
 
     def test_maintenance_actions_are_separated_and_explained(self) -> None:
         self.assertIn("maintenance_actions.addWidget(self.catalog_button)", self.source)
@@ -59,18 +59,6 @@ class TransferGuidanceTests(unittest.TestCase):
             with self.subTest(target=target):
                 self.assertIn(f"self.{target}.setToolTip(", self.source)
 
-    def test_new_guidance_is_translated(self) -> None:
-        strings = (
-            "Extraire ma collection",
-            "Relier un export existant",
-            "Maintenance et fichiers",
-            "Le mode rapide repère les redondances ; seul l’audit exhaustif peut conclure à un transfert strictement sûr.",
-            "La couverture désigne le remplaçant ou l’ensemble de vétérans qui préserve les rôles compétitifs de la copie.",
-            "Un verrou ou un mémo en jeu interdit toute recommandation de transfert, quel que soit le score.",
-        )
-        for source in strings:
-            with self.subTest(source=source):
-                self.assertNotEqual(translate_text(source, "en"), source)
 
     def test_transfer_detail_has_the_documented_readable_width(self) -> None:
         self.assertIn("self.detail.setMinimumWidth(520)", self.source)
@@ -107,8 +95,8 @@ class FinalPolishSourceTests(unittest.TestCase):
         )
         self.assertNotIn("self.apply_button", source)
         self.assertIn("def _commit_pending_editor", source)
-        self.assertIn('t("Enregistrer le profil")', source)
-        self.assertIn("Modifications non enregistrées", source)
+        self.assertIn("t('Save profile')", source)
+        self.assertIn("Unsaved changes", source)
 
     def test_online_launch_only_snapshots_widgets_on_the_gui_thread(self) -> None:
         source = (PROJECT_DIR / "ui_qt" / "pages_search.py").read_text(

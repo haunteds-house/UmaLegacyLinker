@@ -1004,7 +1004,7 @@ def _select_portfolio(
                     best_key = candidate_key
             if best_index is None:
                 raise TransferHelperError(
-                    f"Portefeuille impossible à couvrir pour {group_key}: {sorted(uncovered)}"
+                    f'Unable to cover portfolio for {group_key}: {sorted(uncovered)}'
                 )
             group_selected.add(best_index)
             uncovered = {
@@ -1320,10 +1320,10 @@ def analyze_transfer_candidates(
     required = (master, linked_path, weights_path, race_catalog_path, skill_catalog_path_resolved, config_path)
     for path in required:
         if not path.is_file():
-            raise TransferHelperError(f"Fichier requis introuvable : {path}")
+            raise TransferHelperError(f'Required file not found: {path}')
 
     destination.mkdir(parents=True, exist_ok=True)
-    log("Chargement des vétérans locaux et des profils de score du Transfer Helper…")
+    log('Loading local veterans and Transfer Helper scoring profiles…')
     linked_payload = _read_json(linked_path)
     weights_payload = _read_json(weights_path)
     race_catalog = _read_json(race_catalog_path)
@@ -1332,13 +1332,13 @@ def analyze_transfer_candidates(
     course_payload = _read_json(course_path) if course_path and course_path.is_file() else None
     veterans = list(linked_payload.get("veterans") or [])
     if not veterans:
-        raise TransferHelperError("Aucun vétéran dans veterans_legacy_linked.json")
+        raise TransferHelperError('No veteran found in veterans_legacy_linked.json')
 
     helper_config = config.get("transfer_helper") or {}
     analysis_mode = str(helper_config.get("analysis_mode") or "fast")
     if analysis_mode not in {"fast", "exhaustive"}:
         raise TransferHelperError(
-            "transfer_helper.analysis_mode doit valoir 'fast' ou 'exhaustive'."
+            "transfer_helper.analysis_mode must be 'fast' or 'exhaustive'."
         )
     competitive_score_floor = float(helper_config.get("competitive_score_floor", 67.5))
     competitive_utility_floor = float(helper_config.get("competitive_utility_floor", 0.78))
@@ -1416,8 +1416,7 @@ def analyze_transfer_candidates(
     )
     if not contexts:
         raise TransferHelperError(
-            "Aucun profil actif pour le Transfer Helper. Activez le socle permanent "
-            "ou un périmètre additionnel dans transfer_helper."
+            'No Transfer Helper profile is active. Enable the permanent baseline or an additional scope under transfer_helper.'
         )
     settings["evaluated_profile_count"] = len({context.course_key or context.key for context in contexts})
     settings["evaluated_context_count"] = len(contexts)
@@ -1510,10 +1509,10 @@ def analyze_transfer_candidates(
         f"{key}={float(value):.1%}" for key, value in grandparent_weights.items()
     )
     try:
-        log(f"Pondération Transfer Helper — parent : {parent_weight_text}")
-        log(f"Pondération Transfer Helper — futur GP : {gp_weight_text}")
+        log(f'Transfer Helper parent weights: {parent_weight_text}')
+        log(f'Transfer Helper future-GP weights: {gp_weight_text}')
         log(
-            f"Évaluation de {len(veterans)} vétérans dans {len(contexts)} contextes de profil/catégorie…"
+            f'Evaluating {len(veterans)} veterans across {len(contexts)} profile/category contexts…'
         )
         for context_index, context in enumerate(contexts, 1):
             cache_key = (context.surface, context.distance, context.style)
@@ -1774,14 +1773,13 @@ def analyze_transfer_candidates(
                     )
 
             if context_index % 8 == 0 or context_index == len(contexts):
-                log(f"Profils Transfer Helper : {context_index}/{len(contexts)}")
+                log(f'Transfer Helper profiles: {context_index}/{len(contexts)}')
     finally:
         resolver.close()
 
     if bool(spark_protection_config.get("enabled", False)):
         log(
-            "Protection des Sparks : normalisation du patrimoine et comparaison "
-            "avec les remplaçants dominants…"
+            'Spark protection: normalising inheritance assets and comparing them with dominant replacements…'
         )
         for veteran, record in zip(veterans, records):
             record["_spark_heritage"] = build_spark_heritage(
@@ -2237,15 +2235,10 @@ def analyze_transfer_candidates(
         if not replacement:
             continue
         log(
-            f"Transfert strictement sûr détaillé : {canonical_veteran_label(record)} "
-            f"— Sparks : "
-            f"{((record.get('sparks') or {}).get('summary') or 'aucune')}"
+            f"Detailed strictly safe transfer: {canonical_veteran_label(record)} — Sparks: {(record.get('sparks') or {}).get('summary') or 'none'}"
         )
         log(
-            f"Remplaçant vérifié : {canonical_veteran_label(replacement)} "
-            f"— Sparks : "
-            f"{((replacement.get('sparks') or {}).get('summary') or 'aucune')} — "
-            f"avance moyenne {float(replacement.get('mean_score_lead') or 0):+.3f}"
+            f"Verified replacement: {canonical_veteran_label(replacement)} — Sparks: {(replacement.get('sparks') or {}).get('summary') or 'none'} — average lead {float(replacement.get('mean_score_lead') or 0):+.3f}"
         )
     for record in protected_records:
         replacement = record.get("dominated_by") or {}
@@ -2261,13 +2254,10 @@ def analyze_transfer_candidates(
             for deficit in protection.get("deficits") or []
         ]
         log(
-            f"Plancher de protection Spark : {canonical_veteran_label(record)} reste "
-            f"{protection.get('verdict_floor')} face à "
-            f"{canonical_veteran_label(replacement)} — "
-            f"déficits : {', '.join(deficit_names)}"
+            f"Spark-protection floor: {canonical_veteran_label(record)} remains {protection.get('verdict_floor')} versus {canonical_veteran_label(replacement)} — deficits: {', '.join(deficit_names)}"
         )
 
-    log(f"Transfer Helper terminé : {report_path}")
+    log(f'Transfer Helper complete: {report_path}')
     return TransferHelperResult(
         report_json_path=report_path,
         candidates_csv_path=csv_path,

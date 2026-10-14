@@ -17,7 +17,7 @@ class DiagnosticPresentationTests(unittest.TestCase):
             "neutral_probability": 0.267,
         }
         row = {
-            "card_name": "Candidate",
+            "card_name": 'Candidatee',
             "rank_score": 9000,
             "status": "safe_transfer",
             "reason_code": "strictly_dominated_same_card",
@@ -134,7 +134,7 @@ class DiagnosticPresentationTests(unittest.TestCase):
         from ui_qt.presentation import transfer_detail_html
 
         row = {
-            "card_name": "Candidate",
+            "card_name": 'Candidatee',
             "rank_score": 9000,
             "status": "recommended_transfer",
             "reason_code": "redundant_in_collection_portfolio",
@@ -185,7 +185,7 @@ class DiagnosticPresentationTests(unittest.TestCase):
                 "trained_chara_id": 918273,
                 "status": "keep",
             },
-            "fr",
+            "en",
         )
 
         self.assertIn("Tach-nology · 0", rendered)
@@ -194,7 +194,7 @@ class DiagnosticPresentationTests(unittest.TestCase):
     def test_future_gp_shows_per_skill_generation_gains_and_affinity_context(self) -> None:
         row = {
             "score": 73.2,
-            "card_name": "Candidate GP",
+            "card_name": 'Candidatee GP',
             "affinity_raw": 24,
             "future_parent_base_affinity": 18,
             "future_branch_base_total": 42,
@@ -231,15 +231,15 @@ class DiagnosticPresentationTests(unittest.TestCase):
             },
         }
 
-        html = result_detail_html(row, "future", "fr")
+        html = result_detail_html(row, "future", "en")
 
-        self.assertIn("Base Ace × parent ciblé", html)
-        self.assertIn("Total de branche projeté", html)
-        self.assertIn("Gains de génération des White Sparks", html)
+        self.assertIn('Target Ace × parent base', html)
+        self.assertIn('Projected branch total', html)
+        self.assertIn('White Spark generation gains', html)
         self.assertIn("Uma Stan", html)
         self.assertIn("+7.50 pts", html)
-        self.assertIn("+2.50 points par porteur", html)
-        self.assertIn("ni la probabilité totale", html)
+        self.assertIn("+2.50 points per carrier", html)
+        self.assertIn("neither the total probability", html)
 
     def test_scenario_proc_probability_reaches_the_visual_spark(self) -> None:
         row = {
@@ -340,17 +340,17 @@ class DiagnosticPresentationTests(unittest.TestCase):
         html = online_detail_html(
             row,
             "grandparent",
-            "fr",
+            "en",
             {"surface": "turf", "distance": "medium", "style": "pace_chaser"},
         )
 
-        self.assertIn("Projection de la paire finale", html)
+        self.assertIn('Final pair projection', html)
         self.assertIn("Opposing Parent", html)
         self.assertIn("48.0%", html)
-        self.assertIn("Affinité de la run de production", html)
+        self.assertIn('Production-run affinity', html)
         self.assertIn("156.0", html)
         self.assertIn("+5.00 pts", html)
-        self.assertIn(">Non<", html)
+        self.assertIn(">No<", html)
 
 
 if __name__ == "__main__":

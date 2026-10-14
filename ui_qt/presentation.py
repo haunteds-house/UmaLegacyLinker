@@ -3,7 +3,7 @@ from __future__ import annotations
 from html import escape
 from typing import Any
 
-from uma_legacy_linker.i18n import profile_label, translate_text
+from uma_legacy_linker.labels import profile_label, display_text
 from ui_qt.lineage_nodes import build_result_lineage_nodes
 from ui_qt.theme import (
     COLORS,
@@ -22,33 +22,33 @@ from uma_legacy_linker.veteran_identity import (
 
 
 COMPONENT_LABELS = {
-    "affinity": "Affinité",
-    "g1_potential": "Potentiel G1",
-    "blue": "Bleues",
-    "distance_s": "Support Distance S",
-    "pink_other": "Autres roses",
-    "pink": "Roses",
-    "white_skill": "Whites propres",
-    "white_generation": "Bonus de lignée white",
+    "affinity": 'Affinity',
+    "g1_potential": 'G1 potential',
+    "blue": 'Blue Sparks',
+    "distance_s": 'Distance S support',
+    "pink_other": 'Other Pink Sparks',
+    "pink": 'Pink Sparks',
+    "white_skill": 'Owned whites',
+    "white_generation": 'White lineage bonus',
     "race_scenario": "Race Sparks",
-    "unique": "Vertes / uniques",
+    "unique": 'Green / Unique Sparks',
 }
 
 DISTANCE_STATUS = {
-    "ready_for_s": "Prête pour S",
-    "distance_b_compensated": "B compensée",
-    "distance_b_uncompensated": "B non compensée",
-    "no_s_support": "A sans support S",
-    "underprepared": "Sous-préparée",
-    "non_viable": "Non viable",
+    "ready_for_s": 'Ready for S',
+    "distance_b_compensated": 'Compensated B',
+    "distance_b_uncompensated": 'Uncompensated B',
+    "no_s_support": 'A without S support',
+    "underprepared": 'Underprepared',
+    "non_viable": 'Not viable',
     "fragile": "Fragile",
     "viable": "Viable",
-    "strong": "Forte",
-    "excellent": "Excellente",
-    "deficit": "Déficit",
-    "light": "Légère",
-    "balanced": "Équilibrée",
-    "distance_carrier": "Porteuse distance",
+    "strong": 'Strong',
+    "excellent": 'Excellent',
+    "deficit": 'Deficit',
+    "light": 'Light',
+    "balanced": 'Balanced',
+    "distance_carrier": 'Distance carrier',
 }
 
 
@@ -78,11 +78,11 @@ FONT_SIZE = {
 
 
 def _t(text: object, language: str) -> str:
-    return str(translate_text(str(text), language))
+    return str(display_text(str(text), language))
 
 
 def _section(title: str) -> str:
-    """Titre de section : filet d'accent + libellé, avec un rythme constant."""
+    'Section title with an accent rule and consistent spacing.'
     return (
         "<table class='section-head' width='100%' cellspacing='0' cellpadding='0'><tr>"
         f"<td class='section-mark' width='3' bgcolor='{PANEL['accent']}' "
@@ -192,9 +192,9 @@ def _metric_strip(row: dict[str, Any], kind: str, language: str) -> str:
     score = _number(row.get("score"), 2)
     affinity = row.get("affinity") or {}
     if kind == "future":
-        second_label = _t("Contribution affinité", language)
+        second_label = _t('Affinity contribution', language)
         second_value = _number(row.get("affinity_raw"), 0)
-        third_label = _t("G1 différentes", language)
+        third_label = _t('Distinct G1 races', language)
         third_value = str(int(row.get("g1_count") or 0))
         rank = ""
     elif kind == "grandparent_pair":
@@ -203,16 +203,16 @@ def _metric_strip(row: dict[str, Any], kind: str, language: str) -> str:
             or row.get("final_branch_affinity")
             or {}
         )
-        second_label = _t("Potentiel final", language)
+        second_label = _t('Final potential', language)
         second_value = _number(
             final_affinity.get("potential_total", final_affinity.get("total")),
             0,
         )
-        third_label = _t("G1 communes", language)
+        third_label = _t('Shared G1', language)
         third_value = str(int(final_affinity.get("common_g1_count") or 0))
         rank = ""
     else:
-        second_label = _t("Affinité", language)
+        second_label = _t('Affinity', language)
         second_value = _number(
             affinity.get("total") if isinstance(affinity, dict) else row.get("affinity_raw"),
             0,
@@ -224,7 +224,7 @@ def _metric_strip(row: dict[str, Any], kind: str, language: str) -> str:
         third_value = _percent(probability_reach_s)
         rank = "S" if probability_reach_s is not None else ""
     score_cell = _metric_cell(
-        _t("Score de lignée", language),
+        _t('Lineage score', language),
         score,
         PANEL["accent"],
         "score-value",
@@ -252,8 +252,7 @@ def _metric_strip(row: dict[str, Any], kind: str, language: str) -> str:
 
 
 def _share_bar(ratio: float) -> str:
-    """Barre de contribution.  Les pourcentages de largeur sont la seule mise en
-    forme proportionnelle que Qt sait rendre de façon fiable."""
+    'Contribution bar using proportional widths supported by Qt.'
     filled = max(2, min(100, int(round(100 * ratio))))
     rest = 100 - filled
     remainder = (
@@ -306,14 +305,7 @@ def _component_table(row: dict[str, Any], language: str) -> str:
                 f"<td colspan='4' align='right'>{_number(value, 2)}</td></tr>"
             )
     return (
-        "<table class='component-table' width='100%' cellspacing='0' cellpadding='0'>"
-        "<thead><tr>"
-        f"<th>{escape(_t('Composante', language).upper())}</th>"
-        f"<th align='right'>{escape(_t('Brut', language).upper())}</th>"
-        f"<th align='right'>{escape(_t('Poids', language).upper())}</th>"
-        f"<th align='right'>{escape(_t('Points', language).upper())}</th>"
-        "<th width='88'>&nbsp;</th>"
-        "</tr></thead><tbody>"
+        f"<table class='component-table' width='100%' cellspacing='0' cellpadding='0'><thead><tr><th>{escape(_t('Component', language).upper())}</th><th align='right'>{escape(_t('Raw', language).upper())}</th><th align='right'>{escape(_t('Weight', language).upper())}</th><th align='right'>{escape(_t('Points', language).upper())}</th><th width='88'>&nbsp;</th></tr></thead><tbody>"
         + "".join(body)
         + "</tbody></table>"
     )
@@ -362,23 +354,23 @@ def _g1_plan_block(
 
     def names(key: str) -> str:
         values = [str(value) for value in plan.get(key) or [] if str(value).strip()]
-        return " · ".join(values) if values else _t("Aucune", language)
+        return " · ".join(values) if values else _t('Nonee', language)
 
     rows = (
         (
-            _t("G1 communes (+{bonus})", language).replace(
+            _t('Shared G1 races (+{bonus})', language).replace(
                 "{bonus}", str(shared_bonus)
             ),
             names("common_g1_names"),
         ),
         (
-            _t("{name} uniquement (+{bonus})", language)
+            _t('{name} only (+{bonus})', language)
             .replace("{name}", left_name)
             .replace("{bonus}", str(one_side_bonus)),
             names("left_only_g1_names"),
         ),
         (
-            _t("{name} uniquement (+{bonus})", language)
+            _t('{name} only (+{bonus})', language)
             .replace("{name}", right_name)
             .replace("{bonus}", str(one_side_bonus)),
             names("right_only_g1_names"),
@@ -394,7 +386,7 @@ def _g1_plan_block(
         target_name = _identity_name(target if isinstance(target, dict) else {})
         rows += (
             (
-                _t("Objectifs obligatoires de {name}", language).replace(
+                _t('Mandatory objectives for {name}', language).replace(
                     "{name}",
                     target_name,
                 ),
@@ -435,7 +427,7 @@ def _g1_plan_block(
     if below_cutoff:
         rows += (
             (
-                _t("G1 exclues par le seuil de victoire", language),
+                _t('G1 races excluded by the win cutoff', language),
                 " · ".join(below_cutoff),
             ),
         )
@@ -448,11 +440,11 @@ def _g1_plan_block(
         )
     facts: list[tuple[str, object]] = [
         (
-            _t("Bonus optimal avec objectifs", language),
+            _t('Optimal bonus with objectives', language),
             f"+{int(standard.get('optimal_bonus') or 0)}",
         ),
         (
-            _t("G1 d’affinité planifiées", language),
+            _t('Scheduled affinity G1 races', language),
             int(
                 standard.get("optimal_affinity_race_count")
                 or standard.get("optimal_race_count")
@@ -460,15 +452,15 @@ def _g1_plan_block(
             ),
         ),
         (
-            _t("Courses d’objectif planifiées", language),
+            _t('Scheduled objective races', language),
             int(standard.get("scheduled_objective_race_count") or 0),
         ),
         (
-            _t("Conflits G1 / objectifs", language),
+            _t('G1 / objective conflicts', language),
             objective_conflicts,
         ),
         (
-            _t("Série maximale", language),
+            _t('Longest streak', language),
             int((standard.get("streaks") or {}).get("max_consecutive") or 0),
         ),
     ]
@@ -476,14 +468,14 @@ def _g1_plan_block(
     if cutoff is not None:
         facts.append(
             (
-                _t("Seuil de victoire Independent Training", language),
+                _t('Independent Training win cutoff', language),
                 f"{100.0 * float(cutoff):.0f}%",
             )
         )
     if trackblazer:
         facts.append(
             (
-                _t("Bonus optimal Trackblazer", language),
+                _t('Optimal Trackblazer bonus', language),
                 f"+{int(trackblazer.get('optimal_bonus') or 0)}",
             )
         )
@@ -503,15 +495,13 @@ def _distance_block(row: dict[str, Any], language: str) -> str:
     viability = row.get("distance_viability") or detail.get("viability") or {}
     status = distance_status(row, language)
     items = [
-        (_t("Statut", language), f"{status} · {_t('palier', language)} {viability.get('tier', 0)}"),
+        (_t('Status', language), f"{status} · {_t('tier', language)} {viability.get('tier', 0)}"),
         (
             _t("Support", language),
-            f"{detail.get('total_stars', 0)}★ · "
-            f"{detail.get('carrier_count', 0)} {_t('porteur(s)', language)} · "
-            f"{detail.get('parent_carrier_count', 0)} {_t('direct(s)', language)}",
+            f"{detail.get('total_stars', 0)}★ · {detail.get('carrier_count', 0)} {_t('carrier(s)', language)} · {detail.get('parent_carrier_count', 0)} {_t('direct', language)}",
         ),
         (
-            _t("Procs requis", language),
+            _t('Required procs', language),
             f"A  {detail.get('procs_required_for_a', 0)}"
             f"   ·   S  {detail.get('procs_required_for_s', 0)}",
         ),
@@ -555,9 +545,9 @@ def _aptitude_block(
     profile = profile or {}
     rows = []
     for key, label in (
-        ("surface", "Terrain"),
+        ("surface", 'Surface'),
         ("distance", "Distance"),
-        ("style", "Style"),
+        ("style", 'Running style'),
     ):
         detail = distance if key == "distance" else dimensions.get(key) or {}
         if not detail:
@@ -579,13 +569,7 @@ def _aptitude_block(
     if not rows:
         return ""
     return (
-        "<table class='aptitude-table' width='100%' cellspacing='0' cellpadding='0'>"
-        "<tr class='aptitude-heading'>"
-        f"<th width='22%'>{escape(_t('Aptitude', language).upper())}</th>"
-        f"<th width='34%'>{escape(_t('Cible', language).upper())}</th>"
-        f"<th width='26%' align='center'>{escape(_t('Départ', language).upper())}</th>"
-        f"<th width='18%' align='right'>{escape(_t('Chance S', language).upper())}</th>"
-        "</tr>"
+        f"<table class='aptitude-table' width='100%' cellspacing='0' cellpadding='0'><tr class='aptitude-heading'><th width='22%'>{escape(_t('Aptitude', language).upper())}</th><th width='34%'>{escape(_t('Target', language).upper())}</th><th width='26%' align='center'>{escape(_t('Start', language).upper())}</th><th width='18%' align='right'>{escape(_t('S odds', language).upper())}</th></tr>"
         + "".join(rows)
         + "</table>"
     )
@@ -702,12 +686,7 @@ def _spark_branch_entries(
 
 
 def _spark_probability_text(entry: dict[str, Any]) -> str:
-    """Probabilité cumulée de proc sur la run, pour la branche du parent.
-
-    Plusieurs porteurs de la même skill dans une branche tirent indépendamment :
-    la probabilité qu'au moins un proc soit obtenu vaut 1 - Π(1 - p_i). La
-    fourchette min–max affichée auparavant sous-estimait donc le vrai total.
-    """
+    'Cumulative activation probability across independent carriers in a parent branch.'
     if not entry.get("has_probability"):
         return ""
     failure = max(0.0, min(float(entry.get("failure_probability") or 1.0), 1.0))
@@ -781,10 +760,10 @@ def _spark_recap(row: dict[str, Any], mode: str, language: str) -> str:
     branches = _spark_recap_branches(nodes, mode)
     is_aggregated = mode in {"pair", "online_parent", "branch"}
     family_labels = {
-        "blue": _t("Bleues", language),
-        "pink": _t("Roses", language),
-        "green": _t("Vertes", language),
-        "other": _t("Reste", language),
+        "blue": _t('Blue Sparks', language),
+        "pink": _t('Pink Sparks', language),
+        "green": _t('Green Sparks', language),
+        "other": _t('Other Sparks', language),
     }
     for direct_position, positions in branches:
         direct_node = nodes.get(direct_position) or {}
@@ -815,11 +794,11 @@ def _spark_recap(row: dict[str, Any], mode: str, language: str) -> str:
         name = str(direct_node.get("card_name") or direct_node.get("uma_name") or "—")
         visible_member_count = sum(1 for position in positions if nodes.get(position))
         if visible_member_count >= 3:
-            scope = _t("Parent + ses deux parents", language)
+            scope = _t('Parent + both grandparents', language)
         elif visible_member_count == 2:
-            scope = _t("Parent + un parent", language)
+            scope = _t('Parent + one grandparent', language)
         else:
-            scope = _t("Sparks directs", language)
+            scope = _t('Direct Sparks', language)
         groups.append(
             "<table class='spark-owner' width='100%' cellspacing='0' cellpadding='0'><tr>"
             f"<td><b>{escape(name)}</b></td>"
@@ -832,25 +811,25 @@ def _spark_recap(row: dict[str, Any], mode: str, language: str) -> str:
     if not groups:
         return ""
     title = (
-        _t("Résumé des Sparks par parent", language)
+        _t('Spark summary by parent', language)
         if is_aggregated
-        else _t("Récap des Sparks directs", language)
+        else _t('Direct Spark summary', language)
     )
     legend = ""
     if is_aggregated:
         legend = (
             "<p class='spark-legend'><span class='parent-marker'>P</span>&nbsp;"
-            + escape(_t("présent sur le parent direct", language))
+            + escape(_t('present on the direct parent', language))
             + "&nbsp;·&nbsp;"
-            + escape(_t("totaux Bleu/Rose/White sur la branche", language))
+            + escape(_t('Blue/Pink/White totals across the branch', language))
             + "&nbsp;·&nbsp;["
-            + escape(_t("Priorité", language))
+            + escape(_t('Priority', language))
             + "] "
-            + escape(_t("priorité majeure", language))
+            + escape(_t('major priority', language))
             + "&nbsp;·&nbsp;["
-            + escape(_t("Utile", language))
+            + escape(_t('Useful', language))
             + "] "
-            + escape(_t("white utile au profil", language))
+            + escape(_t('profile-useful white', language))
             + "</p>"
         )
     return (
@@ -914,9 +893,9 @@ def _white_generation_block(row: dict[str, Any], language: str) -> str:
     if score is None:
         score = details.get("score")
     facts = [
-        (_t("Support global de génération", language), f"{_number(score, 2)} / 100"),
-        (_t("Sparks distinctes concernées", language), int(details.get("skill_count") or len(skills))),
-        (_t("Inclus dans le score global", language), _t("Oui" if included else "Non", language)),
+        (_t('Overall generation support', language), f"{_number(score, 2)} / 100"),
+        (_t('Distinct affected Sparks', language), int(details.get("skill_count") or len(skills))),
+        (_t('Included in overall score', language), _t('Yes' if included else 'No', language)),
     ]
 
     rows = []
@@ -942,7 +921,7 @@ def _white_generation_block(row: dict[str, Any], language: str) -> str:
     except (TypeError, ValueError):
         per_copy = 0.0
     explanation = _t(
-        "Gain incrémental estimé pendant la run qui produit le parent : +{gain} points par porteur de la même White Skill. Ce n’est ni la probabilité totale de générer la Spark, ni sa probabilité de proc dans la run finale.",
+        'Estimated incremental gain during the run that produces the parent: +{gain} points per carrier of the same White Skill. This is neither the total probability of generating the Spark nor its proc probability in the final run.',
         language,
     ).replace("{gain}", f"{per_copy:.2f}")
 
@@ -950,9 +929,9 @@ def _white_generation_block(row: dict[str, Any], language: str) -> str:
         _facts_table(facts)
         + "<table class='factor-table generation-table' width='100%' cellspacing='0' cellpadding='0'>"
         + "<thead><tr>"
-        + f"<th>{escape(_t('Spark white', language).upper())}</th>"
-        + f"<th align='right'>{escape(_t('Porteurs', language).upper())}</th>"
-        + f"<th align='right'>{escape(_t('Gain de génération', language).upper())}</th>"
+        + f"<th>{escape(_t('White Skill Spark', language).upper())}</th>"
+        + f"<th align='right'>{escape(_t('Carriers', language).upper())}</th>"
+        + f"<th align='right'>{escape(_t('Generation gain', language).upper())}</th>"
         + "</tr></thead><tbody>"
         + "".join(rows)
         + "</tbody></table>"
@@ -969,17 +948,17 @@ def _production_affinity_block(row: dict[str, Any], language: str) -> str:
     gp1 = production.get("gp1_inheritance_modifier") or {}
     gp2 = production.get("gp2_inheritance_modifier") or {}
     facts = [
-        (_t("Affinité totale de la run", language), _number(production.get("total"), 1)),
-        (_t("Coefficient individuel GP1", language), _number(gp1.get("total"), 1)),
-        (_t("Coefficient individuel GP2", language), _number(gp2.get("total"), 1)),
-        (_t("Valeur équilibrée", language), _number(production.get("scored_value"), 1)),
+        (_t('Total run affinity', language), _number(production.get("total"), 1)),
+        (_t('Individual GP1 coefficient', language), _number(gp1.get("total"), 1)),
+        (_t('Individual GP2 coefficient', language), _number(gp2.get("total"), 1)),
+        (_t('Balanced value', language), _number(production.get("scored_value"), 1)),
     ]
     return (
         _facts_table(facts)
         + "<p class='diagnostic-note'>"
         + escape(
             _t(
-                "Diagnostic de la run intermédiaire qui fabrique le parent. Cette affinité n’est pas ajoutée au score de la lignée finale.",
+                'Diagnostic for the intermediate run that produces the parent. This affinity is not added to the final-lineage score.',
                 language,
             )
         )
@@ -1092,17 +1071,17 @@ def result_detail_html(
     profile: dict[str, Any] | None = None,
 ) -> str:
     if not row:
-        return f"<p class='empty'>{escape(_t('Sélectionne une ligne pour afficher le diagnostic.', language))}</p>"
+        return f"<p class='empty'>{escape(_t('Select a row to display its diagnostics.', language))}</p>"
 
     if kind == "pair":
         title = f"{_identity(row.get('parent_1'))} × {_identity(row.get('parent_2'))}"
-        subtitle = _t("Paire finale", language)
+        subtitle = _t('Final pair', language)
     elif kind == "branch":
         title = _identity(row)
-        subtitle = _t("Lignée candidate", language)
+        subtitle = _t('Candidate lineage', language)
     else:
         title = _identity(row)
-        subtitle = _t("Futur grand-parent", language)
+        subtitle = _t('Future grandparent', language)
 
     affinity = row.get("affinity") or {}
     if isinstance(affinity, dict):
@@ -1125,11 +1104,11 @@ def result_detail_html(
     if kind in {"pair", "branch"}:
         aptitude_html = _aptitude_block(row, language, profile)
         if aptitude_html:
-            html += f"{_section(_t('Aptitudes — héritage visé', language))}"
+            html += f"{_section(_t('Aptitudes — inheritance target', language))}"
             html += aptitude_html
         distance_html = _distance_block(row, language)
         if distance_html:
-            html += f"{_section(_t('Préparation Distance', language))}"
+            html += f"{_section(_t('Distance readiness', language))}"
             html += distance_html
         affinity_items = []
         for label, value in (
@@ -1137,7 +1116,7 @@ def result_detail_html(
             ("Base", affinity_base),
             ("Bonus G1", affinity_g1),
             (
-                "Lien parents",
+                'Parent link',
                 affinity.get("parent_parent_base")
                 if isinstance(affinity, dict)
                 else None,
@@ -1146,7 +1125,7 @@ def result_detail_html(
             if value is not None:
                 affinity_items.append((_t(label, language), _number(value, 1)))
         if affinity_items:
-            html += f"{_section(_t('Affinité moderne', language))}"
+            html += f"{_section(_t('Modern affinity', language))}"
             html += _facts_table(affinity_items)
         if kind == "pair":
             g1_html = _g1_plan_block(
@@ -1156,39 +1135,39 @@ def result_detail_html(
                 right_name=_identity_name(row.get("parent_2")),
             )
             if g1_html:
-                html += _section(_t("Planning G1 d’affinité", language))
+                html += _section(_t('G1 affinity planning', language))
                 html += g1_html
     elif kind == "future":
         affinity_items = [
-            (_t("Contribution du candidat", language), _number(row.get("affinity_raw"), 1)),
+            (_t('Candidate contribution', language), _number(row.get("affinity_raw"), 1)),
         ]
         if row.get("future_parent_base_affinity") is not None:
             affinity_items.append(
                 (
-                    _t("Base Ace × parent ciblé", language),
+                    _t('Target Ace × parent base', language),
                     _number(row.get("future_parent_base_affinity"), 1),
                 )
             )
         if row.get("future_branch_base_total") is not None:
             affinity_items.append(
                 (
-                    _t("Total de branche projeté", language),
+                    _t('Projected branch total', language),
                     _number(row.get("future_branch_base_total"), 1),
                 )
             )
         affinity_items.append(
-            (_t("G1 différentes", language), int(row.get("g1_count") or 0))
+            (_t('Distinct G1 races', language), int(row.get("g1_count") or 0))
         )
         html += _facts_table(affinity_items)
     html += _spark_recap(row, kind, language)
     generation_html = _white_generation_block(row, language)
     if generation_html:
-        html += _section(_t("Gains de génération des White Sparks", language))
+        html += _section(_t('White Spark generation gains', language))
         html += generation_html
-    html += f"{_section(_t('Calcul du score global', language))}{_component_table(row, language)}"
+    html += f"{_section(_t('Overall score calculation', language))}{_component_table(row, language)}"
     factor_html = _top_factors(row, language)
     if factor_html:
-        html += f"{_section(_t('Facteurs principaux', language))}{factor_html}"
+        html += f"{_section(_t('Main factors', language))}{factor_html}"
     return html
 
 
@@ -1224,22 +1203,16 @@ def online_detail_html(
         )
         if part
     )
-    html = f"""
-    {_detail_styles()}
-    <div class='eyebrow'>{escape(_t('Paire locale × distante', language))}</div>
-    <h2>{escape(title)}</h2>
-    <div class='muted'>{escape(subtitle)}</div>
-    {_metric_strip(row, metric_kind, language)}
-    """
+    html = f"\n    {_detail_styles()}\n    <div class='eyebrow'>{escape(_t('Local × remote pair', language))}</div>\n    <h2>{escape(title)}</h2>\n    <div class='muted'>{escape(subtitle)}</div>\n    {_metric_strip(row, metric_kind, language)}\n    "
     if mode == "parent":
         affinity = row.get("affinity") or {}
         aptitude_html = _aptitude_block(row, language, profile)
         if aptitude_html:
-            html += f"{_section(_t('Aptitudes — héritage visé', language))}"
+            html += f"{_section(_t('Aptitudes — inheritance target', language))}"
             html += aptitude_html
         distance_html = _distance_block(row, language)
         if distance_html:
-            html += f"{_section(_t('Préparation Distance', language))}"
+            html += f"{_section(_t('Distance readiness', language))}"
             html += distance_html
         affinity_items = [
             (_t(label, language), _number(value, 1))
@@ -1247,12 +1220,12 @@ def online_detail_html(
                 ("Total", affinity.get("total")),
                 ("Base", affinity.get("base")),
                 ("Bonus G1", affinity.get("g1_bonus")),
-                ("Lien parents", affinity.get("parent_parent_base")),
+                ('Parent link', affinity.get("parent_parent_base")),
             )
             if value is not None
         ]
         if affinity_items:
-            html += _section(_t("Affinité moderne", language))
+            html += _section(_t('Modern affinity', language))
             html += _facts_table(affinity_items)
         g1_html = _g1_plan_block(
             row,
@@ -1261,19 +1234,19 @@ def online_detail_html(
             right_name=_identity_name(remote),
         )
         if g1_html:
-            html += _section(_t("Planning G1 d’affinité", language))
+            html += _section(_t('G1 affinity planning', language))
             html += g1_html
     else:
         affinity = row.get("final_parent_affinity") or row.get("final_branch_affinity") or {}
-        html += _section(_t("Potentiel du parent final", language))
+        html += _section(_t('Final parent potential', language))
         html += _facts_table(
             [
                 (_t(label, language), _number(value, 1))
                 for label, value in (
-                    ("Base finale", affinity.get("base")),
-                    ("Bonus G1 pondéré", affinity.get("planned_g1_bonus")),
-                    ("Potentiel final", affinity.get("potential_total", affinity.get("total"))),
-                    ("G1 communes", affinity.get("common_g1_count")),
+                    ('Final base', affinity.get("base")),
+                    ('Weighted G1 bonus', affinity.get("planned_g1_bonus")),
+                    ('Final potential', affinity.get("potential_total", affinity.get("total"))),
+                    ('Shared G1', affinity.get("common_g1_count")),
                 )
             ]
         )
@@ -1284,23 +1257,23 @@ def online_detail_html(
             right_name=_identity_name(remote),
         )
         if g1_html:
-            html += _section(_t("Planning G1 d’affinité", language))
+            html += _section(_t('G1 affinity planning', language))
             html += g1_html
         aptitude_html = _aptitude_block(row, language, profile)
         if aptitude_html:
-            html += _section(_t("Projection de la paire finale", language))
+            html += _section(_t('Final pair projection', language))
             context_items = []
             if row.get("projected_future_parent"):
                 context_items.append(
                     (
-                        _t("Parent projeté", language),
+                        _t('Projected parent', language),
                         _identity_name(row.get("projected_future_parent")),
                     )
                 )
             if row.get("opposing_parent"):
                 context_items.append(
                     (
-                        _t("Parent opposé", language),
+                        _t('Opposing parent', language),
                         _identity_name(row.get("opposing_parent")),
                     )
                 )
@@ -1312,17 +1285,17 @@ def online_detail_html(
                 html += distance_html
         production_html = _production_affinity_block(row, language)
         if production_html:
-            html += _section(_t("Affinité de la run de production", language))
+            html += _section(_t('Production-run affinity', language))
             html += production_html
     html += _spark_recap(row, visual_mode, language)
     generation_html = _white_generation_block(row, language)
     if generation_html:
-        html += _section(_t("Gains de génération des White Sparks", language))
+        html += _section(_t('White Spark generation gains', language))
         html += generation_html
-    html += f"{_section(_t('Calcul du score global', language))}{_component_table(row, language)}"
+    html += f"{_section(_t('Overall score calculation', language))}{_component_table(row, language)}"
     factors = _top_factors(row, language)
     if factors:
-        html += f"{_section(_t('Facteurs principaux', language))}{factors}"
+        html += f"{_section(_t('Main factors', language))}{factors}"
     return html
 
 
@@ -1331,29 +1304,29 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
         return result_detail_html(None, "pair", language)
     replacement = row.get("dominated_by") or {}
     statuses = {
-        "safe_transfer": "Transfert strictement sûr",
-        "recommended_transfer": "Transfert recommandé",
-        "review": "À examiner",
-        "keep": "Conserver",
-        "protected": "Protégé",
+        "safe_transfer": 'Strictly safe transfer',
+        "recommended_transfer": 'Recommended transfer',
+        "review": 'Review',
+        "keep": 'Keep',
+        "protected": 'Protected',
     }
     reasons = {
-        "strictly_dominated_same_card": "Un remplaçant strict de la même carte et de la même unique couvre toutes les niches viables.",
-        "redundant_in_collection_portfolio": "La copie est redondante dans le portefeuille conservé ; sa couverture peut être répartie sur plusieurs vétérans.",
-        "required_by_collection_portfolio": "Cette copie est nécessaire pour préserver une niche compétitive ou un patrimoine stratégique du costume.",
-        "locked_in_game": "Ce vétéran est verrouillé en jeu et ne peut jamais être recommandé au transfert.",
-        "memo_present": "Ce vétéran porte un mémo et reste protégé.",
-        "portfolio_coverage_incomplete": "La couverture du portefeuille est incomplète : vérification manuelle nécessaire.",
-        "no_meaningful_role_detected": "Aucun rôle compétitif n’atteint les seuils, sans remplaçant strict confirmé.",
-        "strong_grandparent_value": "Forte valeur comme futur grand-parent.",
-        "strong_parent_value": "Forte valeur comme parent.",
-        "strong_value_in_multiple_roles": "Valeur compétitive dans plusieurs rôles ou profils.",
-        "narrow_or_single_context_niche": "Niche plausible mais étroite : vérification manuelle recommandée.",
-        "protected_repeated_white_spark": "Une white Spark utile et fortement répétée n’est pas suffisamment préservée par le remplaçant.",
-        "protected_hard_to_obtain_spark": "Une Spark utile difficile à obtenir autrement n’est pas suffisamment préservée par le remplaçant.",
-        "protected_direct_future_gp_spark": "Une Spark directe à forte valeur de futur grand-parent n’est pas suffisamment préservée par le remplaçant.",
-        "protected_important_skill_set": "La qualité d’un package de Sparks important est dégradée par le remplaçant.",
-        "protected_package_not_preserved_by_replacement": "Un package de Sparks important n’est pas préservé par le remplaçant.",
+        "strictly_dominated_same_card": 'A strict replacement with the same card and Unique covers every viable niche.',
+        "redundant_in_collection_portfolio": 'The copy is redundant in the retained portfolio; several veterans may share its coverage.',
+        "required_by_collection_portfolio": 'This copy is required to preserve a competitive niche or a strategic asset for the costume.',
+        "locked_in_game": 'This veteran is locked in game and can never be recommended for transfer.',
+        "memo_present": 'This veteran has a memo and remains protected.',
+        "portfolio_coverage_incomplete": 'Portfolio coverage is incomplete: manual review is required.',
+        "no_meaningful_role_detected": 'No competitive role reaches the thresholds, and no strict replacement is confirmed.',
+        "strong_grandparent_value": 'Strong future-grandparent value.',
+        "strong_parent_value": 'Strong parent value.',
+        "strong_value_in_multiple_roles": 'Competitive value across several roles or profiles.',
+        "narrow_or_single_context_niche": 'Plausible but narrow niche: manual review recommended.',
+        "protected_repeated_white_spark": 'A useful, strongly repeated white Spark is not sufficiently preserved by the replacement.',
+        "protected_hard_to_obtain_spark": 'A useful Spark that is difficult to obtain elsewhere is not sufficiently preserved by the replacement.',
+        "protected_direct_future_gp_spark": 'A high-value direct future-grandparent Spark is not sufficiently preserved by the replacement.',
+        "protected_important_skill_set": 'The replacement degrades the quality of an important Spark package.',
+        "protected_package_not_preserved_by_replacement": 'The replacement does not preserve an important Spark package.',
     }
     status = _t(statuses.get(str(row.get("status")), str(row.get("status") or "—")), language)
     title = _identity(row)
@@ -1368,14 +1341,14 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
                 f"<td align='right'>{_number(profile.get('score'), 2)}</td>"
                 f"<td align='right'>top {_number(profile.get('percentile'), 1)}%</td></tr>"
             )
-        return "".join(rows) or f"<tr><td colspan='3'>{escape(_t('Aucun', language))}</td></tr>"
+        return "".join(rows) or f"<tr><td colspan='3'>{escape(_t('None', language))}</td></tr>"
 
     def evidence_reading(evidence: dict[str, Any]) -> str:
         if evidence.get("elite") or evidence.get("repeated"):
-            return _t("Compétitif", language)
+            return _t('Competitive', language)
         if int(evidence.get("competitive_context_count") or 0) > 0:
-            return _t("Niche étroite", language)
-        return _t("Aucun rôle compétitif", language)
+            return _t('Narrow niche', language)
+        return _t('No competitive role', language)
 
     def evidence_row(role: str, evidence: dict[str, Any]) -> str:
         competitive = int(evidence.get("competitive_context_count") or 0)
@@ -1404,12 +1377,12 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
         )
 
     spark_type_labels = {
-        "blue_stat": "Bleue",
-        "red_aptitude": "Rose",
+        "blue_stat": 'Blue',
+        "red_aptitude": 'Pink',
         "white_skill": "White",
-        "white_race": "Course",
-        "race": "Course",
-        "scenario": "Scénario",
+        "white_race": 'Race',
+        "race": 'Race',
+        "scenario": 'Scenario',
         "unique": "Unique",
     }
     spark_type_order = {
@@ -1446,14 +1419,14 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
         )
         if retained and not retained_snapshots_available:
             return (
-                f"<p class='muted'>{escape(_t('Les Sparks des copies conservées sont absentes de cet ancien rapport ; relance l’analyse pour obtenir la comparaison.', language))}</p>"
+                f"""<p class='muted'>{escape(_t("The retained copies' Sparks are missing from this older report; run the analysis again to obtain the comparison.", language))}</p>"""
             )
         candidate_sparks = snapshot(candidate)
         retained_sparks = [snapshot(item) for item in retained]
         retained_labels = canonical_veteran_labels(
             retained,
-            rank_label=_t("Rang", language).casefold(),
-            blue_label=_t("Bleues", language).casefold(),
+            rank_label=_t('rank', language).casefold(),
+            blue_label=_t('Blue Sparks', language).casefold(),
         )
         keys = set(candidate_sparks)
         for item in retained_sparks:
@@ -1466,7 +1439,7 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
             ),
         )
         if not ordered:
-            return f"<p class='muted'>{escape(_t('Aucune Spark disponible dans le rapport.', language))}</p>"
+            return f"<p class='muted'>{escape(_t('No Spark data is available in the report.', language))}</p>"
         rows = []
         for factor_type, name in ordered:
             candidate_stars = candidate_sparks.get((factor_type, name))
@@ -1483,12 +1456,12 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
                     for label, stars in retained_values
                 )
                 if retained_values
-                else escape(_t("Absente", language))
+                else escape(_t('Missing', language))
             )
             candidate_text = (
                 f"{int(candidate_stars)}★"
                 if candidate_stars is not None
-                else escape(_t("Absente", language))
+                else escape(_t('Missing', language))
             )
             type_label = _t(
                 spark_type_labels.get(factor_type, factor_type or "Spark"),
@@ -1503,16 +1476,12 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
                 "</tr>"
             )
         retained_heading = (
-            _t("Remplaçant", language)
+            _t('Replacement', language)
             if len(retained) == 1
-            else _t("Couverture conservée", language)
+            else _t('Retained coverage', language)
         )
         return (
-            "<table><tr>"
-            f"<td><b>{escape(_t('Spark', language))}</b></td>"
-            f"<td><b>{escape(_t('Vétéran', language))}</b></td>"
-            f"<td><b>{escape(retained_heading)}</b></td>"
-            "</tr>"
+            f"<table><tr><td><b>{escape(_t('Spark', language))}</b></td><td><b>{escape(_t('Veteran', language))}</b></td><td><b>{escape(retained_heading)}</b></td></tr>"
             + "".join(rows)
             + "</table>"
         )
@@ -1520,11 +1489,11 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
     def stats_summary(identity: dict[str, Any]) -> str:
         stats = identity.get("stats") or {}
         fields = (
-            ("Vitesse", "speed"),
-            ("Endurance", "stamina"),
-            ("Puissance", "power"),
-            ("Cran", "guts"),
-            ("Intelligence", "wiz"),
+            ('Speed', "speed"),
+            ('Stamina', "stamina"),
+            ('Power', "power"),
+            ('Guts', "guts"),
+            ('Wit', "wiz"),
         )
         values = [
             f"{_t(label, language)} {int(stats.get(key) or 0)}"
@@ -1551,7 +1520,7 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
             return "—"
         label = str(item.get("profile") or item.get("context_key") or "—")
         role = _t(
-            "Parent" if item.get("role") == "parent" else "Futur grand-parent",
+            "Parent" if item.get("role") == "parent" else 'Future grandparent',
             language,
         )
         return f"{role} · {label} · {signed_number(item.get('delta'))}"
@@ -1562,7 +1531,7 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
             role = _t(
                 "Parent"
                 if item.get("role") == "parent"
-                else "Futur grand-parent",
+                else 'Future grandparent',
                 language,
             )
             retained_by = list(item.get("retained_by") or [])
@@ -1570,8 +1539,8 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
                 escape(label)
                 for label in canonical_veteran_labels(
                     retained_by,
-                    rank_label=_t("Rang", language).casefold(),
-                    blue_label=_t("Bleues", language).casefold(),
+                    rank_label=_t('rank', language).casefold(),
+                    blue_label=_t('Blue Sparks', language).casefold(),
                 )
             )
             replacement_score = _number(item.get("replacement_score"), 3)
@@ -1589,107 +1558,59 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
         if not rows:
             return ""
         return (
-            f"<h3>{escape(_t('Écarts par contexte', language))}</h3>"
-            f"<p class='muted'>{escape(_t('Chaque score est la meilleure enveloppe obtenue parmi les Aces viables du profil ; un delta positif favorise la couverture conservée.', language))}</p>"
-            "<table><tr>"
-            f"<td><b>{escape(_t('Rôle', language))}</b></td>"
-            f"<td><b>{escape(_t('Contexte', language))}</b></td>"
-            f"<td><b>{escape(_t('Candidat', language))}</b></td>"
-            f"<td><b>{escape(_t('Couverture', language))}</b></td>"
-            f"<td><b>{escape(_t('Écart', language))}</b></td>"
-            "</tr>"
+            f"<h3>{escape(_t('Per-context deltas', language))}</h3><p class='muted'>{escape(_t('Each score is the best envelope obtained across viable Aces for the profile; a positive delta favours the retained coverage.', language))}</p><table><tr><td><b>{escape(_t('Role', language))}</b></td><td><b>{escape(_t('Context', language))}</b></td><td><b>{escape(_t('Candidate', language))}</b></td><td><b>{escape(_t('Coverage', language))}</b></td><td><b>{escape(_t('Delta', language))}</b></td></tr>"
             + "".join(rows)
             + "</table>"
         )
 
-    html = f"""
-    <style>
-      body {{ color:{PANEL['text']}; font-size:{FONT_SIZE['body']}; line-height:1.45; }}
-      h2 {{ margin:0 0 4px; font-size:{FONT_SIZE['heading']}; font-weight:800; }}
-      h3 {{ color:#dce8f6; margin:17px 0 7px; font-size:{FONT_SIZE['section']}; font-weight:750; }}
-      .eyebrow {{ color:{PANEL['accent']}; font-weight:750; font-size:{FONT_SIZE['micro']}; }}
-      .muted {{ color:{PANEL['muted']}; font-size:{FONT_SIZE['caption']}; }}
-      .replacement {{ background:{PANEL['surface']}; border-left:3px solid {PANEL['accent']}; padding:9px 11px; margin-top:8px; }}
-      .protection {{ background:{PANEL['surface_alt']}; border-left:3px solid {PANEL['gold']}; padding:9px 11px; margin-top:8px; }}
-      table {{ width:100%; border-collapse:collapse; }}
-      td {{ color:{PANEL['text_soft']}; padding:6px 1px; border-bottom:1px solid {PANEL['border_soft']}; }}
-      .facts-table th {{ width:52%; color:{PANEL['muted']}; text-align:left; font-size:{FONT_SIZE['caption']}; font-weight:600; padding:6px 2px 6px 1px; border-bottom:1px solid {PANEL['border_soft']}; }}
-      .facts-table td {{ color:{PANEL['text']}; font-size:{FONT_SIZE['body']}; padding:6px 1px 6px 2px; border-bottom:1px solid {PANEL['border_soft']}; }}
-      .facts-table .facts-last {{ border-bottom:0; }}
-    </style>
-    <div class='eyebrow'>{escape(status)}</div>
-    <h2>{escape(title)}</h2>
-    <div class='muted'>{escape(reason)}</div>
-    {_facts_table([
-        (_t('Score Uma', language), format_rank_score(row.get('rank_score'))),
-        (_t('Verrouillé en jeu', language), _t('Oui', language) if row.get('is_locked') else _t('Non', language)),
-        (_t('Mémo', language), str(row.get('memo') or '—')),
-        (_t('Copies comparables', language), int(row.get('same_card_copy_count') or 0)),
-        (
-            _t('Meilleur potentiel parent', language),
-            f"{_number(row.get('best_parent_score'), 2)} · top {_number(row.get('best_parent_percentile'), 1)}%",
-        ),
-        (
-            _t('Meilleur potentiel grand-parent', language),
-            f"{_number(row.get('best_grandparent_score'), 2)} · top {_number(row.get('best_grandparent_percentile'), 1)}%",
-        ),
-    ])}
-    """
+    html = f"""\n    <style>\n      body {{ color:{PANEL['text']}; font-size:{FONT_SIZE['body']}; line-height:1.45; }}\n      h2 {{ margin:0 0 4px; font-size:{FONT_SIZE['heading']}; font-weight:800; }}\n      h3 {{ color:#dce8f6; margin:17px 0 7px; font-size:{FONT_SIZE['section']}; font-weight:750; }}\n      .eyebrow {{ color:{PANEL['accent']}; font-weight:750; font-size:{FONT_SIZE['micro']}; }}\n      .muted {{ color:{PANEL['muted']}; font-size:{FONT_SIZE['caption']}; }}\n      .replacement {{ background:{PANEL['surface']}; border-left:3px solid {PANEL['accent']}; padding:9px 11px; margin-top:8px; }}\n      .protection {{ background:{PANEL['surface_alt']}; border-left:3px solid {PANEL['gold']}; padding:9px 11px; margin-top:8px; }}\n      table {{ width:100%; border-collapse:collapse; }}\n      td {{ color:{PANEL['text_soft']}; padding:6px 1px; border-bottom:1px solid {PANEL['border_soft']}; }}\n      .facts-table th {{ width:52%; color:{PANEL['muted']}; text-align:left; font-size:{FONT_SIZE['caption']}; font-weight:600; padding:6px 2px 6px 1px; border-bottom:1px solid {PANEL['border_soft']}; }}\n      .facts-table td {{ color:{PANEL['text']}; font-size:{FONT_SIZE['body']}; padding:6px 1px 6px 2px; border-bottom:1px solid {PANEL['border_soft']}; }}\n      .facts-table .facts-last {{ border-bottom:0; }}\n    </style>\n    <div class='eyebrow'>{escape(status)}</div>\n    <h2>{escape(title)}</h2>\n    <div class='muted'>{escape(reason)}</div>\n    {_facts_table([(_t('Uma score', language), format_rank_score(row.get('rank_score'))), (_t('Locked in game', language), _t('Yes', language) if row.get('is_locked') else _t('No', language)), (_t('Memo', language), str(row.get('memo') or '—')), (_t('Comparable copies', language), int(row.get('same_card_copy_count') or 0)), (_t('Best parent potential', language), f"{_number(row.get('best_parent_score'), 2)} · top {_number(row.get('best_parent_percentile'), 1)}%"), (_t('Best grandparent potential', language), f"{_number(row.get('best_grandparent_score'), 2)} · top {_number(row.get('best_grandparent_percentile'), 1)}%")])}\n    """
     parent_evidence = row.get("parent_evidence") or {}
     grandparent_evidence = row.get("grandparent_evidence") or {}
     html += (
-        f"<h3>{escape(_t('Preuves du verdict', language))}</h3>"
-        "<table><tr>"
-        f"<td><b>{escape(_t('Rôle', language))}</b></td>"
-        f"<td><b>{escape(_t('Contextes compétitifs', language))}</b></td>"
-        f"<td><b>{escape(_t('Profils distincts', language))}</b></td>"
-        f"<td><b>{escape(_t('Contextes élite', language))}</b></td>"
-        f"<td><b>{escape(_t('Lecture', language))}</b></td>"
-        "</tr>"
+        f"<h3>{escape(_t('Verdict evidence', language))}</h3><table><tr><td><b>{escape(_t('Role', language))}</b></td><td><b>{escape(_t('Competitive contexts', language))}</b></td><td><b>{escape(_t('Distinct profiles', language))}</b></td><td><b>{escape(_t('Elite contexts', language))}</b></td><td><b>{escape(_t('Interpretation', language))}</b></td></tr>"
         + evidence_row(_t("Parent", language), parent_evidence)
-        + evidence_row(_t("Futur grand-parent", language), grandparent_evidence)
+        + evidence_row(_t('Future grandparent', language), grandparent_evidence)
         + "</table>"
     )
     if replacement:
         html += (
-            f"<h3>{escape(_t('Remplaçant retenu', language))}</h3><div class='replacement'>"
-            f"<b>{escape(_identity(replacement))}</b><br>"
+            f"<h3>{escape(_t('Selected replacement', language))}</h3><div class='replacement'><b>{escape(_identity(replacement))}</b><br>"
             + _facts_table(
                 [
                     (
-                        _t("Avance moyenne", language),
+                        _t('Average lead', language),
                         signed_number(replacement.get("mean_score_lead")),
                     ),
                     (
-                        _t("Pire écart observé", language),
+                        _t('Worst observed delta', language),
                         signed_number(replacement.get("worst_context_delta")),
                     ),
                     (
-                        _t("Meilleur écart observé", language),
+                        _t('Best observed delta', language),
                         signed_number(replacement.get("best_context_delta")),
                     ),
                     (
-                        _t("Contexte le plus serré", language),
+                        _t('Tightest context', language),
                         context_delta_label(replacement.get("worst_context")),
                     ),
                     (
-                        _t("Contexte le plus favorable", language),
+                        _t('Most favourable context', language),
                         context_delta_label(replacement.get("best_context")),
                     ),
                     (
-                        _t("Comparaisons parent viables", language),
+                        _t('Viable parent comparisons', language),
                         int(replacement.get("viable_parent_comparisons") or 0),
                     ),
                     (
-                        _t("Comparaisons grand-parent viables", language),
+                        _t('Viable grandparent comparisons', language),
                         int(
                             replacement.get("viable_grandparent_comparisons")
                             or 0
                         ),
                     ),
-                    (_t("Rang en jeu", language), replacement.get("rank") or "—"),
+                    (_t('In-game rank', language), replacement.get("rank") or "—"),
                     (_t("Stats", language), stats_summary(replacement)),
-                    (_t("Lignée", language), lineage_summary(replacement)),
+                    (_t('Lineage', language), lineage_summary(replacement)),
                 ]
             )
             + "</div>"
@@ -1699,12 +1620,11 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
     if coverage and not replacement:
         coverage_labels = canonical_veteran_labels(
             coverage,
-            rank_label=_t("Rang", language).casefold(),
-            blue_label=_t("Bleues", language).casefold(),
+            rank_label=_t('rank', language).casefold(),
+            blue_label=_t('Blue Sparks', language).casefold(),
         )
         html += (
-            f"<h3>{escape(_t('Couverture collective', language))}</h3>"
-            "<div class='replacement'>"
+            f"<h3>{escape(_t('Collective coverage', language))}</h3><div class='replacement'>"
             + "<br>".join(
                 f"<b>{escape(label)}</b>"
                 for label in coverage_labels
@@ -1716,19 +1636,19 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
             html += _facts_table(
                 [
                     (
-                        _t("Avance moyenne", language),
+                        _t('Average lead', language),
                         signed_number(
                             portfolio_comparison.get("mean_score_lead")
                         ),
                     ),
                     (
-                        _t("Contexte le plus serré", language),
+                        _t('Tightest context', language),
                         context_delta_label(
                             portfolio_comparison.get("worst_context")
                         ),
                     ),
                     (
-                        _t("Contexte le plus favorable", language),
+                        _t('Most favourable context', language),
                         context_delta_label(
                             portfolio_comparison.get("best_context")
                         ),
@@ -1739,8 +1659,7 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
     required_for = list(row.get("portfolio_required_for") or [])
     if required_for:
         html += (
-            f"<h3>{escape(_t('Pourquoi cette copie est conservée', language))}</h3>"
-            "<table>"
+            f"<h3>{escape(_t('Why this copy is retained', language))}</h3><table>"
             + "".join(
                 f"<tr><td>{escape(str(item.get('label') or item.get('key') or '—'))}</td></tr>"
                 for item in required_for
@@ -1750,17 +1669,16 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
     retained = [replacement] if replacement else coverage
     if retained:
         html += (
-            f"<h3>{escape(_t('Comparaison complète des Sparks', language))}</h3>"
-            f"<p class='muted'>{escape(_t('Toutes les Sparks du vétéran sont comparées au remplaçant ou aux copies conservées ; ce tableau reste visible même quand le transfert est recommandé.', language))}</p>"
+            f"<h3>{escape(_t('Complete Spark comparison', language))}</h3><p class='muted'>{escape(_t('Every Spark on the veteran is compared with the replacement or retained copies; this table remains visible even when transfer is recommended.', language))}</p>"
             + spark_comparison(row, retained)
         )
     protection = row.get("spark_protection") or {}
 
     def heritage_metrics(item: dict[str, Any]) -> str:
         if not item.get("present"):
-            return _t("Absente", language)
+            return _t('Missing', language)
         values = [
-            _t("{count} porteur(s)", language).replace(
+            _t('{count} carrier(s)', language).replace(
                 "{count}", str(int(item.get("carrier_count") or 0))
             ),
             f"{int(item.get('total_stars') or 0)}★",
@@ -1768,7 +1686,7 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
         ]
         if item.get("direct"):
             values.append(
-                _t("directe {stars}★", language).replace(
+                _t('direct {stars}★', language).replace(
                     "{stars}", str(int(item.get("direct_total_stars") or 0))
                 )
             )
@@ -1777,14 +1695,14 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
         )
         if generation_count:
             values.append(
-                _t("génération ×{count}", language).replace(
+                _t('generation ×{count}', language).replace(
                     "{count}", str(generation_count)
                 )
             )
         support_count = item.get("direct_support_hint_card_count")
         if isinstance(support_count, int) and not isinstance(support_count, bool):
             values.append(
-                _t("{count} support(s) avec hint direct", language).replace(
+                _t('{count} support card(s) with a direct hint', language).replace(
                     "{count}", str(support_count)
                 )
             )
@@ -1801,42 +1719,30 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
     for comparison in protected_comparisons:
         preserved = bool(comparison.get("preserved_by_replacement"))
         protected_skill_rows.append(
-            "<tr>"
-            f"<td><b>{escape(str(comparison.get('name') or comparison.get('catalog_key') or '—'))}</b></td>"
-            f"<td>{escape(heritage_metrics(comparison.get('candidate') or {}))}</td>"
-            f"<td>{escape(heritage_metrics(comparison.get('replacement') or {}))}</td>"
-            f"<td>{escape(_t('Préservée' if preserved else 'Non préservée', language))}</td>"
-            "</tr>"
+            f"<tr><td><b>{escape(str(comparison.get('name') or comparison.get('catalog_key') or '—'))}</b></td><td>{escape(heritage_metrics(comparison.get('candidate') or {}))}</td><td>{escape(heritage_metrics(comparison.get('replacement') or {}))}</td><td>{escape(_t('Preserved' if preserved else 'Not preserved', language))}</td></tr>"
         )
     if protected_skill_rows:
         html += (
-            f"<h3>{escape(_t('Patrimoine protégé comparé', language))}</h3>"
-            f"<p class='muted'>{escape(_t('Les protections stratégiques restent détaillées même lorsqu’elles sont correctement couvertes.', language))}</p>"
-            "<table><tr>"
-            f"<td><b>{escape(_t('Spark concernée', language))}</b></td>"
-            f"<td><b>{escape(_t('Vétéran', language))}</b></td>"
-            f"<td><b>{escape(_t('Remplaçant', language))}</b></td>"
-            f"<td><b>{escape(_t('État', language))}</b></td>"
-            "</tr>"
+            f"<h3>{escape(_t('Protected heritage comparison', language))}</h3><p class='muted'>{escape(_t('Strategic protections remain detailed even when they are correctly covered.', language))}</p><table><tr><td><b>{escape(_t('Affected Spark', language))}</b></td><td><b>{escape(_t('Veteran', language))}</b></td><td><b>{escape(_t('Replacement', language))}</b></td><td><b>{escape(_t('Status', language))}</b></td></tr>"
             + "".join(protected_skill_rows)
             + "</table>"
         )
 
     if protection.get("applied"):
         reason_labels = {
-            "protected_repeated_white_spark": "White répétée",
-            "protected_hard_to_obtain_spark": "Acquisition difficile",
-            "protected_direct_future_gp_spark": "Spark directe de futur GP",
-            "protected_important_skill_set": "Package dégradé",
-            "protected_package_not_preserved_by_replacement": "Package non préservé",
+            "protected_repeated_white_spark": 'Repeated white Spark',
+            "protected_hard_to_obtain_spark": 'Hard to obtain',
+            "protected_direct_future_gp_spark": 'Direct future-GP Spark',
+            "protected_important_skill_set": 'Degraded package',
+            "protected_package_not_preserved_by_replacement": 'Package not preserved',
         }
 
         package_rows = []
         package_labels = {
-            "general_backliner": _t("Noyau polyvalent des backliners", language),
-            "front_groundwork": _t("Préparation Groundwork Front", language),
-            "pace_acceleration": _t("Accélération Pace Chaser", language),
-            "closer_acceleration": _t("Accélération End Closer", language),
+            "general_backliner": _t('General backliner core', language),
+            "front_groundwork": _t('Front Groundwork setup', language),
+            "pace_acceleration": _t('Pace Chaser acceleration', language),
+            "closer_acceleration": _t('End Closer acceleration', language),
         }
         for deficit in protection.get("deficits") or []:
             if deficit.get("kind") == "skill":
@@ -1852,13 +1758,13 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
             details = []
             if missing:
                 details.append(
-                    _t("Manquantes : {skills}", language).replace(
+                    _t('Missing: {skills}', language).replace(
                         "{skills}", ", ".join(missing)
                     )
                 )
             if degraded:
                 details.append(
-                    _t("Couverture réduite : {skills}", language).replace(
+                    _t('Reduced coverage: {skills}', language).replace(
                         "{skills}", ", ".join(degraded)
                     )
                 )
@@ -1878,25 +1784,15 @@ def transfer_detail_html(row: dict[str, Any] | None, language: str) -> str:
             for code in protection.get("reason_codes") or []
         ]
         html += (
-            f"<h3>{escape(_t('Protection du patrimoine Spark', language))}</h3>"
-            "<div class='protection'>"
-            f"<b>{escape(_t('Plancher de verdict', language))}: "
-            f"{escape(_t(statuses.get(str(protection.get('verdict_floor')), str(protection.get('verdict_floor') or '—')), language))}</b>"
-            f"<br><span class='muted'>{escape(' · '.join(labels))}</span>"
-            "</div>"
+            f"<h3>{escape(_t('Spark heritage protection', language))}</h3><div class='protection'><b>{escape(_t('Verdict floor', language))}: {escape(_t(statuses.get(str(protection.get('verdict_floor')), str(protection.get('verdict_floor') or '—')), language))}</b><br><span class='muted'>{escape(' · '.join(labels))}</span></div>"
         )
         if package_rows:
             html += (
-                f"<h3>{escape(_t('Packages non préservés', language))}</h3>"
-                "<table><tr>"
-                f"<td><b>{escape(_t('Package concerné', language))}</b></td>"
-                f"<td><b>{escape(_t('Vétéran', language))}</b></td>"
-                f"<td><b>{escape(_t('Remplaçant', language))}</b></td>"
-                "</tr>"
+                f"<h3>{escape(_t('Unpreserved packages', language))}</h3><table><tr><td><b>{escape(_t('Affected package', language))}</b></td><td><b>{escape(_t('Veteran', language))}</b></td><td><b>{escape(_t('Replacement', language))}</b></td></tr>"
                 + "".join(package_rows)
                 + "</table>"
             )
-    html += f"<h3>{escape(_t('Meilleurs profils parent', language))}</h3><table>{profiles(list(row.get('top_parent_profiles') or []))}</table>"
-    html += f"<h3>{escape(_t('Meilleurs profils grand-parent', language))}</h3><table>{profiles(list(row.get('top_grandparent_profiles') or []))}</table>"
-    html += f"<p class='muted'>{escape(_t('L’outil ne modifie pas l’export source et ne supprime rien en jeu.', language))}</p>"
+    html += f"<h3>{escape(_t('Best parent profiles', language))}</h3><table>{profiles(list(row.get('top_parent_profiles') or []))}</table>"
+    html += f"<h3>{escape(_t('Best grandparent profiles', language))}</h3><table>{profiles(list(row.get('top_grandparent_profiles') or []))}</table>"
+    html += f"<p class='muted'>{escape(_t('The tool does not modify the source export or delete anything in game.', language))}</p>"
     return html

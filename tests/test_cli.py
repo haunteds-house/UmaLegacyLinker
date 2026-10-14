@@ -139,16 +139,16 @@ class CliWorkflowTests(unittest.TestCase):
                 patch.object(
                     cli,
                     "link_veterans",
-                    side_effect=cli.LinkerError("MDB introuvable : master.mdb"),
+                    side_effect=cli.LinkerError('MDB not found: master.mdb'),
                 ),
                 redirect_stderr(stderr),
             ):
                 self.assertEqual(cli.run_cli(args), 1)
 
         rendered = stderr.getvalue()
-        self.assertIn("Erreur : MDB introuvable : master.mdb", rendered)
-        self.assertIn("Que faire :", rendered)
-        self.assertIn("relie les données, puis relance", rendered)
+        self.assertIn('Error: MDB not found: master.mdb', rendered)
+        self.assertIn('What to do:', rendered)
+        self.assertIn("link the data again, then retry", rendered)
 
 
 if __name__ == "__main__":

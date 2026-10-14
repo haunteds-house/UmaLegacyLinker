@@ -1,4 +1,4 @@
-﻿param(
+param(
     [switch]$SkipInstall,
     [switch]$RunLayoutAudit
 )
@@ -20,7 +20,7 @@ if (-not $SkipInstall) {
 }
 
 Invoke-Python -m pytest -q tests --ignore=tests/test_qt_runtime.py
-Invoke-Python tests/check_i18n.py
+Invoke-Python tests/check_english.py
 
 Invoke-Python -c "from PySide6.QtWidgets import QApplication; from ui_qt.main_window import MainWindow; print('Qt import OK')"
 $PreviousQtPlatform = $env:QT_QPA_PLATFORM
@@ -81,6 +81,6 @@ Compress-Archive -Path "$Bundle\*" -DestinationPath $Archive -CompressionLevel O
 $Checksum = (Get-FileHash $Archive -Algorithm SHA256).Hash.ToLowerInvariant()
 "$Checksum  UmaLegacyLinkerQt-win64.zip" | Set-Content $ChecksumFile -Encoding ascii
 
-Write-Host "Build termine : $Executable"
-Write-Host "Archive : $Archive"
-Write-Host "SHA-256 : $Checksum"
+Write-Host "Build complete: $Executable"
+Write-Host "Archive: $Archive"
+Write-Host "SHA-256: $Checksum"

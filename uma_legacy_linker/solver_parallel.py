@@ -189,7 +189,7 @@ def parallel_pair_rows(kind, context, left, right, pairs, *, checkpoint, logger)
                     try:
                         connection.send((next_send, chunks[next_send]))
                     except (OSError, EOFError) as exc:
-                        raise RuntimeError("Un processus solver s'est arrêté pendant l'envoi d'un lot.") from exc
+                        raise RuntimeError('A solver process stopped while sending a batch.') from exc
                     active[connection] = next_send
                     next_send += 1
             ready = wait(list(active), timeout=.05)
@@ -197,17 +197,17 @@ def parallel_pair_rows(kind, context, left, right, pairs, *, checkpoint, logger)
                 try:
                     message = connection.recv()
                 except (EOFError, OSError) as exc:
-                    raise RuntimeError("Un processus solver s'est arrêté sans résultat.") from exc
+                    raise RuntimeError('A solver process stopped without a result.') from exc
                 if message[0] == "error":
-                    raise RuntimeError(f"Processus solver : {message[1]} : {message[2]}\n{message[3]}")
+                    raise RuntimeError(f'Processus solver: {message[1]}: {message[2]}\n{message[3]}')
                 _, number, values, g1_calls = message
                 if number != active.pop(connection) or len(values) != len(chunks[number]):
-                    raise RuntimeError("Lot solver incomplet ou reçu dans un ordre inattendu.")
+                    raise RuntimeError('Solver batch is incomplete or arrived in an unexpected order.')
                 buffered[number] = values
                 for key, count in g1_calls.items():
                     runtime.stats[key] = runtime.stats.get(key, 0) + count
             if any(p.exitcode is not None for p in processes):
-                raise RuntimeError("Un processus solver s'est arrêté avant la fin du calcul.")
+                raise RuntimeError('A solver process stopped before the calculation finished.')
             while next_read in buffered:
                 values = buffered.pop(next_read)
                 for (i, j), row in zip(chunks[next_read], values):
@@ -218,7 +218,7 @@ def parallel_pair_rows(kind, context, left, right, pairs, *, checkpoint, logger)
                     rows.append(row)
                 next_read += 1
                 if next_read % 8 == 0 or next_read == len(chunks):
-                    logger(f"Paires calculées : {len(rows)}/{len(pairs)}")
+                    logger(f'Pairs calculated: {len(rows)}/{len(pairs)}')
         success = True
         return rows
     finally:

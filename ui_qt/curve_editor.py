@@ -182,8 +182,8 @@ class CurveEditor(QWidget):
         layout.addWidget(self.table)
 
         actions = QHBoxLayout()
-        self.add_button = QPushButton("Ajouter un point")
-        self.remove_button = QPushButton("Supprimer le point")
+        self.add_button = QPushButton('Add point')
+        self.remove_button = QPushButton('Remove point')
         actions.addWidget(self.add_button)
         actions.addWidget(self.remove_button)
         actions.addStretch(1)

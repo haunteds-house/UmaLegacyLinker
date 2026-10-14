@@ -40,19 +40,19 @@ class _Label:
 class AccessibilityContractTests(unittest.TestCase):
     def test_accessible_text_is_single_line_and_stable(self) -> None:
         self.assertEqual(
-            accessible_text("  Parent\n  à   produire  "),
-            "Parent à produire",
+            accessible_text("  Parent\n  to   produce  "),
+            'Parent to produce',
         )
 
     def test_visible_label_is_bound_and_exposed_to_assistive_apis(self) -> None:
-        label = _Label("Mode d’analyse")
-        control = _Control("Compare rapide et exhaustif")
+        label = _Label('Analysis mode')
+        control = _Control("Compare fast and exhaustive")
 
         label_control(label, control)
 
         self.assertIs(label.buddy, control)
-        self.assertEqual(control.name, "Mode d’analyse")
-        self.assertEqual(control.description, "Compare rapide et exhaustif")
+        self.assertEqual(control.name, 'Analysis mode')
+        self.assertEqual(control.description, "Compare fast and exhaustive")
 
         describe_control(control, " Analysis mode ", " Fast\n or exhaustive ")
         self.assertEqual(control.name, "Analysis mode")

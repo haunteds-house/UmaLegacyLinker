@@ -109,7 +109,18 @@ class SettingsStore:
             return {}
         if not isinstance(payload, dict):
             return {}
-        return {str(key): str(value) for key, value in payload.items()}
+        values = {str(key): str(value) for key, value in payload.items() if key != "ui_language"}
+        # Older versions persisted translated condition labels. Migrate them
+        # while keeping the same numeric conditions used by the scorer.
+        legacy_conditions = {
+            "Non précisé": "Unspecified", "Droite": "Right", "Gauche": "Left",
+            "Printemps": "Spring", "Été": "Summer", "Automne": "Autumn", "Hiver": "Winter",
+            "Ensoleillé": "Sunny", "Nuageux": "Cloudy", "Pluie": "Rain", "Neige": "Snow",
+        }
+        for key in ("optimizer_rotation", "optimizer_season", "optimizer_weather", "optimizer_ground"):
+            if key in values:
+                values[key] = legacy_conditions.get(values[key], values[key])
+        return values
 
     def get(self, key: str, default: str = "") -> str:
         return self._values.get(key, default)
@@ -119,6 +130,8 @@ class SettingsStore:
 
     def update(self, values: dict[str, object]) -> None:
         for key, value in values.items():
+            if key == "ui_language":
+                continue
             self._values[str(key)] = str(value)
         self.save()
 
@@ -348,9 +361,9 @@ class VeteranOption:
 
 def validate_link_request(request: LinkRequest) -> None:
     if not request.master_path.is_file():
-        raise LinkerError("Sélectionne un master.mdb valide.")
+        raise LinkerError('Select a valid master.mdb.')
     if not request.veterans_json_path.is_file():
-        raise LinkerError("Sélectionne un export JSON de collection valide.")
+        raise LinkerError('Select a valid JSON collection export.')
     request.output_dir.mkdir(parents=True, exist_ok=True)
 
 
@@ -358,7 +371,7 @@ def _materialize_scoring_profile(output_dir: Path, use_custom: bool) -> Path:
     default_path = default_scoring_path()
     if not default_path.is_file():
         raise ScoringConfigError(
-            f"Configuration de pondération par défaut introuvable : {default_path}"
+            f'Default scoring configuration not found: {default_path}'
         )
     override = user_scoring_overrides_path() if use_custom else None
     return materialize_effective_scoring_config(
@@ -379,7 +392,7 @@ def _materialize_skill_priorities(
     if custom_path is not None:
         if not custom_path.is_file():
             raise ScoringConfigError(
-                f"Profil de priorités white introuvable : {custom_path}"
+                f'White priority profile not found: {custom_path}'
             )
         effective = deep_merge(default_payload, read_json_object(custom_path))
         validate_skill_priorities_config(effective)
@@ -403,7 +416,7 @@ def run_link(
     progress: ProgressCallback,
 ) -> LinkResult:
     validate_link_request(request)
-    progress(12, "Lecture de la collection locale…")
+    progress(12, 'Reading local collection…')
     result = link_veterans(
         request.master_path,
         request.veterans_json_path,
@@ -411,7 +424,7 @@ def run_link(
         logger,
         force_relink=request.force_relink,
     )
-    progress(100, "Liaison terminée.")
+    progress(100, 'Linking complete.')
     return result
 
 
@@ -426,25 +439,25 @@ def run_optimization(
         LinkRequest(request.master_path, request.veterans_json_path, request.output_dir)
     )
     if request.search_kind not in {"all", "pairs", "branches", "future"}:
-        raise OptimizerError("Type de recherche locale invalide.")
+        raise OptimizerError('Invalid local search type.')
     if request.ace_card_id <= 0:
-        raise OptimizerError("Sélectionne l’Ace cible.")
+        raise OptimizerError('Select the target Ace.')
     if request.search_kind in {"all", "future"} and request.future_parent_card_id <= 0:
-        raise OptimizerError("Sélectionne le parent à produire.")
+        raise OptimizerError('Select the parent to produce.')
     if request.top_n < 1:
-        raise OptimizerError("Le nombre de résultats doit être positif.")
+        raise OptimizerError('The number of results must be positive.')
 
-    progress(5, "Préparation des profils de pondération…")
+    progress(5, 'Preparing scoring profiles…')
     scoring_config = _materialize_scoring_profile(
         request.output_dir, request.use_custom_scoring
     )
     skill_priorities = _materialize_skill_priorities(
         request.output_dir, request.skill_priorities_path
     )
-    logger(f"Profil de pondération utilisé : {scoring_config}")
-    logger(f"Priorités white skills utilisées : {skill_priorities}")
+    logger(f'Scoring profile used: {scoring_config}')
+    logger(f'White-skill priorities used: {skill_priorities}')
 
-    progress(12, "Liaison des vétérans avec le MDB courant…")
+    progress(12, 'Linking veterans against the current MDB…')
     linked = link_veterans(
         request.master_path,
         request.veterans_json_path,
@@ -452,7 +465,7 @@ def run_optimization(
         logger,
     )
 
-    progress(46, "Génération des pondérations manuelles des white skills…")
+    progress(46, 'Generating manual white skill weights…')
     manual_weights = generate_manual_skill_weights(
         linked.skills_catalog_path,
         skill_priorities,
@@ -462,10 +475,10 @@ def run_optimization(
     )
 
     calculation_labels = {
-        "all": "Calcul des lignées et des paires de parents…",
-        "pairs": "Calcul des paires finales…",
-        "branches": "Classement des parents locaux…",
-        "future": "Classement des grands-parents locaux…",
+        "all": 'Calculating lineages and parent pairs…',
+        "pairs": 'Calculating final parent pairs…',
+        "branches": 'Ranking local parents…',
+        "future": 'Ranking local grandparents…',
     }
     progress(70, calculation_labels[request.search_kind])
     result = optimize_parents(
@@ -489,7 +502,7 @@ def run_optimization(
         logger=logger,
         checkpoint=checkpoint,
     )
-    progress(100, "Optimisation terminée.")
+    progress(100, 'Optimisation complete.')
     return result
 
 
@@ -500,15 +513,15 @@ def load_local_veteran_options(
     master = Path(master_path).expanduser()
     data_path = Path(veterans_json_path).expanduser()
     if not master.is_file():
-        raise OptimizerError("Sélectionne un master.mdb valide.")
+        raise OptimizerError('Select a valid master.mdb.')
     if not data_path.is_file():
-        raise OptimizerError("Sélectionne un export JSON de collection valide.")
+        raise OptimizerError('Select a valid JSON collection export.')
     identities = {option.card_id: option for option in load_ace_options(master)}
     try:
         payload = json.loads(data_path.read_text(encoding="utf-8-sig"))
         veterans = normalize_json_root(payload)
     except (OSError, json.JSONDecodeError, LinkerError) as exc:
-        raise OptimizerError(f"Impossible de charger les vétérans locaux : {exc}") from exc
+        raise OptimizerError(f'Unable to load local veterans: {exc}') from exc
 
     records: list[VeteranOption] = []
     for veteran in veterans:
@@ -553,16 +566,16 @@ def run_transfer_analysis(
         LinkRequest(request.master_path, request.veterans_json_path, request.output_dir)
     )
     if request.course_overrides_path is not None and not request.course_overrides_path.is_file():
-        raise TransferHelperError("Le fichier d’overrides de course est invalide.")
+        raise TransferHelperError('The course override file is invalid.')
 
-    progress(5, "Préparation des profils de pondération…")
+    progress(5, 'Preparing scoring profiles…')
     scoring_config = _materialize_scoring_profile(
         request.output_dir, request.use_custom_scoring
     )
     scoring_payload = read_json_object(scoring_config)
     helper_config = scoring_payload.setdefault("transfer_helper", {})
     if not isinstance(helper_config, dict):
-        raise ScoringConfigError("transfer_helper doit être un objet JSON.")
+        raise ScoringConfigError('transfer_helper must be a JSON object.')
     helper_config.update(
         {
             "analysis_mode": request.analysis_mode,
@@ -577,13 +590,13 @@ def run_transfer_analysis(
     skill_priorities = _materialize_skill_priorities(
         request.output_dir, request.skill_priorities_path
     )
-    logger(f"Profil de pondération utilisé : {scoring_config}")
-    logger(f"Priorités white skills utilisées : {skill_priorities}")
-    progress(12, "Liaison des vétérans avec le MDB courant…")
+    logger(f'Scoring profile used: {scoring_config}')
+    logger(f'White-skill priorities used: {skill_priorities}')
+    progress(12, 'Linking veterans against the current MDB…')
     linked = link_veterans(
         request.master_path, request.veterans_json_path, request.output_dir, logger
     )
-    progress(40, "Génération des pondérations manuelles des white skills…")
+    progress(40, 'Generating manual white skill weights…')
     manual_weights = generate_manual_skill_weights(
         linked.skills_catalog_path,
         skill_priorities,
@@ -591,7 +604,7 @@ def run_transfer_analysis(
         course_overrides_path=request.course_overrides_path,
         logger=logger,
     )
-    progress(62, "Analyse de tous les rôles et profils…")
+    progress(62, 'Analysing every role and profile…')
     result = analyze_transfer_candidates(
         request.master_path,
         linked.json_path,
@@ -603,7 +616,7 @@ def run_transfer_analysis(
         scoring_config_path=scoring_config,
         logger=logger,
     )
-    progress(100, "Transfer Helper terminé.")
+    progress(100, 'Transfer Helper complete.')
     return result
 
 
@@ -612,11 +625,11 @@ def _validated_online_request(request: OnlineSearchRequest) -> dict[int, int]:
         LinkRequest(request.master_path, request.veterans_json_path, request.output_dir)
     )
     if request.search_mode not in {"parent", "grandparent"}:
-        raise UmaMoeError("Type de recherche uma.moe invalide.")
+        raise UmaMoeError('Invalid uma.moe search type.')
     if request.ace_card_id <= 0:
-        raise UmaMoeError("Sélectionne l’Ace cible.")
+        raise UmaMoeError('Select the target Ace.')
     if request.search_mode == "grandparent" and not request.target_parent_card_id:
-        raise UmaMoeError("Sélectionne le parent à produire.")
+        raise UmaMoeError('Select the parent to produce.')
     # One MDB pass supplies validation, API affinity context and the documented
     # main-parent character-ID filters. Imported parent searches do not consume
     # any of these server-side fields and keep their lightweight path.
@@ -630,7 +643,7 @@ def _validated_online_request(request: OnlineSearchRequest) -> dict[int, int]:
         ace_chara = chara_by_card.get(request.ace_card_id)
         target_chara = chara_by_card.get(request.target_parent_card_id)
         if ace_chara is not None and ace_chara == target_chara:
-            raise UmaMoeError("L’Ace et le parent à produire doivent être différents.")
+            raise UmaMoeError('The Ace and the parent to produce must be different.')
         if request.fixed_local_id is not None and target_chara is not None:
             fixed = next(
                 (
@@ -644,29 +657,29 @@ def _validated_online_request(request: OnlineSearchRequest) -> dict[int, int]:
             )
             if fixed is not None and fixed.chara_id == target_chara:
                 raise UmaMoeError(
-                    "Un grand-parent ne peut pas être la même Uma que le parent à produire, quel que soit le costume."
+                    'A grandparent cannot be the same Uma as the parent being produced, regardless of costume.'
                 )
     if not request.automatic_pairs and request.fixed_local_id is None:
         role = "parent" if request.search_mode == "parent" else "GP"
         raise UmaMoeError(
-            f"Sélectionne un {role} local ou active le test automatique des paires."
+            f'Select a {role} local member or enable automatic pair testing.'
         )
     if request.use_import and (
         request.response_path is None or not request.response_path.is_file()
     ):
-        raise UmaMoeError("Sélectionne une réponse JSON uma.moe à importer.")
+        raise UmaMoeError('Select an uma.moe JSON response to import.')
     if request.required_parent_card_id in set(request.excluded_parent_card_ids):
-        raise UmaMoeError("Le costume requis est également exclu.")
+        raise UmaMoeError('The required costume is also excluded.')
     if (
         request.allowed_parent_card_ids
         and request.required_parent_card_id is not None
         and request.required_parent_card_id not in set(request.allowed_parent_card_ids)
     ):
         raise UmaMoeError(
-            "Le costume requis doit être présent dans les costumes autorisés."
+            'The required costume must be included in the allowed costumes.'
         )
     if request.course_overrides_path is not None and not request.course_overrides_path.is_file():
-        raise UmaMoeError("Le fichier d’overrides de course est invalide.")
+        raise UmaMoeError('The course override file is invalid.')
     return chara_by_card
 
 
@@ -734,14 +747,14 @@ def run_online_search(
     skill_priorities = _materialize_skill_priorities(
         output, request.skill_priorities_path
     )
-    logger(f"Profil de pondération utilisé : {scoring_config}")
-    logger(f"Priorités white skills utilisées : {skill_priorities}")
+    logger(f'Scoring profile used: {scoring_config}')
+    logger(f'White-skill priorities used: {skill_priorities}')
 
-    progress(8, "Liaison des vétérans locaux avec le MDB…")
+    progress(8, 'Linking local veterans against the MDB…')
     linked = link_veterans(
         request.master_path, request.veterans_json_path, output, logger
     )
-    progress(32, "Génération des priorités manuelles…")
+    progress(32, 'Generating manual priorities…')
     manual_weights = generate_manual_skill_weights(
         linked.skills_catalog_path,
         skill_priorities,
@@ -753,9 +766,9 @@ def run_online_search(
     if request.local_pair_mode:
         if request.search_mode != "grandparent":
             raise UmaMoeError(
-                "Les paires de GP locales nécessitent le mode grand-parent."
+                'Local GP pairs require the grandparent search mode.'
             )
-        progress(55, "Classement des paires de GP locales…")
+        progress(55, 'Ranking local GP pairs…')
         result = rank_online_grandparent_pairs(
             request.master_path,
             linked.json_path,
@@ -789,7 +802,7 @@ def run_online_search(
             lineage_pink_filter=request.lineage_pink_filter,
             logger=logger,
         )
-        progress(100, "Paires de GP locales classées.")
+        progress(100, 'Local GP pairs ranked.')
         return result
 
     linked_payload = (
@@ -855,7 +868,7 @@ def run_online_search(
         )
     if request.use_import:
         assert request.response_path is not None
-        progress(48, "Lecture de la réponse JSON uma.moe…")
+        progress(48, 'Reading uma.moe JSON response…')
         raw_payload = json.loads(
             request.response_path.read_text(encoding="utf-8-sig")
         )
@@ -867,7 +880,7 @@ def run_online_search(
         }
     else:
         desired = max(100, min(int(request.limit), MAX_FETCH_CANDIDATES))
-        progress(48, f"Recherche uma.moe paginée — objectif {desired} candidats…")
+        progress(48, f'Paginated uma.moe search — target {desired} candidates…')
         client = UmaMoeApiClient(
             request.api_base.strip() or DEFAULT_API_BASE,
             token=(request.token.strip() or None),
@@ -882,7 +895,7 @@ def run_online_search(
         ace_chara_id = chara_by_card.get(request.ace_card_id)
         if ace_chara_id is None:
             raise UmaMoeError(
-                "Impossible de résoudre l’Ace dans le master.mdb pour le contexte d’affinité uma.moe."
+                'Unable to resolve the Ace in master.mdb for the uma.moe affinity context.'
             )
         api_filters["player_chara_id"] = ace_chara_id
         if request.search_mode == "grandparent":
@@ -891,13 +904,12 @@ def run_online_search(
             )
             if target_chara_id is None:
                 raise UmaMoeError(
-                    "Impossible de résoudre le parent cible dans le master.mdb pour le contexte d’affinité uma.moe."
+                    'Unable to resolve the target parent in master.mdb for the uma.moe affinity context.'
                 )
             api_filters["player_chara_id_2"] = target_chara_id
         if lineage_api_diagnostics:
             logger(
-                "Filtres lignée appliqués par l’API avant pagination puis "
-                "revalidés localement : "
+                'Lineage filters applied by the API before pagination and then validated again locally: '
                 + ", ".join(
                     f"{item['factor']} ≥ {item['minimum_stars']}★"
                     for item in lineage_api_diagnostics.values()
@@ -915,8 +927,7 @@ def run_online_search(
             unresolved_cards = sorted(selected_cards - set(chara_by_card))
             if unresolved_cards:
                 logger(
-                    "Filtres costume incomplets dans le master.mdb : "
-                    "contrôle local uniquement, aucun filtre partiel envoyé."
+                    'Incomplete costume filters in master.mdb: local-only control, no partial filter sent.'
                 )
             else:
                 allowed_charas = sorted(
@@ -942,12 +953,11 @@ def run_online_search(
                     {chara_by_card[card_id] for card_id in excluded_cards}
                 ):
                     logger(
-                        "Certaines exclusions visent un costume et non le personnage entier : "
-                        "elles restent contrôlées localement pour préserver les autres costumes."
+                        'Some exclusions target a costume rather than the whole character: they stay controlled locally to preserve the other costumes.'
                     )
             if not documented:
                 logger(
-                    "Filtres costume non détectés dans l’OpenAPI : contrôle local uniquement."
+                    'Costume filters were not found in the OpenAPI schema; local validation only.'
                 )
         raw_payload, operation = client.search_many_planned(
             base_filters=api_filters,
@@ -961,7 +971,7 @@ def run_online_search(
         operation["effective_uql"] = effective_uql
         write_json_with_history(output / "uma_moe_api_response.json", raw_payload)
 
-    progress(72, "Calcul des meilleures paires — toutes les paires compatibles…")
+    progress(72, 'Calculating the best pairs — all compatible pairs…')
     common: dict[str, Any] = {
         "exhaustive_pairs": bool(request.automatic_pairs),
         "local_pool_size": max(1, min(int(request.local_pool_size), 250)),
@@ -1018,7 +1028,7 @@ def run_online_search(
             checkpoint=checkpoint,
             **common,
         )
-    progress(100, "Recherche uma.moe terminée.")
+    progress(100, 'uma.moe search complete.')
     return result
 
 
@@ -1054,7 +1064,7 @@ def run_extractor(
 ) -> Path:
     if not extractor.is_file():
         raise LinkerError(
-            "Sélectionne umaextractor.exe ou umadump.exe, ou utilise un export JSON existant."
+            'Select umaextractor.exe or umadump.exe, or use an existing JSON export.'
         )
     backend = extractor_backend(extractor)
     if backend == "umadump":
@@ -1067,7 +1077,7 @@ def _extractor_command(extractor: Path, arguments: list[str]) -> list[str]:
         return [str(extractor), *arguments]
     if getattr(sys, "frozen", False):
         raise LinkerError(
-            "La version Windows autonome nécessite un exécutable ; un script .py requiert une installation Python séparée."
+            'The standalone Windows build requires an executable; a .py script needs a separate Python installation.'
         )
     return [sys.executable, str(extractor), *arguments]
 
@@ -1091,11 +1101,11 @@ def _stream_extractor(command: list[str], cwd: Path, label: str, logger: LogCall
                 logger(f"{label}: {clean}")
         code = process.wait()
     if code != 0:
-        raise LinkerError(f"{label} s'est terminé avec le code {code}.")
+        raise LinkerError(f'{label} exited with code {code}.')
 
 
 def _run_umaextractor(extractor: Path, *, logger: LogCallback) -> Path:
-    logger(f"Lancement de {extractor.name} en mode CLI…")
+    logger(f'Launching {extractor.name} in CLI mode…')
     _stream_extractor(
         _extractor_command(extractor, ["--cli"]),
         extractor.parent,
@@ -1108,9 +1118,9 @@ def _run_umaextractor(extractor: Path, *, logger: LogCallback) -> Path:
     )
     for data_json in candidates:
         if data_json.is_file():
-            logger(f"JSON extrait : {data_json}")
+            logger(f'Extracted JSON: {data_json}')
             return data_json
-    raise LinkerError("UmaExtractor a terminé, mais aucun data.json n'a été trouvé.")
+    raise LinkerError('UmaExtractor completed, but no data.json was found.')
 
 
 def _run_umadump(
@@ -1120,7 +1130,7 @@ def _run_umadump(
     # from the output folder instead of leaving the files next to the tool.
     destination = Path(output_dir).expanduser() if output_dir else extractor.parent
     destination.mkdir(parents=True, exist_ok=True)
-    logger(f"Lancement de {extractor.name} — lecture de la mémoire du jeu…")
+    logger(f'Launching {extractor.name} — reading the game memory…')
     _stream_extractor(
         _extractor_command(extractor, ["--rerun-mode", "once", "--no-update-check"]),
         destination,
@@ -1133,10 +1143,10 @@ def _run_umadump(
     )
     for export in candidates:
         if export.is_file():
-            logger(f"JSON extrait : {export}")
+            logger(f'Extracted JSON: {export}')
             return export
     raise LinkerError(
-        "umadump a terminé, mais aucun trained_chara_data.json n'a été trouvé."
+        'umadump finished, but no trained_chara_data.json was found.'
     )
 
 
@@ -1147,17 +1157,17 @@ def run_extract_and_link(
     progress: ProgressCallback,
 ) -> ExtractLinkResult:
     if not request.master_path.is_file():
-        raise LinkerError("Sélectionne un master.mdb valide.")
+        raise LinkerError('Select a valid master.mdb.')
     request.output_dir.mkdir(parents=True, exist_ok=True)
-    progress(6, "Connexion au jeu et extraction…")
+    progress(6, 'Connecting to the game and extracting…')
     data_json = run_extractor(
         request.extractor_path, output_dir=request.output_dir, logger=logger
     )
-    progress(48, "Extraction terminée ; liaison…")
+    progress(48, 'Extraction complete; linking…')
     linked = link_veterans(
         request.master_path, data_json, request.output_dir, logger
     )
-    progress(100, "Extraction et liaison terminées.")
+    progress(100, 'Extraction and linking complete.')
     return ExtractLinkResult(data_json, linked)
 
 
@@ -1168,9 +1178,9 @@ def run_catalog(
     progress: ProgressCallback,
 ) -> SkillCatalogResult:
     if not request.master_path.is_file():
-        raise LinkerError("Sélectionne un master.mdb valide.")
+        raise LinkerError('Select a valid master.mdb.')
     request.output_dir.mkdir(parents=True, exist_ok=True)
-    progress(20, "Génération du catalogue skills…")
+    progress(20, 'Generating skill catalogue…')
     result = generate_skill_catalogs(request.master_path, request.output_dir, logger)
-    progress(100, "Catalogue généré.")
+    progress(100, 'Catalogue generated.')
     return result

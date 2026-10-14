@@ -141,7 +141,7 @@ def ordered_course_presets(payload: Mapping[str, Any]) -> list[tuple[str, dict[s
 
 
 def course_preset_label(course_key: str, course: Mapping[str, Any], language: str = "en") -> str:
-    localized = course.get(f"label_{language}")
+    localized = course.get("label_en")
     if localized:
         return str(localized)
     label = course.get("label")

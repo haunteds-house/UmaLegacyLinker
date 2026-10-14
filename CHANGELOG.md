@@ -4,6 +4,15 @@ This project uses feature-level semantic versioning. Small internal iterations a
 
 ## Unreleased
 
+- Use the haunteds-house fork as the Windows app base and integrate collection,
+  Team Trials evidence, training goals, raw game data and resource milestones in
+  a native Qt workbench page.
+- Link imported veterans directly with the fork's existing inheritance engine.
+- Replace French source copy with English labels, help, logs and CLI/report text;
+  remove the language selector and translation catalog.
+- Migrate saved race-condition labels while retaining their condition codes.
+- Read daemon exports separately and preserve the unmodified upstream umadump launcher.
+
 ## 1.9.0 - Desktop hardening and faster lineage searches
 
 ### Added

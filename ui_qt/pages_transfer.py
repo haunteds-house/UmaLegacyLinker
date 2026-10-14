@@ -77,11 +77,11 @@ STATE_STALE = "stale"
 STATE_LOADED = "loaded"
 
 STATE_LABELS = {
-    STATE_EMPTY: "Aucun rapport affiché",
-    STATE_RUNNING: "Analyse en cours",
-    STATE_READY: "Rapport à jour",
-    STATE_STALE: "Rapport périmé — les paramètres ont changé",
-    STATE_LOADED: "Rapport chargé depuis le disque",
+    STATE_EMPTY: 'No report displayed',
+    STATE_RUNNING: 'Analysis in progress',
+    STATE_READY: 'Report up to date',
+    STATE_STALE: 'Stale report — settings have changed',
+    STATE_LOADED: 'Report loaded from disk',
 }
 
 
@@ -249,14 +249,11 @@ class TransferPage(QWidget):
         self.status_combo.currentIndexChanged.connect(self._status_filter_changed)
         self.search.textChanged.connect(self.apply_filters)
         self.table.selectionModel().selectionChanged.connect(self._selection_changed)
-        self.context.language_changed.connect(self._language_changed)
         self.context.configuration_changed.connect(self._refresh_freshness)
         self.context.lineage_changed.connect(self._refresh_freshness)
         self.retranslate()
         self.load_latest(show_errors=False)
 
-    def _language_changed(self, _language: str) -> None:
-        self.retranslate()
 
     def _columns(self) -> list[Column]:
         t = self.context.t
@@ -265,11 +262,11 @@ class TransferPage(QWidget):
             "best_grandparent_percentile", default=100.0
         )
         labels = {
-            "safe_transfer": t("Transfert strictement sûr"),
-            "recommended_transfer": t("Transfert recommandé"),
-            "review": t("À examiner"),
-            "keep": t("Conserver"),
-            "protected": t("Protégé"),
+            "safe_transfer": t('Strictly safe transfer'),
+            "recommended_transfer": t('Recommended transfer'),
+            "review": t('Review'),
+            "keep": t('Keep'),
+            "protected": t('Protected'),
         }
 
         def coverage_label(row: dict[str, Any]) -> str:
@@ -280,8 +277,8 @@ class TransferPage(QWidget):
             return ", ".join(
                 canonical_veteran_labels(
                     coverage,
-                    rank_label=t("Rang").casefold(),
-                    blue_label=t("Bleues").casefold(),
+                    rank_label=t('rank').casefold(),
+                    blue_label=t('Blue Sparks').casefold(),
                 )
             ) or "—"
 
@@ -301,34 +298,34 @@ class TransferPage(QWidget):
         return [
             Column(t("Verdict"), lambda row: labels.get(str(row.get("status")), row.get("status") or "—")),
             Column(
-                t("Vétéran"),
+                t('Veteran'),
                 canonical_veteran_label,
                 sort_getter=nested("rank_score"),
                 tooltip_getter=technical_veteran_tooltip,
             ),
             Column(t("Copies"), nested("same_card_copy_count"), RIGHT),
-            Column(t("Meilleur parent"), nested("best_parent_score"), RIGHT),
+            Column(t('Best parent'), nested("best_parent_score"), RIGHT),
             Column(
-                t("Rang parent"),
+                t('Parent rank'),
                 lambda row: f"top {parent_percentile(row):.1f}%",
                 RIGHT,
                 sort_getter=parent_percentile,
             ),
-            Column(t("Meilleur GP"), nested("best_grandparent_score"), RIGHT),
+            Column(t('Best GP'), nested("best_grandparent_score"), RIGHT),
             Column(
-                t("Rang GP"),
+                t('GP rank'),
                 lambda row: f"top {grandparent_percentile(row):.1f}%",
                 RIGHT,
                 sort_getter=grandparent_percentile,
             ),
             Column(
-                t("Couverture / remplaçant"),
+                t('Coverage / replacement'),
                 coverage_label,
                 tooltip_getter=coverage_tooltip,
             ),
-            Column(t("Avance moy."), lambda row: (row.get("dominated_by") or {}).get("mean_score_lead", "—"), RIGHT),
-            Column(t("Référencé par"), nested("referenced_by_local_veterans"), RIGHT),
-            Column(t("ID technique"), nested("trained_chara_id"), RIGHT),
+            Column(t('Avg. lead'), lambda row: (row.get("dominated_by") or {}).get("mean_score_lead", "—"), RIGHT),
+            Column(t('Referenced by'), nested("referenced_by_local_veterans"), RIGHT),
+            Column(t('Technical ID'), nested("trained_chara_id"), RIGHT),
         ]
 
     def _configure_header(self) -> None:
@@ -345,83 +342,83 @@ class TransferPage(QWidget):
         t = self.context.t
         self.header.set_text(
             t("Transfer Helper"),
-            t("Identifie les copies redondantes sans jamais modifier l’export source ni prendre une décision à ta place."),
+            t('Identify redundant copies without ever modifying the source export or making a decision for you.'),
         )
         self.safety_text.setText(
-            t("Le socle permanent protège les usages futurs. L’audit exhaustif peut prouver un transfert strictement sûr ; en mode rapide, les redondances restent recommandées.")
+            t('The permanent baseline protects future uses. The exhaustive audit can prove a strictly safe transfer; in fast mode, redundancies remain recommendations.')
         )
-        self.mode_label.setText(t("Mode d’analyse"))
+        self.mode_label.setText(t('Analysis mode'))
         selected_mode = self.mode_combo.currentData() or self.context.store.get("transfer_analysis_mode", "fast")
         self.mode_combo.blockSignals(True)
         self.mode_combo.clear()
-        self.mode_combo.addItem(t("Rapide (recommandé)"), "fast")
-        self.mode_combo.addItem(t("Audit exhaustif (lent)"), "exhaustive")
+        self.mode_combo.addItem(t('Fast (recommended)'), "fast")
+        self.mode_combo.addItem(t('Exhaustive audit (slow)'), "exhaustive")
         selected_index = self.mode_combo.findData(selected_mode)
         self.mode_combo.setCurrentIndex(selected_index if selected_index >= 0 else 0)
         self.mode_combo.blockSignals(False)
-        self.upcoming_cm_check.setText(t("Inclure les prochaines CM"))
-        self.upcoming_cm_limit.setSuffix(" " + t("CM max."))
-        self.team_trials_check.setText(t("Inclure Team Trials"))
-        self.generic_profiles_check.setText(t("Inclure les profils génériques"))
-        self.run_button.setText(t("Analyser les vétérans locaux"))
-        self.load_button.setText(t("Historique"))
-        self.compare_button.setText(t("Comparer…"))
-        self.open_button.setText(t("Ouvrir la sortie"))
-        self.filter_label.setText(t("Afficher"))
-        self.search.setPlaceholderText(t("Rechercher un nom, un score ou un remplaçant…"))
+        self.upcoming_cm_check.setText(t('Include upcoming CMs'))
+        self.upcoming_cm_limit.setSuffix(" " + t('CMs max.'))
+        self.team_trials_check.setText(t('Include Team Trials'))
+        self.generic_profiles_check.setText(t('Include generic profiles'))
+        self.run_button.setText(t('Analyse local veterans'))
+        self.load_button.setText(t('History'))
+        self.compare_button.setText(t('Compare…'))
+        self.open_button.setText(t('Open output'))
+        self.filter_label.setText(t('Show'))
+        self.search.setPlaceholderText(t('Search a name, score, or replacement…'))
         self.mode_combo.setToolTip(
-            t("Le mode rapide repère les redondances ; seul l’audit exhaustif peut conclure à un transfert strictement sûr.")
+            t('Fast mode identifies redundancies; only the exhaustive audit can conclude that a transfer is strictly safe.')
         )
         self.upcoming_cm_check.setToolTip(
-            t("Évalue chaque vétéran dans le contexte des prochaines Champion Meetings configurées.")
+            t('Evaluate each veteran in the context of the configured upcoming Champion Meetings.')
         )
         self.upcoming_cm_limit.setToolTip(
-            t("Nombre maximal de prochaines Champion Meetings incluses dans l’analyse.")
+            t('Maximum number of upcoming Champion Meetings included in the analysis.')
         )
         self.team_trials_check.setToolTip(
-            t("Ajoute les rôles des cinq catégories Team Trials aux usages à préserver.")
+            t('Add roles from the five Team Trials categories to the uses that must be preserved.')
         )
         self.generic_profiles_check.setToolTip(
-            t("Ajoute des profils génériques pour protéger les usages qui ne dépendent pas d’une course planifiée.")
+            t('Add generic profiles to protect uses that do not depend on a planned race.')
         )
         self.run_button.setToolTip(
-            t("Analyse la collection sans modifier ni supprimer aucun vétéran.")
+            t('Analyse the collection without modifying or deleting any veteran.')
         )
         self.load_button.setToolTip(
-            t("Charge le rapport courant ou l’unique rapport précédent conservé sur le disque.")
+            t('Loads the current report or the single previous report retained on disk.')
         )
         self.compare_button.setToolTip(
-            t("Compare le vétéran sélectionné avec son remplaçant ou sa couverture conservée.")
+            t('Compares the selected veteran with their replacement or retained coverage.')
         )
         self.open_button.setToolTip(
-            t("Ouvre le dossier contenant le rapport JSON, le CSV et le résumé.")
+            t('Open the directory containing the JSON report, CSV, and summary.')
         )
         self.status_combo.setToolTip(
-            t("Filtre le tableau selon le niveau de confiance du diagnostic.")
+            t('Filter the table by diagnostic confidence level.')
         )
         self.table.setToolTip(
-            t("La couverture désigne le remplaçant ou l’ensemble de vétérans qui préserve les rôles compétitifs de la copie.")
+            t("Coverage means the replacement or set of veterans that preserves the copy's competitive roles.")
         )
         self.detail.setToolTip(
-            t("Le détail explique le verdict, les niches comparées, la dominance et les protections de Sparks appliquées.")
+            t('The detail explains the verdict, compared niches, dominance, and applied Spark protections.')
         )
         self.table.horizontalHeader().setToolTip(
-            t("Clic droit pour choisir les colonnes affichées ; largeur, ordre et tri sont mémorisés.")
+            t('Right-click to choose visible columns; widths, order and sorting are remembered.')
         )
         self.safe_card.setToolTip(
-            t("Un remplaçant du même costume et de la même unique couvre toutes les niches viables sans perte de patrimoine Spark protégé.")
+            t('A replacement with the same costume and Unique covers every viable niche without losing protected Spark heritage.')
         )
         self.recommended_card.setToolTip(
-            t("La copie paraît redondante, mais le mode rapide ne fournit pas une preuve suffisante pour la déclarer strictement sûre.")
+            t('The copy appears redundant, but fast mode does not provide enough evidence to declare it strictly safe.')
         )
         self.review_card.setToolTip(
-            t("Une niche, une couverture incomplète ou une protection de Spark impose une vérification manuelle.")
+            t('A niche, incomplete coverage, or Spark protection requires manual review.')
         )
         self.keep_card.setToolTip(
-            t("La copie conserve au moins un rôle compétitif ou un élément stratégique qui n’est pas suffisamment remplacé.")
+            t('The copy retains at least one competitive role or strategic asset that is not sufficiently replaced.')
         )
         self.protected_card.setToolTip(
-            t("Un verrou ou un mémo en jeu interdit toute recommandation de transfert, quel que soit le score.")
+            t('An in-game lock or memo prevents any transfer recommendation, regardless of score.')
         )
         selected = (
             self.status_combo.currentData()
@@ -431,12 +428,12 @@ class TransferPage(QWidget):
         self.status_combo.blockSignals(True)
         self.status_combo.clear()
         for label, value in (
-            ("Tous les verdicts", None),
-            ("Transfert strictement sûr", "safe_transfer"),
-            ("Transfert recommandé", "recommended_transfer"),
-            ("À examiner", "review"),
-            ("Conserver", "keep"),
-            ("Protégé", "protected"),
+            ('All verdicts', None),
+            ('Strictly safe transfer', "safe_transfer"),
+            ('Recommended transfer', "recommended_transfer"),
+            ('Review', "review"),
+            ('Keep', "keep"),
+            ('Protected', "protected"),
         ):
             self.status_combo.addItem(t(label), value)
         index = self.status_combo.findData(selected)
@@ -459,7 +456,7 @@ class TransferPage(QWidget):
         )
         describe_control(
             self.upcoming_cm_limit,
-            f"{self.upcoming_cm_check.text()} · {t('CM max.')}",
+            f"{self.upcoming_cm_check.text()} · {t('CMs max.')}",
             self.upcoming_cm_limit.toolTip(),
         )
         for check in (self.team_trials_check, self.generic_profiles_check):
@@ -471,12 +468,12 @@ class TransferPage(QWidget):
         )
         describe_control(
             self.table,
-            f"{t('Transfer Helper')} · {t('Résultats')}",
+            f"{t('Transfer Helper')} · {t('Results')}",
             self.table.toolTip(),
         )
         describe_control(
             self.detail,
-            f"{t('Transfer Helper')} · {t('Détail')}",
+            f"{t('Transfer Helper')} · {t('Details')}",
             self.detail.toolTip(),
         )
         self._refresh_cards()
@@ -537,7 +534,7 @@ class TransferPage(QWidget):
         self.result_state.style().unpolish(self.result_state)
         self.result_state.style().polish(self.result_state)
         self.generated_at.setText(
-            t("Rapport généré le {date}").replace("{date}", self._generated_at)
+            t('Report generated on {date}').replace("{date}", self._generated_at)
             if self._generated_at
             else ""
         )
@@ -554,7 +551,7 @@ class TransferPage(QWidget):
         )
         describe_control(
             self.revision_badge,
-            t("Traçabilité"),
+            t('Provenance'),
             self.revision_badge.toolTip(),
         )
         describe_control(
@@ -593,11 +590,11 @@ class TransferPage(QWidget):
             key = str(record.get("status") or "")
             if key in counts:
                 counts[key] += 1
-        self.safe_card.set_content(t("Strictement sûr"), str(counts["safe_transfer"]), t("Confirmé par audit exhaustif"), "ok")
-        self.recommended_card.set_content(t("Recommandé"), str(counts["recommended_transfer"]), t("Redondant dans le portefeuille"), "ok")
-        self.review_card.set_content(t("À examiner"), str(counts["review"]), t("Rôle incertain ou Spark à vérifier"), "warning")
-        self.keep_card.set_content(t("Conserver"), str(counts["keep"]), t("Nécessaire au portefeuille"), "info")
-        self.protected_card.set_content(t("Protégé"), str(counts["protected"]), t("Verrou ou mémo en jeu"), "neutral")
+        self.safe_card.set_content(t('Strictly safe'), str(counts["safe_transfer"]), t('Confirmed by exhaustive audit'), "ok")
+        self.recommended_card.set_content(t('Recommended'), str(counts["recommended_transfer"]), t('Redundant in the portfolio'), "ok")
+        self.review_card.set_content(t('Review'), str(counts["review"]), t('Uncertain role or Spark to review'), "warning")
+        self.keep_card.set_content(t('Keep'), str(counts["keep"]), t('Required by the portfolio'), "info")
+        self.protected_card.set_content(t('Protected'), str(counts["protected"]), t('In-game lock or memo'), "neutral")
 
     def set_records(self, records: list[dict[str, Any]]) -> None:
         self._records = list(records)
@@ -638,7 +635,7 @@ class TransferPage(QWidget):
                 self.table.horizontalHeader().sortIndicatorOrder(),
             )
         self.count_label.setText(
-            self.context.t("{shown} / {total} vétérans")
+            self.context.t('{shown} / {total} veterans')
             .replace("{shown}", str(len(rows)))
             .replace("{total}", str(len(self._records)))
         )
@@ -704,7 +701,7 @@ class TransferPage(QWidget):
     def _show_comparison_error(self, message: str) -> None:
         QMessageBox.information(
             self,
-            self.context.t("Comparaison"),
+            self.context.t('Comparison'),
             self.context.t(message),
         )
 
@@ -713,22 +710,22 @@ class TransferPage(QWidget):
         targets = self._comparison_targets(selected)
         if selected is None or not targets:
             self._show_comparison_error(
-                "Ce vétéran n’a aucun remplaçant ou élément de couverture comparable dans le rapport."
+                'This veteran has no comparable replacement or coverage item in the report.'
             )
             return
         source = transfer_comparison_dataset(
             [selected],
-            title=self.context.t("Vétéran évalué"),
+            title=self.context.t('Evaluated veteran'),
             provenance=self._provenance,
         )
         coverage = transfer_comparison_dataset(
             targets,
-            title=self.context.t("Couverture conservée"),
+            title=self.context.t('Retained coverage'),
             provenance=self._provenance,
         )
         ResultComparisonDialog(
             self.context,
-            title="Comparer vétéran et couverture",
+            title='Compare veteran and coverage',
             left=source,
             right=coverage,
             metrics=TRANSFER_METRICS,
@@ -759,7 +756,7 @@ class TransferPage(QWidget):
         )
         self.task_requested.emit(
             ProcessTask(partial(run_transfer_analysis, request)),
-            self.context.t("Analyse Transfer Helper…"),
+            self.context.t('Running Transfer Helper analysis…'),
             self._analysis_done,
         )
 
@@ -790,7 +787,7 @@ class TransferPage(QWidget):
         revisions = available_output_revisions(self._report_path())
         if not revisions:
             action = self.history_menu.addAction(
-                self.context.t("Aucune exécution enregistrée")
+                self.context.t('No saved run')
             )
             action.setEnabled(False)
             return
@@ -807,7 +804,7 @@ class TransferPage(QWidget):
         if {CURRENT_REVISION, PREVIOUS_REVISION}.issubset(revision_keys):
             self.history_menu.addSeparator()
             compare = self.history_menu.addAction(
-                self.context.t("Comparer courant ↔ précédent")
+                self.context.t('Compare current ↔ previous')
             )
             compare.triggered.connect(self.compare_history)
 
@@ -822,7 +819,7 @@ class TransferPage(QWidget):
         except (OSError, json.JSONDecodeError, ValueError) as exc:
             QMessageBox.warning(
                 self,
-                self.context.t("Comparaison"),
+                self.context.t('Comparison'),
                 actionable_error(exc, translate=self.context.t),
             )
             return
@@ -830,28 +827,28 @@ class TransferPage(QWidget):
         previous_records = previous_payload.get("records")
         if not isinstance(current_records, list) or not isinstance(previous_records, list):
             self._show_comparison_error(
-                "Les deux rapports doivent contenir une liste de résultats."
+                'Both reports must contain a result list.'
             )
             return
         current = transfer_comparison_dataset(
             (row for row in current_records if isinstance(row, dict)),
-            title=self.context.t("Exécution courante"),
+            title=self.context.t('Current run'),
             provenance=current_provenance,
         )
         previous = transfer_comparison_dataset(
             (row for row in previous_records if isinstance(row, dict)),
-            title=self.context.t("Exécution précédente"),
+            title=self.context.t('Previous run'),
             provenance=previous_provenance,
         )
         current, previous = intersect_datasets(current, previous)
         if not current.items:
             self._show_comparison_error(
-                "Aucun vétéran identifiable n’est commun aux deux exécutions."
+                'No identifiable veteran is shared by both runs.'
             )
             return
         ResultComparisonDialog(
             self.context,
-            title="Comparer avant / après recalcul",
+            title='Compare before / after recomputation',
             left=previous,
             right=current,
             metrics=TRANSFER_METRICS,
@@ -872,7 +869,7 @@ class TransferPage(QWidget):
             )
             records = payload.get("records")
             if not isinstance(records, list):
-                raise ValueError("Le rapport Transfer Helper ne contient pas de liste de résultats.")
+                raise ValueError('The Transfer Helper report does not contain a result list.')
             self.set_records([row for row in records if isinstance(row, dict)])
             self._provenance = provenance
             self._generated_at = format_output_timestamp(
@@ -885,7 +882,7 @@ class TransferPage(QWidget):
             if show_errors:
                 QMessageBox.information(
                     self,
-                    self.context.t("Dernier rapport"),
+                    self.context.t('Latest report'),
                     actionable_error(exc, translate=self.context.t),
                 )
 
@@ -905,6 +902,6 @@ class TransferPage(QWidget):
         except OSError as exc:
             QMessageBox.critical(
                 self,
-                self.context.t("Erreur"),
+                self.context.t('Error'),
                 actionable_error(exc, translate=self.context.t),
             )

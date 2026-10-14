@@ -77,38 +77,34 @@ class ToolsPage(QWidget):
         self.show_key.clicked.connect(self._toggle_key)
         self.save_integration_button.clicked.connect(self.save_integration)
         context.integration_changed.connect(self._sync_integration)
-        context.language_changed.connect(self._language_changed)
         self.retranslate()
 
-    def _language_changed(self, _language: str) -> None:
-        self.retranslate()
 
     def retranslate(self) -> None:
         t = self.context.t
         self.header.set_text(
-            t("Paramètres"),
-            t("Configure les intégrations stables et retrouve les outils techniques secondaires."),
+            t('Settings'),
+            t('Configure stable integrations and access secondary technical tools.'),
         )
-        self.integration_title.setText(t("Intégration uma.moe"))
+        self.integration_title.setText(t('uma.moe integration'))
         self.integration_hint.setText(
-            t("L’URL et la clé sont utilisées par toutes les recherches distantes. Elles ne modifient jamais les pondérations du score.")
+            t('The URL and key are used by every remote search. They never change scoring weights.')
         )
-        self.api_base_label.setText(t("Base API"))
-        self.api_key_label.setText(t("Clé API"))
+        self.api_base_label.setText(t('API base URL'))
+        self.api_key_label.setText(t('API key'))
         hidden = self.api_key.echoMode() == QLineEdit.EchoMode.Password
-        self.show_key.setText(t("Afficher" if hidden else "Masquer"))
+        self.show_key.setText(t('Show' if hidden else 'Hide'))
         if os.name == "nt":
-            remember_text = "Mémoriser la clé sur ce PC — chiffrée par Windows"
-            remember_tooltip = "La clé mémorisée est chiffrée par Windows pour ce compte utilisateur."
+            remember_text = 'Remember the key on this PC — encrypted by Windows'
+            remember_tooltip = 'The saved key is encrypted by Windows for this user account.'
         else:
-            remember_text = "Mémoriser la clé sur ce PC — fichier local non chiffré"
+            remember_text = 'Remember the key on this PC — unencrypted local file'
             remember_tooltip = (
-                "La clé mémorisée est stockée localement dans un fichier lisible uniquement "
-                "par ton compte utilisateur ; elle n’est pas chiffrée."
+                'The saved key is stored locally in a file readable only by your user account; it is not encrypted.'
             )
         self.remember_key.setText(t(remember_text))
         self.remember_key.setToolTip(t(remember_tooltip))
-        self.save_integration_button.setText(t("Enregistrer l’intégration"))
+        self.save_integration_button.setText(t('Save integration'))
         description = self.integration_hint.text()
         label_control(self.api_base_label, self.api_base, description)
         label_control(self.api_key_label, self.api_key, description)
@@ -129,7 +125,7 @@ class ToolsPage(QWidget):
         )
         describe_control(
             self.integration_status,
-            t("État"),
+            t('Status'),
             self.integration_status.text(),
         )
         self._update_integration_status()
@@ -139,7 +135,7 @@ class ToolsPage(QWidget):
         self.api_key.setEchoMode(
             QLineEdit.EchoMode.Normal if hidden else QLineEdit.EchoMode.Password
         )
-        self.show_key.setText(self.context.t("Masquer" if hidden else "Afficher"))
+        self.show_key.setText(self.context.t('Hide' if hidden else 'Show'))
         describe_control(
             self.show_key,
             self.show_key.text(),
@@ -155,11 +151,11 @@ class ToolsPage(QWidget):
     def _update_integration_status(self, saved: bool = False) -> None:
         t = self.context.t
         if self.api_key.text().strip():
-            status = t("Clé API configurée")
+            status = t('API key configured')
         else:
-            status = t("Aucune clé API configurée")
+            status = t('No API key configured')
         if saved:
-            status = t("Intégration enregistrée") + f" · {status}"
+            status = t('Integration saved') + f" · {status}"
         self.integration_status.setText(status)
         self.integration_status.setAccessibleDescription(status)
 
@@ -172,13 +168,13 @@ class ToolsPage(QWidget):
             )
         except (OSError, SecretStoreError) as exc:
             message = actionable_error(
-                f"La clé n’a pas pu être mémorisée.\n\n{exc}",
+                f'The key could not be saved.\n\n{exc}',
                 action=SECRET_STORAGE_GUIDANCE,
                 translate=self.context.t,
             )
             QMessageBox.warning(
                 self,
-                self.context.t("Clé API"),
+                self.context.t('API key'),
                 message,
             )
             return

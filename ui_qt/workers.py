@@ -53,7 +53,7 @@ class FunctionWorker(QRunnable):
 
     def _checkpoint(self) -> None:
         if self.cancel_event.is_set():
-            raise OperationCancelled("Tâche annulée par l'utilisateur.")
+            raise OperationCancelled('Task cancelled by the user.')
 
     def request_cancel(self, *, force: bool = False) -> None:
         del force
@@ -126,24 +126,24 @@ class ProcessFunctionWorker(QRunnable):
 
     def _relay_message(self, message: object) -> bool:
         if not isinstance(message, tuple) or len(message) != 2:
-            raise RuntimeError("Message IPC backend invalide.")
+            raise RuntimeError('Invalid backend IPC message.')
         kind, payload = message
         if kind == LOG_MESSAGE:
             self.signals.log.emit(str(payload))
         elif kind == PROGRESS_MESSAGE:
             if not isinstance(payload, tuple) or len(payload) != 2:
-                raise RuntimeError("Progression IPC backend invalide.")
+                raise RuntimeError('Invalid backend IPC progress message.')
             self.signals.progress.emit(int(payload[0]), str(payload[1]))
         elif kind == RESULT_MESSAGE:
             self.signals.result.emit(payload)
         elif kind == ERROR_MESSAGE:
             if not isinstance(payload, tuple) or len(payload) != 2:
-                raise RuntimeError("Erreur IPC backend invalide.")
+                raise RuntimeError('Invalid backend IPC error message.')
             self.signals.error.emit(str(payload[0]), str(payload[1]))
         elif kind == CANCELLED_MESSAGE:
             self.signals.cancelled.emit()
         else:
-            raise RuntimeError(f"Type de message IPC backend inconnu : {kind!r}")
+            raise RuntimeError(f'Unknown backend IPC message type: {kind!r}')
         return kind in TERMINAL_MESSAGES
 
     @Slot()
@@ -219,9 +219,8 @@ class ProcessFunctionWorker(QRunnable):
                     self.signals.cancelled.emit()
                 else:
                     self.signals.error.emit(
-                        "Le processus de calcul s’est arrêté de façon inattendue "
-                        f"(code {process.exitcode}).",
-                        "Aucun diagnostic backend n’a été reçu.",
+                        f'The calculation process stopped unexpectedly (exit code {process.exitcode}).',
+                        'No backend diagnostic was received.',
                     )
         except Exception as exc:
             if not terminal_received:

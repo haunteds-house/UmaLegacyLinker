@@ -25,6 +25,67 @@ class QtRuntimeSmokeTests(unittest.TestCase):
         assert QApplication is not None
         cls.application = QApplication.instance() or QApplication([])
 
+    def test_migrated_race_settings_keep_numeric_weather_and_season(self) -> None:
+        from ui_qt.context import AppContext
+        from ui_qt.lineage_settings import LineageRaceEditor
+        from uma_legacy_linker.application import SettingsStore
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            path = root / "config.json"
+            path.write_text(json.dumps({"output_dir": str(root / "output"),
+                "optimizer_season": "Été", "optimizer_weather": "Pluie",
+                "optimizer_ground": "Soft", "online_images": "0"}))
+            editor = LineageRaceEditor(AppContext(SettingsStore(path)))
+            conditions = editor.selected_conditions()
+            self.assertEqual(conditions["season"], 2)
+            self.assertEqual(conditions["weather"], 3)
+            self.assertEqual(conditions["ground_condition"], 3)
+            editor.close()
+
+    def test_workbench_imports_collection_and_uses_the_fork_linker(self) -> None:
+        from unittest.mock import patch
+        from ui_qt.context import AppContext
+        from ui_qt.pages_workbench import WorkbenchPage
+        from uma_legacy_linker.application import SettingsStore, run_link
+        from uma_workbench.core import Store
+        from tests.test_workbench_core import capture
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            config = SettingsStore(root / "config.json")
+            config.update({"output_dir": str(root / "output"), "online_images": "0"})
+            context = AppContext(config)
+            store = Store(root / "profile")
+            store.import_bytes("card_data.json", json.dumps([{"card_id": 100101}]).encode())
+            store.import_bytes("trained_chara_data.json", json.dumps([
+                {"trained_chara_id": 42, "card_id": 100101},
+            ]).encode())
+            store.import_bytes("race.json", json.dumps(capture()).encode())
+            page = WorkbenchPage(context, store=store)
+            page.master.path = root / "master.mdb"
+            page.master.path.touch()
+            requests, destinations = [], []
+            page.task_requested.connect(lambda operation, title, callback: requests.append((operation, callback)))
+            page.navigate_requested.connect(destinations.append)
+            with patch.object(page.master, "browse", return_value=[]):
+                page.prepare_lineage()
+                self.assertEqual(len(requests), 1)
+                operation, callback = requests[0]
+                self.assertIs(operation.func, run_link)
+                request = operation.args[0]
+                self.assertEqual(request.master_path, page.master.path)
+                exported = json.loads(request.veterans_json_path.read_text())
+                self.assertEqual(exported[0]["trained_chara_id"], 42)
+                self.assertEqual(page.tt.rowCount(), 1)
+                self.assertEqual(page.skills.rowCount(), 1)
+                callback(None)
+            self.assertEqual(destinations, ["search"])
+            self.assertEqual(Path(context.veterans_json_path), request.veterans_json_path)
+            self.assertEqual(page.tabs.count(), 6)
+            page.shutdown()
+            page.close()
+
     def test_every_page_constructs_and_retranslates(self) -> None:
         from ui_qt.context import AppContext
         from uma_legacy_linker.application import SettingsStore
@@ -36,21 +97,21 @@ class QtRuntimeSmokeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             store = SettingsStore(root / "config.json")
-            store.update({"output_dir": str(root / "output"), "ui_language": "fr"})
+            store.update({"output_dir": str(root / "output"), "ui_language": "en"})
             window = MainWindow(AppContext(store))
             window.show()
             self.application.processEvents()
             self.assertEqual(set(window._pages), {"home"})
             self.assertEqual(window.stack.count(), 1)
-            for language in ("fr", "en"):
-                window.context.set_language(language)
+            for language in ("en",):
+                window.context.configuration_changed.emit()
                 for page in window._nav_order:
                     window.show_page(page)
                     self.application.processEvents()
                     self.assertIs(window.stack.currentWidget(), window._pages[page])
             self.assertEqual(set(window._pages), set(window._nav_order))
             self.assertEqual(window.stack.count(), len(window._nav_order))
-            self.assertEqual(len(window._shortcuts), 8)
+            self.assertEqual(len(window._shortcuts), len(window._nav_order) + 2)
             self.assertTrue(
                 all(button.accessibleName() for button in window._nav_buttons.values())
             )
@@ -265,7 +326,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.assertIsNotNone(page._provenance)
             assert page._provenance is not None
             self.assertEqual(page._provenance.revision.key, PREVIOUS_REVISION)
-            self.assertIn("précédente", page.revision_badge.text())
+            self.assertIn("Previous", page.revision_badge.text())
             self.assertIn("transfer_helper_report.prev.json", page.revision_badge.toolTip())
             self.assertIn("veterans-old.json · old-sha256", page.revision_badge.toolTip())
             self.assertEqual(
@@ -274,7 +335,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
                     for action in page.history_menu.actions()
                     if not action.isSeparator()
                 ][-1],
-                "Comparer courant ↔ précédent",
+                'Compare current ↔ previous',
             )
             _dispose_widget(page, self.application)
 
@@ -292,7 +353,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             )
             candidate = {
                 "trained_chara_id": 1,
-                "card_name": "Candidate",
+                "card_name": 'Candidatee',
                 "rank_score": 100,
                 "status": "safe_transfer",
                 "dominated_by": {"trained_chara_id": 2},
@@ -437,8 +498,8 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
             self.assertEqual(data.extract_button.objectName(), "primary")
             self.assertNotEqual(data.link_button.objectName(), "primary")
-            self.assertEqual(data.extract_button.text(), "Extraire ma collection")
-            self.assertEqual(data.link_button.text(), "Relier un export existant")
+            self.assertEqual(data.extract_button.text(), 'Extract my collection')
+            self.assertEqual(data.link_button.text(), 'Link an existing export')
             self.assertTrue(data.extract_detail.text())
             self.assertTrue(data.link_detail.text())
             self.assertTrue(data.catalog_button.toolTip())
@@ -456,7 +517,6 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             ):
                 self.assertTrue(widget.toolTip(), type(widget).__name__)
 
-            context.set_language("en")
             self.assertEqual(data.extract_button.text(), "Extract my collection")
             self.assertEqual(data.link_button.text(), "Link an existing export")
             data.deleteLater()
@@ -482,12 +542,11 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             weights = window._pages["weights"]
             tools = window._pages["tools"]
 
-            for language in ("fr", "en"):
-                context.set_language(language)
+            for language in ("en",):
+                context.configuration_changed.emit()
                 self.application.processEvents()
 
                 for label, control in (
-                    (window.language_label, window.language_combo),
                     (search.ace_label, search.ace_combo),
                     (search.target_label, search.target_combo),
                     (search.top_label, search.top_spin),
@@ -788,8 +847,8 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.assertFalse(hasattr(first, "rotation_combo"))
             first.set_track_options(tracks)
             second.set_track_options(tracks)
-            self.assertEqual(context.lineage_state().rotation, "Droite")
-            self.assertEqual(state.season, "Automne")
+            self.assertEqual(context.lineage_state().rotation, 'Right')
+            self.assertEqual(state.season, 'Autumn')
             self.assertEqual(second.course_combo.currentData(), "full")
             self.assertEqual(second.track_combo.currentData(), 10008)
 
@@ -815,10 +874,10 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.assertEqual((state.surface, state.distance), ("dirt", "mile"))
             # Rotation is no longer accepted from a preset/manual control when
             # there is no resolved MDB track/course to derive it from.
-            self.assertEqual(state.rotation, "Non précisé")
-            self.assertEqual(state.season, "Non précisé")
-            self.assertEqual(state.weather, "Non précisé")
-            self.assertEqual(state.ground_condition, "Non précisé")
+            self.assertEqual(state.rotation, 'Unspecified')
+            self.assertEqual(state.season, 'Unspecified')
+            self.assertEqual(state.weather, 'Unspecified')
+            self.assertEqual(state.ground_condition, 'Unspecified')
             self.assertEqual(state.track_id, 0)
 
             second.course_combo.setCurrentIndex(0)
@@ -918,9 +977,9 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             # prose. The target section especially must not regress to the old
             # ``Ace → parent · N results`` sentence.
             objective_summary = search.section_objective.summary.text()
-            self.assertIn(context.t("Ace visé") + ":", objective_summary)
-            self.assertIn(context.t("Parent à produire") + ":", objective_summary)
-            self.assertIn(context.t("Résultats") + ":", objective_summary)
+            self.assertIn(context.t('Target Ace') + ":", objective_summary)
+            self.assertIn(context.t('Parent to produce') + ":", objective_summary)
+            self.assertIn(context.t('Results') + ":", objective_summary)
             self.assertNotIn(" → ", objective_summary)
             self.assertGreaterEqual(objective_summary.count("\n"), 2)
             self.assertTrue(search.section_objective.summary_visual.isVisible())
@@ -937,8 +996,8 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.assertGreaterEqual(objective_icons[0].pixmap().width(), 36)
 
             course_summary = search.section_course.summary.text()
-            self.assertIn(context.t("Profil") + ":", course_summary)
-            self.assertIn(context.t("Course") + ":", course_summary)
+            self.assertIn(context.t('Profile') + ":", course_summary)
+            self.assertIn(context.t('Race') + ":", course_summary)
             course_icons = search.section_course.summary_visual.findChildren(
                 QLabel, "settingSummaryIcon"
             )
@@ -946,16 +1005,16 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.assertGreaterEqual(course_icons[0].pixmap().width(), 26)
 
             remote_summary = search.section_online_parent.summary.text()
-            self.assertIn(context.t("Appariement") + ":", remote_summary)
-            self.assertIn(context.t("Candidats API") + ":", remote_summary)
-            self.assertIn(context.t("Pool de paires") + ":", remote_summary)
+            self.assertIn(context.t('Pairing') + ":", remote_summary)
+            self.assertIn(context.t('API candidates') + ":", remote_summary)
+            self.assertIn(context.t('Pair pool') + ":", remote_summary)
             self.assertNotIn(" · ", remote_summary)
 
-            context.update_lineage(season="Été", weather="Pluie")
+            context.update_lineage(season='Summer', weather='Rain')
             self.application.processEvents()
             summary = search.section_conditions.summary.text()
-            self.assertIn(context.t("Été"), summary)
-            self.assertIn(context.t("Pluie"), summary)
+            self.assertIn(context.t('Summer'), summary)
+            self.assertIn(context.t('Rain'), summary)
             condition_icons = search.section_conditions.summary_visual.findChildren(
                 QLabel, "settingSummaryIcon"
             )
@@ -965,8 +1024,8 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
             search.race_editor.clear_static_conditions()
             self.application.processEvents()
-            self.assertEqual(context.lineage_state().season, "Non précisé")
-            self.assertEqual(context.lineage_state().weather, "Non précisé")
+            self.assertEqual(context.lineage_state().season, 'Unspecified')
+            self.assertEqual(context.lineage_state().weather, 'Unspecified')
             self.assertFalse(search.section_conditions.modified.isVisible())
             # A path is user configuration, not a race condition: reset keeps it.
             self.assertEqual(
@@ -1232,7 +1291,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             assert view.provenance is not None
             self.assertEqual(view.provenance.revision.key, PREVIOUS_REVISION)
             self.assertEqual(view.profile["surface"], "dirt")
-            self.assertIn("Précédent", search.provenance_badge.text())
+            self.assertIn('Previous', search.provenance_badge.text())
             self.assertIn("uma_moe_parent_pairs.prev.json", search.provenance_badge.toolTip())
             self.assertIn("imported response", search.provenance_badge.toolTip())
             self.assertEqual(
@@ -1241,7 +1300,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
                     for action in search.history_menu.actions()
                     if not action.isSeparator()
                 ][-1],
-                "Comparer courant ↔ précédent",
+                'Compare current ↔ previous',
             )
             _dispose_widget(search, self.application)
 
@@ -1371,14 +1430,14 @@ class QtRuntimeSmokeTests(unittest.TestCase):
                 },
             ]
             left = search_comparison_dataset(
-                "branches", rows, title="Candidat A"
+                "branches", rows, title='Candidate A'
             )
             right = search_comparison_dataset(
-                "branches", rows, title="Candidat B"
+                "branches", rows, title='Candidate B'
             )
             dialog = ResultComparisonDialog(
                 context,
-                title="Comparer deux candidats",
+                title='Compare two candidates',
                 left=left,
                 right=right,
                 metrics=SEARCH_METRICS,
@@ -1393,7 +1452,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.assertEqual(dialog.metric_table.item(1, 3).text(), "+2.50")
             self.assertIn("First", dialog.left_detail.toPlainText())
             self.assertIn("Second", dialog.right_detail.toPlainText())
-            self.assertEqual(dialog.metric_table.accessibleName(), "Comparaison chiffrée")
+            self.assertEqual(dialog.metric_table.accessibleName(), 'Numeric comparison')
             self.assertFalse(
                 any("overflow" in issue for issue in audit_window(dialog))
             )
@@ -1439,8 +1498,8 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.application.processEvents()
             self.assertTrue(search.import_button.isVisible())
             self.assertTrue(search.local_gp_pairs_button.isVisible())
-            self.assertEqual(search.import_button.text(), "Reclasser JSON…")
-            self.assertIn("sans appel à l’API", search.import_button.toolTip())
+            self.assertEqual(search.import_button.text(), 'Re-rank JSON…')
+            self.assertIn("without calling the API", search.import_button.toolTip())
 
             local_profile = {
                 "surface": "turf",
@@ -1625,16 +1684,14 @@ class QtRuntimeSmokeTests(unittest.TestCase):
                 self.assertTrue(pane.detail.isHidden())
                 hidden_label = pane.detail_toggle.text()
 
-                # The choice survives a language switch.
-                context.set_language("en")
+                # The choice survives a display refresh.
                 self.application.processEvents()
                 self.assertTrue(pane.detail.isHidden())
-                self.assertNotEqual(pane.detail_toggle.text(), hidden_label)
+                self.assertEqual(pane.detail_toggle.text(), hidden_label)
 
                 pane.set_detail_hidden(False)
                 self.application.processEvents()
                 self.assertFalse(pane.detail.isHidden())
-                context.set_language("fr")
                 self.application.processEvents()
 
             _dispose_widget(search, self.application)
@@ -1684,12 +1741,12 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             lineage = LineageRaceEditor(context)
             weights = WeightsPage(context)
 
-            self.assertEqual(weights.export_button.text(), "Exporter le profil…")
-            self.assertEqual(weights.reset_all_button.text(), "Rétablir tout")
-            self.assertEqual(weights.reset_button.text(), "Rétablir la valeur")
-            self.assertEqual(weights.reset_group_button.text(), "Rétablir le bloc")
-            self.assertEqual(weights.open_priority_button.text(), "Ouvrir le fichier")
-            self.assertEqual(weights.reset_priority_button.text(), "Rétablir le défaut")
+            self.assertEqual(weights.export_button.text(), 'Export profile…')
+            self.assertEqual(weights.reset_all_button.text(), 'Restore all')
+            self.assertEqual(weights.reset_button.text(), 'Restore value')
+            self.assertEqual(weights.reset_group_button.text(), 'Restore block')
+            self.assertEqual(weights.open_priority_button.text(), 'Open file')
+            self.assertEqual(weights.reset_priority_button.text(), 'Restore default')
 
             weights.priority_picker.set_text(str(first_profile))
             weights.priority_picker.path_changed.emit(str(first_profile))
@@ -1841,14 +1898,14 @@ class QtRuntimeSmokeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             store = SettingsStore(root / "config.json")
-            store.update({"output_dir": str(root / "output"), "ui_language": "fr"})
+            store.update({"output_dir": str(root / "output"), "ui_language": "en"})
             window = MainWindow(AppContext(store))
             window.resize(1120, 720)
             window.show()
             self.application.processEvents()
             try:
-                for language in ("fr", "en"):
-                    window.context.set_language(language)
+                for language in ("en",):
+                    window.context.configuration_changed.emit()
                     window.show_page("data")
                     self.application.processEvents()
                     self.assertFalse(
@@ -2308,7 +2365,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.assertEqual(page.percent_slider.value(), 375)
             self.assertAlmostEqual(float(page._read_editor_value()), 0.375)
             self.assertTrue(page._editor_pending)
-            self.assertEqual(page.draft_state.text(), "Modification en cours")
+            self.assertEqual(page.draft_state.text(), 'Editing in progress')
             page.search.setText(str(percentage_row["label"]))
             self.application.processEvents()
             self.assertAlmostEqual(page.percent_spin.value(), 37.5)
@@ -2368,7 +2425,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             )
             page._show_selection(probability_row)
             self.assertEqual(page._editor_kind, "percentage")
-            self.assertEqual(page.type_badge.text(), "Probabilité")
+            self.assertEqual(page.type_badge.text(), 'Probability')
             boolean_row = next(
                 row
                 for row in page._all_rows

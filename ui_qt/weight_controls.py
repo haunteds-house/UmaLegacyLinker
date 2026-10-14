@@ -6,18 +6,18 @@ from typing import Any
 
 
 CATEGORY_SOURCES: tuple[tuple[str, str], ...] = (
-    ("all", "Tous les réglages"),
-    ("global", "Composition des scores"),
-    ("aptitudes", "Héritage des aptitudes"),
-    ("future_gp", "Présélection des futurs GP"),
+    ("all", 'All settings'),
+    ("global", 'Score composition'),
+    ("aptitudes", 'Aptitude inheritance'),
+    ("future_gp", 'Future-GP preselection'),
     ("blue", "Blue Sparks"),
     ("white", "White Skills"),
-    ("unique", "Uniques héritées"),
-    ("affinity", "Affinité et Race Sparks"),
-    ("course", "Conditions de course et Greens"),
-    ("online", "Réglages uma.moe"),
+    ("unique", 'Inherited Uniques'),
+    ("affinity", 'Affinity and Race Sparks'),
+    ("course", 'Race conditions and Greens'),
+    ("online", 'uma.moe settings'),
     ("transfer", "Transfer Helper"),
-    ("other", "Autres"),
+    ("other", 'Other'),
 )
 CATEGORY_ORDER = {key: index for index, (key, _source) in enumerate(CATEGORY_SOURCES)}
 
@@ -31,181 +31,181 @@ def weight_subcategory(path: Sequence[str]) -> tuple[str, str, int]:
 
     if root == "mode_weights":
         groups = {
-            "parent_branch": ("global.parent_branch", "Score d’une branche parent", 10),
-            "parent_pair": ("global.parent_pair", "Score de la paire finale", 20),
+            "parent_branch": ("global.parent_branch", 'Parent-branch score', 10),
+            "parent_pair": ("global.parent_pair", 'Final-pair score', 20),
             "future_grandparent": (
                 "global.future_grandparent",
-                "Score d’un futur grand-parent",
+                'Future-grandparent score',
                 30,
             ),
         }
         return groups.get(
             path[1] if len(path) > 1 else "",
-            ("global.other", "Autres réglages globaux", 90),
+            ("global.other", 'Other global settings', 90),
         )
 
     if root == "blue_stat_weights_by_distance":
         distance = path[1] if len(path) > 1 else ""
         labels = {
-            "sprint": "Stats prioritaires · Sprint",
-            "mile": "Stats prioritaires · Mile",
-            "medium": "Stats prioritaires · Medium",
-            "long": "Stats prioritaires · Long",
+            "sprint": 'Priority stats · Sprint',
+            "mile": 'Priority stats · Mile',
+            "medium": 'Priority stats · Medium',
+            "long": 'Priority stats · Long',
         }
         order = {"sprint": 10, "mile": 20, "medium": 30, "long": 40}
         return (
             f"blue.stats.{distance}",
-            labels.get(distance, "Stats prioritaires"),
+            labels.get(distance, 'Priority stats'),
             order.get(distance, 45),
         )
     if root == "blue_star_quality":
-        return ("blue.star_quality", "Qualité des Blue Sparks par étoiles", 50)
+        return ("blue.star_quality", 'Blue Spark quality by stars', 50)
     if root == "blue_score_influence_by_distance":
-        return ("blue.influence", "Influence des Blues par distance", 60)
+        return ("blue.influence", 'Blue Spark influence by distance', 60)
     if root == "blue_neutral_score":
-        return ("blue.neutral", "Point neutre des Blues", 70)
+        return ("blue.neutral", 'Blue Spark neutral point', 70)
     if root == "scenario_inheritance":
         return (
             "blue.scenario_inheritance",
-            "Scenario Sparks · valeur attendue dans les Blues",
+            'Scenario Sparks · expected value in Blues',
             80,
         )
 
     if root == "unique_star_quality":
-        return ("unique.star_quality", "Qualité par étoiles", 10)
+        return ("unique.star_quality", 'Quality by stars', 10)
     if root in {"star_quality", "race_factor"}:
         return (
             "affinity.race_quality",
-            "Race Sparks · qualité par étoiles",
+            'Race Sparks · quality by stars',
             10,
         )
     if root == "race_saturation":
         return (
             "affinity.race_saturation",
-            "Race Sparks · saturation",
+            'Race Spark saturation',
             20,
         )
     if root == "affinity" and leaf in {"g1_common_bonus", "same_character_compatibility"}:
-        return ("affinity.bonuses", "Affinité · bonus et compatibilité", 30)
+        return ("affinity.bonuses", 'Affinity · bonuses and compatibility', 30)
     if root == "affinity" and leaf.endswith("thresholds"):
-        return ("affinity.curves", "Affinité et G1 · courbes de score", 40)
+        return ("affinity.curves", 'Affinity and G1 · scoring curves', 40)
     if root == "affinity":
-        return ("affinity.system", "Affinité · moteur de calcul", 50)
+        return ("affinity.system", 'Affinity · calculation engine', 50)
 
     if root == "position_transmission":
-        return ("white.position", "Position dans la lignée", 10)
+        return ("white.position", 'Position in the lineage', 10)
     if root == "white_saturation":
-        return ("white.saturation", "Rendement décroissant", 20)
+        return ("white.saturation", 'Diminishing returns', 20)
     if root == "white_generation":
-        return ("white.generation", "Répétition dans la lignée", 30)
+        return ("white.generation", 'Repetition in the lineage', 30)
     if (
         root == "white_inheritance"
         and "base_proc_rates" in path
         and "race_base_proc_rates" not in path
     ):
-        return ("white.direct_proc", "Procs des White Skills", 40)
+        return ("white.direct_proc", 'White Skill proc rates', 40)
     if root == "white_inheritance" and "race_base_proc_rates" in path:
-        return ("white.race_proc", "Procs des Race Sparks", 50)
+        return ("white.race_proc", 'Race Spark proc rates', 50)
     if root == "white_inheritance":
-        return ("white.model", "Probabilité finale et diversité", 60)
+        return ("white.model", 'Final probability and diversity', 60)
 
     if root == "course_conditions" and leaf == "active_green_floor":
-        return ("course.general", "Plancher générique des Green Skills", 10)
+        return ("course.general", 'General Green Skill floor', 10)
     if root == "course_conditions" and "floors" in path:
-        return ("course.floors", "Planchers par condition de course", 20)
+        return ("course.floors", 'Floors by race condition', 20)
     if root == "course_conditions":
-        return ("course.modes", "Mode d’application par condition", 30)
+        return ("course.modes", 'Application mode by condition', 30)
 
     if root == "uma_moe_pair" and len(path) > 1 and path[1] == "weights":
-        return ("online.final_mix", "Répartition de la paire de GP", 10)
+        return ("online.final_mix", 'GP-pair distribution', 10)
     if (
         root == "uma_moe_pair"
         and len(path) > 1
         and path[1] == "preselection_weights"
     ):
-        return ("online.preselection_mix", "Répartition de la présélection GP", 20)
+        return ("online.preselection_mix", 'GP preselection distribution', 20)
     if root == "uma_moe_pair" and len(path) > 1 and path[1] == "contextual_opponent":
-        return ("online.contextual_opponent", "Recherche avec parent opposé fixé", 45)
+        return ("online.contextual_opponent", 'Search with a fixed opposing parent', 45)
     if root == "uma_moe_pair" and "affinity" in leaf:
-        return ("online.affinity_curves", "Courbes d’affinité uma.moe", 30)
+        return ("online.affinity_curves", 'uma.moe affinity curves', 30)
     if root == "uma_moe_pair" and leaf.endswith("thresholds"):
-        return ("online.potential_curves", "Courbes de potentiel uma.moe", 40)
+        return ("online.potential_curves", 'uma.moe potential curves', 40)
     if root == "uma_moe_pair":
-        return ("online.g1", "Hypothèses et potentiel G1", 50)
+        return ("online.g1", 'G1 assumptions and potential', 50)
 
     if root == "uma_moe_parent_search":
         stage = path[1] if len(path) > 1 else ""
         if stage == "retrieval":
             return (
                 "online.parent_retrieval",
-                "Cohortes de récupération des parents API",
+                'API parent-retrieval cohorts',
                 60,
             )
         return (
             "online.parent_preselection",
-            "Présélection des paires locales × distantes",
+            'Local × remote pair preselection',
             70,
         )
 
     if root == "transfer_helper" and "spark_protection" in path:
         return (
             "transfer.spark_protection",
-            "Protection du patrimoine Spark",
+            'Spark heritage protection',
             50,
         )
     if root == "transfer_helper" and (
         leaf.startswith("include_")
         or leaf in {"analysis_mode", "upcoming_cm_limit", "minimum_ace_aptitude_rank"}
     ):
-        return ("transfer.scope", "Périmètre d’analyse", 10)
+        return ("transfer.scope", 'Analysis scope', 10)
     if root == "transfer_helper" and leaf in {
         "competitive_score_floor",
         "competitive_utility_floor",
         "elite_utility_floor",
         "minimum_absolute_floor_ratio",
     }:
-        return ("transfer.thresholds", "Seuils de compétitivité", 20)
+        return ("transfer.thresholds", 'Competitive thresholds', 20)
     if root == "transfer_helper" and leaf in {
         "dominance_tolerance",
         "dominance_mean_margin",
     }:
-        return ("transfer.dominance", "Comparaison des remplaçants", 30)
+        return ("transfer.dominance", 'Replacement comparison', 30)
     if root == "transfer_helper" and leaf == "portfolio_regret_tolerance":
-        return ("transfer.portfolio", "Couverture du portefeuille", 35)
+        return ("transfer.portfolio", 'Portfolio coverage', 35)
     if root == "transfer_helper" and leaf in {
         "minimum_competitive_contexts",
         "minimum_distinct_profiles",
     }:
-        return ("transfer.repetition", "Répétition des rôles compétitifs", 40)
+        return ("transfer.repetition", 'Recurring competitive roles', 40)
     if root == "transfer_helper":
-        return ("transfer.utility_mix", "Répartition de l’utilité", 50)
+        return ("transfer.utility_mix", 'Utility distribution', 50)
 
     if root == "aptitude_inheritance":
         if "pink_base_proc_rates" in path or leaf in {
             "inspiration_event_count",
             "ignore_multi_rank_procs",
         }:
-            return ("aptitudes.proc", "Taux de proc des Pink Sparks", 10)
+            return ("aptitudes.proc", 'Pink Spark proc rates', 10)
         if "dimension_weights_by_mode" in path:
             mode = path[2] if len(path) > 2 else ""
             if mode == "parent_pair":
                 return (
                     "aptitudes.mix.parent_pair",
-                    "Répartition des aptitudes · Paire finale",
+                    'Aptitude shares · Final pair',
                     20,
                 )
             return (
                 "aptitudes.mix.parent_branch",
-                "Répartition des aptitudes · Branche parent",
+                'Aptitude shares · Parent branch',
                 30,
             )
         if "partial_scoring" in path:
-            return ("aptitudes.partial", "Estimation partielle · Branche parent", 40)
+            return ("aptitudes.partial", 'Estimation partielle · Branch parent', 40)
         dimension = path[1] if len(path) > 1 else ""
         dimension_labels = {
             "distance": "Distance",
             "surface": "Surface",
-            "style": "Style",
+            "style": 'Running style',
         }
         dimension_order = {"distance": 50, "surface": 80, "style": 100}.get(
             dimension, 120
@@ -213,20 +213,20 @@ def weight_subcategory(path: Sequence[str]) -> tuple[str, str, int]:
         if "b_compensation" in path:
             return (
                 "aptitudes.distance.compensation",
-                "Distance · compensation d’un départ B",
+                'Distance · B-start compensation',
                 60,
             )
         if leaf == "s_probability_curve":
             name = dimension_labels.get(dimension, "Aptitude")
             return (
                 f"aptitudes.{dimension}.curve",
-                f"{name} · courbe de P(S)",
+                f'{name} · P(S) curve',
                 dimension_order + 10,
             )
         name = dimension_labels.get(dimension, "Aptitude")
         return (
             f"aptitudes.{dimension}.score",
-            f"{name} · score des départs A/B",
+            f'{name} · A/B starting-rank score',
             dimension_order,
         )
 
@@ -234,26 +234,26 @@ def weight_subcategory(path: Sequence[str]) -> tuple[str, str, int]:
         if leaf == "g1_win_probability_cutoff":
             return (
                 "future_gp.race_viability",
-                "G1 · Entraînement indépendant",
+                'G1 · Independent Training',
                 5,
             )
         if "pink_dimension_weights" in path:
             return (
                 "future_gp.dimensions",
-                "Aptitudes ciblées",
+                'Target aptitudes',
                 10,
             )
         if "pink_star_quality" in path:
-            return ("future_gp.pink_quality", "Qualité des Pink Sparks", 20)
+            return ("future_gp.pink_quality", 'Pink Spark quality', 20)
         if "pink_need_multiplier" in path:
-            return ("future_gp.need", "Besoin selon le rang de base", 30)
+            return ("future_gp.need", 'Need by base rank', 30)
         return (
             "future_gp.white_quality",
-            "Qualité directe des White Skills",
+            'Direct White Skill quality',
             40,
         )
 
-    return ("other", "Autres réglages", 999)
+    return ("other", 'Other settings', 999)
 
 
 def weight_sort_key(path: Sequence[str]) -> tuple[int, int, tuple[str, ...]]:

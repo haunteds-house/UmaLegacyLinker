@@ -70,11 +70,11 @@ class NormalizationContractTests(unittest.TestCase):
 
     def test_invalid_roots_raise_clear_linker_errors(self) -> None:
         cases = (
-            (None, "liste ou un objet"),
-            (42, "liste ou un objet"),
-            ("veterans", "liste ou un objet"),
-            ({}, "liste de vétérans reconnue"),
-            ({"veterans": {}}, "liste de vétérans reconnue"),
+            (None, "list or an object"),
+            (42, "list or an object"),
+            ("veterans", "list or an object"),
+            ({}, "recognised veteran list"),
+            ({"veterans": {}}, "recognised veteran list"),
         )
         for payload, message in cases:
             with self.subTest(payload=payload):
@@ -82,7 +82,7 @@ class NormalizationContractTests(unittest.TestCase):
                     normalize_json_root(payload)
 
     def test_non_object_veteran_reports_its_index(self) -> None:
-        with self.assertRaisesRegex(LinkerError, r"vétéran #1 invalide"):
+        with self.assertRaisesRegex(LinkerError, r"Veteran entry #1 is invalid"):
             normalize_json_root([{"trained_chara_id": 1}, None])
 
 
@@ -508,11 +508,11 @@ class LinkVeteransIntegrationTests(unittest.TestCase):
             self.assertEqual(rows[0]["lineage_g1_union_count"], "3")
 
             report = result.report_path.read_text(encoding="utf-8")
-            self.assertIn("Vétérans : 2", report)
-            self.assertIn("Factor IDs non résolus :\n999", report)
-            self.assertIn("Costume IDs non résolus :\n404", report)
+            self.assertIn('Veterans: 2', report)
+            self.assertIn('Unresolved factor IDs:\n999', report)
+            self.assertIn('Unresolved costume IDs:\n404', report)
             self.assertTrue(
-                any("vétéran(s) emprunté(s) écarté(s)" in line for line in logs)
+                any("borrowed veteran(s) skipped" in line for line in logs)
             )
 
             manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
@@ -528,7 +528,7 @@ class LinkVeteransIntegrationTests(unittest.TestCase):
                 cached = link_veterans(master, source, output, logger=logs.append)
             self.assertTrue(cached.reused)
             self.assertEqual(self.FakeResolver.created_count, 1)
-            self.assertTrue(any("réutilisation" in line for line in logs))
+            self.assertTrue(any("reusing" in line for line in logs))
 
             source.write_text(source.read_text(encoding="utf-8") + "\n", encoding="utf-8")
             self.assertEqual(
@@ -597,7 +597,7 @@ class LinkVeteransIntegrationTests(unittest.TestCase):
     def test_missing_input_files_fail_before_resolver_creation(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            with self.assertRaisesRegex(LinkerError, "MDB introuvable"):
+            with self.assertRaisesRegex(LinkerError, "MDB not found"):
                 link_veterans(root / "missing.mdb", root / "missing.json", root)
 
 

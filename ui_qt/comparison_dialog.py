@@ -38,11 +38,11 @@ from ui_qt.table_typography import enable_tabular_numbers
 Renderer = Callable[[ComparisonItem, ComparisonDataset], str]
 
 TRANSFER_STATUS_LABELS = {
-    "safe_transfer": "Transfert strictement sûr",
-    "recommended_transfer": "Transfert recommandé",
-    "review": "À examiner",
-    "keep": "Conserver",
-    "protected": "Protégé",
+    "safe_transfer": 'Strictly safe transfer',
+    "recommended_transfer": 'Recommended transfer',
+    "review": 'Review',
+    "keep": 'Keep',
+    "protected": 'Protected',
 }
 
 
@@ -78,7 +78,7 @@ class ResultComparisonDialog(QDialog):
         root.setSpacing(10)
         self.explanation = muted_label(
             context.t(
-                "Les valeurs et diagnostics restent ceux des rapports enregistrés ; l’écart est calculé droite moins gauche."
+                'Values and diagnostics remain those of the saved reports; the delta is right minus left.'
             )
         )
         root.addWidget(self.explanation)
@@ -114,10 +114,10 @@ class ResultComparisonDialog(QDialog):
         enable_tabular_numbers(self.metric_table)
         self.metric_table.setHorizontalHeaderLabels(
             [
-                context.t("Métrique"),
+                context.t('Metric'),
                 left.title,
                 right.title,
-                context.t("Écart droite − gauche"),
+                context.t('Right − left delta'),
             ]
         )
         self.metric_table.verticalHeader().setVisible(False)
@@ -145,7 +145,7 @@ class ResultComparisonDialog(QDialog):
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.button(QDialogButtonBox.StandardButton.Close).setText(
-            context.t("Fermer")
+            context.t('Close')
         )
         buttons.rejected.connect(self.reject)
         root.addWidget(buttons)
@@ -165,17 +165,17 @@ class ResultComparisonDialog(QDialog):
         label_control(self.right_title, self.right_combo, self.explanation.text())
         describe_control(
             self.metric_table,
-            context.t("Comparaison chiffrée"),
+            context.t('Numeric comparison'),
             self.explanation.text(),
         )
         describe_control(
             self.left_detail,
-            f"{context.t('Détail')} · {left.title}",
+            f"{context.t('Details')} · {left.title}",
             self.explanation.text(),
         )
         describe_control(
             self.right_detail,
-            f"{context.t('Détail')} · {right.title}",
+            f"{context.t('Details')} · {right.title}",
             self.explanation.text(),
         )
         self._render()

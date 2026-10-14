@@ -168,7 +168,7 @@ def run_audit(output_dir: Path) -> dict[str, object]:
         store.update(
             {
                 "output_dir": str(temp / "output"),
-                "ui_language": "fr",
+                "ui_language": "en",
                 "online_images": "0",
             }
         )
@@ -178,8 +178,8 @@ def run_audit(output_dir: Path) -> dict[str, object]:
         application.processEvents()
         for section in window.findChildren(CollapsibleSection):
             section.toggle.setChecked(True)
-        for language in ("fr", "en"):
-            window.context.set_language(language)
+        for language in ("en",):
+            window.context.configuration_changed.emit()
             for page in window._nav_order:  # intentional internal QA hook
                 window.show_page(page)
                 application.processEvents()

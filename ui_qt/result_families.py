@@ -114,37 +114,37 @@ def _state_icon(state: str) -> QIcon:
     return QIcon(pixmap)
 
 STATE_LABELS = {
-    STATE_EMPTY: "Aucun résultat",
-    STATE_RUNNING: "Calcul en cours",
-    STATE_READY: "Résultat à jour",
-    STATE_STALE: "Le contexte a changé depuis ce calcul",
-    STATE_LOADED: "Résultat chargé depuis le disque",
+    STATE_EMPTY: 'No result yet',
+    STATE_RUNNING: 'Running',
+    STATE_READY: 'Result ready',
+    STATE_STALE: 'The context changed since this computation',
+    STATE_LOADED: 'Result loaded from disk',
 }
 
 FAMILY_TITLES = {
-    PAIRS: "Paires",
-    BRANCHES: "Parents",
-    FUTURE: "GP futurs",
-    ONLINE_PARENT: "moe · Parents",
-    ONLINE_GP: "moe · GP",
+    PAIRS: 'Pairs',
+    BRANCHES: 'Parent candidates',
+    FUTURE: 'Future GPs',
+    ONLINE_PARENT: 'moe · Remote parents',
+    ONLINE_GP: 'moe · Remote GPs',
 }
 
 FAMILY_HINTS = {
-    PAIRS: "Les meilleures paires de parents locaux pour l’Ace visé.",
-    BRANCHES: "Les meilleurs parents locaux pris individuellement, avec leur branche complète.",
-    FUTURE: "Les meilleurs grands-parents locaux pour produire le parent visé.",
-    ONLINE_PARENT: "Des parents publics uma.moe combinés à ta collection, classés par le moteur exact local.",
-    ONLINE_GP: "Des grands-parents publics uma.moe pour produire le parent visé.",
+    PAIRS: 'The best local parent pairs for the target Ace.',
+    BRANCHES: 'The best local parents taken individually, with their complete branch.',
+    FUTURE: 'The best local grandparents for producing the target parent.',
+    ONLINE_PARENT: 'Public uma.moe parents paired with your collection, ranked by the exact local engine.',
+    ONLINE_GP: 'Public uma.moe grandparents for producing the target parent.',
 }
 
 # Short on purpose: the tab already names the subject, so the button only has
 # to carry the verb — and a long label crowds the toolbar out at 1120 px.
 FAMILY_RUN_LABELS = {
-    PAIRS: "Classer",
-    BRANCHES: "Classer",
-    FUTURE: "Classer",
-    ONLINE_PARENT: "Rechercher",
-    ONLINE_GP: "Rechercher",
+    PAIRS: 'Rank',
+    BRANCHES: 'Rank',
+    FUTURE: 'Rank',
+    ONLINE_PARENT: 'Search',
+    ONLINE_GP: 'Search',
 }
 
 
@@ -321,7 +321,7 @@ class ResultFamilyTabs(QWidget):
         self.refresh_states()
         describe_control(
             self.bar,
-            self.context.t("Résultats"),
+            self.context.t('Results'),
             self.bar.tabToolTip(self.bar.currentIndex()),
         )
 

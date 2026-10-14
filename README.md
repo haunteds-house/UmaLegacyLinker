@@ -6,11 +6,18 @@
 
 **Compare inheritance lineages for Umamusume: Pretty Derby using your veterans and uma.moe.**
 
-[![Release](https://img.shields.io/github/v/release/Rom1foucher/UmaLegacyLinker?include_prereleases&label=release)](https://github.com/Rom1foucher/UmaLegacyLinker/releases)
-[![Windows build](https://github.com/Rom1foucher/UmaLegacyLinker/actions/workflows/release-windows.yml/badge.svg)](https://github.com/Rom1foucher/UmaLegacyLinker/actions/workflows/release-windows.yml)
+[![Release](https://img.shields.io/github/v/release/haunteds-house/UmaLegacyLinker?include_prereleases&label=release)](https://github.com/haunteds-house/UmaLegacyLinker/releases)
+[![Windows build](https://github.com/haunteds-house/UmaLegacyLinker/actions/workflows/release-windows.yml/badge.svg)](https://github.com/haunteds-house/UmaLegacyLinker/actions/workflows/release-windows.yml)
 [![License: GPL-3.0-only](https://img.shields.io/badge/license-GPL--3.0--only-blue)](LICENSE)
 
-Windows desktop application · English and French interface
+Windows desktop application · English interface
+
+This fork is the base for the collection and training workbench. **Workbench**
+imports umadump ZIP/JSON exports, displays trainees, support cards and veterans,
+tracks Team Trials points and skill activations, and stores training goals and
+resource milestones. **Use collection for lineage search** links those veterans
+with this application's inheritance engine and opens the existing Search page.
+See the [workbench guide](docs/WORKBENCH.md) for setup and current limits.
 
 [Download](#quick-start) · [Features](#features) · [Documentation](#documentation)
 
@@ -24,7 +31,7 @@ Choose the Ace you want to train, the course and your running style. Uma Legacy 
 
 ## Quick start
 
-1. Open the [latest release](https://github.com/Rom1foucher/UmaLegacyLinker/releases/latest) and download `UmaLegacyLinkerQt-win64.zip`. Check the release notes and prerelease label for that version.
+1. Open the [latest release](https://github.com/haunteds-house/UmaLegacyLinker/releases/latest) and download `UmaLegacyLinkerQt-win64.zip`. Check the release notes and prerelease label for that version.
 2. Extract the **whole ZIP** and run `UmaLegacyLinkerQt.exe`. Keep its runtime files together; Python is included.
 3. Obtain your current game database, `master.mdb`, and export your veterans with [umadump](https://github.com/Werseter/umadump) or [UmaExtractor](https://github.com/xancia/UmaExtractor), following that tool's instructions.
 4. On **Data**, select the MDB, the export (`trained_chara_data.json` or `data.json`) and an output directory. Select **Link an existing export**.
@@ -122,7 +129,7 @@ Remote searches contact uma.moe. The UI can also download optional GameTora artw
 Python 3.12 is used for the Windows build. From a checkout with that interpreter:
 
 ```powershell
-git clone https://github.com/Rom1foucher/UmaLegacyLinker.git
+git clone https://github.com/haunteds-house/UmaLegacyLinker.git
 cd UmaLegacyLinker
 py -m pip install -r requirements-qt.txt
 py qt_app.py
@@ -138,7 +145,7 @@ The backend lives in `uma_legacy_linker/`, the desktop UI in `ui_qt/`, and bundl
 
 </details>
 
-For an unexpected ranking or crash, [open an issue](https://github.com/Rom1foucher/UmaLegacyLinker/issues/new) with the application version, selected workflow, race context and relevant diagnostics. Remove API keys and personal identifiers before sharing files.
+For an unexpected ranking or crash, [open an issue](https://github.com/haunteds-house/UmaLegacyLinker/issues/new) with the application version, selected workflow, race context and relevant diagnostics. Remove API keys and personal identifiers before sharing files.
 
 ## Credits
 

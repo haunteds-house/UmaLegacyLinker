@@ -12,106 +12,39 @@ import re
 from collections.abc import Callable
 
 
-ACTION_PREFIX = "Que faire : "
+ACTION_PREFIX = 'What to do: '
 
 NETWORK_GUIDANCE = (
-    "Vérifie ta connexion, l’URL de l’API et la clé, puis relance."
+    'Check your connection, API URL and key, then try again.'
 )
 LOCAL_DATA_GUIDANCE = (
-    "Vérifie que master.mdb et l’export JSON viennent de la même version du "
-    "jeu, relie les données, puis relance."
+    'Check that master.mdb and the JSON export come from the same game version, link the data again, then retry.'
 )
 FILE_GUIDANCE = (
-    "Vérifie le fichier sélectionné et ses droits d’accès, puis réessaie."
+    'Check the selected file and its access permissions, then try again.'
 )
 SEARCH_GUIDANCE = (
-    "Élargis les filtres ou augmente la limite de candidats, puis relance."
+    'Broaden the filters or increase the candidate limit, then retry.'
 )
 CONFIG_GUIDANCE = (
-    "Rétablis la configuration concernée ou corrige la valeur indiquée, puis "
-    "relance."
+    'Restore the affected configuration or correct the indicated value, then retry.'
 )
 DEFAULT_GUIDANCE = (
-    "Corrige les paramètres ou fichiers indiqués, puis relance l’opération."
+    'Correct the indicated settings or files, then run the operation again.'
 )
 SECRET_STORAGE_GUIDANCE = (
-    "Décoche « Mémoriser la clé sur ce PC » ou vérifie l’accès au stockage "
-    "local, puis réessaie."
+    'Clear ‘Remember the key on this PC’ or check access to local storage, then try again.'
 )
 
 _ACTION_VERB = re.compile(
-    r"\b(?:sélectionne|vérifie|relance|réessaie|ajoute|configure|corrige|"
-    r"choisis|ouvre|utilise|active|désactive|rétablis|importe|supprime|"
-    r"réduis|augmente|élargis|attends|crée|assure-toi)\b",
-    re.IGNORECASE,
+    r"\b(?:select|check|retry|add|configure|correct|choose|open|use|enable|disable|"
+    r"restore|import|remove|reduce|increase|broaden|wait|create)\b", re.IGNORECASE,
 )
-
-_NETWORK_MARKERS = (
-    "connexion",
-    "connection",
-    "timed out",
-    "timeout",
-    "http ",
-    "http:",
-    "https:",
-    " api ",
-    " url ",
-    "serveur",
-)
-_LOCAL_DATA_MARKERS = (
-    "master.mdb",
-    "veterans_legacy_linked",
-    "trained_chara",
-    "data.json",
-    "facteur",
-    "costume",
-    "personnage",
-    "vétéran",
-    "parent local introuvable",
-    "grand-parent local introuvable",
-)
-_SEARCH_MARKERS = (
-    "aucun candidat",
-    "aucune candidate",
-    "aucune paire",
-    "aucun parent distant",
-    "aucun grand-parent distant",
-    "aucun résultat valide",
-)
-_FILE_MARKERS = (
-    "fichier",
-    "dossier",
-    "json",
-    "sqlite",
-    "introuvable",
-    "lecture",
-    "écriture",
-    "permission",
-    "droits d’accès",
-    "no such file",
-    "permission denied",
-    "file ",
-    "directory",
-)
-_CONFIG_MARKERS = (
-    "profil",
-    "pondération",
-    "poids",
-    "paramètre",
-    "configuration",
-    "override",
-    "priorité",
-    "seuil",
-    "doit être",
-    "ne peut pas",
-    "requis",
-    "courbe",
-    "palier",
-    "valeur",
-    " must ",
-    "unknown ",
-    "expects ",
-)
+_NETWORK_MARKERS = ("connection", "timed out", "timeout", "http ", "http:", "https:", " api ", " url ", "server")
+_LOCAL_DATA_MARKERS = ("master.mdb", "veterans_legacy_linked", "trained_chara", "data.json", "factor", "costume", "character", "veteran", "local parent not found", "local grandparent not found")
+_SEARCH_MARKERS = ("no candidate", "no pair", "no valid local parent", "no remote parent", "no remote grandparent", "no valid result")
+_FILE_MARKERS = ("json", "sqlite", "not found", "reading", "writing", "permission", "access rights", "no such file", "file ", "directory")
+_CONFIG_MARKERS = ("profile", "weight", "parameter", "configuration", "override", "priority", "threshold", "must be", "cannot", "required", "curve", "tier", "value", " must ", "unknown ", "expects ")
 
 
 def guidance_for_error(message: str) -> str:
@@ -141,7 +74,7 @@ def actionable_error(
     secret storage.  Otherwise already-actionable engine messages remain
     untouched and every other diagnostic receives a classified fallback.
     """
-    diagnostic = str(message).strip() or "L’opération a échoué sans détail technique."
+    diagnostic = str(message).strip() or 'The operation failed without technical details.'
     if ACTION_PREFIX.casefold() in diagnostic.casefold():
         return translate(diagnostic) if translate is not None else diagnostic
     if action is None and _ACTION_VERB.search(diagnostic):

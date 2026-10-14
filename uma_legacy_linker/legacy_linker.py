@@ -256,16 +256,15 @@ def normalize_json_root(payload: Any, *, include_borrowed: bool = False) -> list
                 break
         else:
             raise LinkerError(
-                "Le JSON ne contient pas de liste de vétérans reconnue "
-                "(liste racine ou clé trained_chara_array/veterans/data)."
+                'The JSON does not contain a recognised veteran list (root list or a trained_chara_array/veterans/data key).'
             )
     else:
-        raise LinkerError("Le JSON vétérans doit contenir une liste ou un objet.")
+        raise LinkerError('The veteran JSON must contain a list or an object.')
 
     result: list[dict[str, Any]] = []
     for index, veteran in enumerate(veterans):
         if not isinstance(veteran, dict):
-            raise LinkerError(f"Entrée vétéran #{index} invalide : objet JSON attendu.")
+            raise LinkerError(f'Veteran entry #{index} is invalid: expected a JSON object.')
         if not include_borrowed and is_borrowed_veteran(veteran):
             continue
         result.append(veteran)
@@ -282,7 +281,7 @@ def require_tables(connection: sqlite3.Connection, tables: Iterable[str]) -> Non
     missing = [table for table in tables if table not in existing]
     if missing:
         raise LinkerError(
-            "MDB incompatible : tables manquantes : " + ", ".join(sorted(missing))
+            'Incompatible MDB: missing tables: ' + ", ".join(sorted(missing))
         )
 
 
@@ -340,7 +339,7 @@ class MasterResolver:
                 f"file:{master_path.as_posix()}?mode=ro", uri=True
             )
         except sqlite3.Error as exc:
-            raise LinkerError(f"Impossible d'ouvrir le MDB comme SQLite : {exc}") from exc
+            raise LinkerError(f'Unable to open the MDB as SQLite: {exc}') from exc
         self.connection.row_factory = sqlite3.Row
         try:
             require_tables(self.connection, self.REQUIRED_TABLES)
@@ -783,9 +782,9 @@ def link_veterans(
     destination = Path(output_dir).expanduser().resolve()
 
     if not master.is_file():
-        raise LinkerError(f"MDB introuvable : {master}")
+        raise LinkerError(f'MDB not found: {master}')
     if not json_input.is_file():
-        raise LinkerError(f"JSON vétérans introuvable : {json_input}")
+        raise LinkerError(f'Veteran JSON not found: {json_input}')
     destination.mkdir(parents=True, exist_ok=True)
 
     master_hash = sha256_file(master)
@@ -804,20 +803,20 @@ def link_veterans(
                 _write_link_manifest(destination, refreshed_manifest)
             except OSError:
                 pass
-            log("Liaison déjà à jour : réutilisation des artefacts existants.")
+            log('Link data already up to date: reusing existing artifacts.')
             return result
     else:
-        log("Reliaison complète demandée : le cache est ignoré.")
+        log('Full relink requested: ignoring the cache.')
 
     manifest_path = destination / LINK_MANIFEST_FILENAME
     try:
         manifest_path.unlink(missing_ok=True)
     except OSError as exc:
         raise LinkerError(
-            f"Impossible d’invalider le cache de liaison : {manifest_path}"
+            f'Unable to invalidate the link cache: {manifest_path}'
         ) from exc
 
-    log("Lecture du JSON vétérans…")
+    log('Reading veteran JSON…')
     with json_input.open("r", encoding="utf-8-sig") as stream:
         raw_payload = json.load(stream)
     veterans = normalize_json_root(raw_payload)
@@ -828,10 +827,10 @@ def link_veterans(
         if isinstance(veteran.get("trained_chara_id"), int)
     }
     if borrowed:
-        log(f"{borrowed} vétéran(s) emprunté(s) écarté(s) : carrière en cours.")
-    log(f"{len(veterans)} vétérans chargés.")
+        log(f'{borrowed} borrowed veteran(s) skipped: in-progress career.')
+    log(f'{len(veterans)} veterans loaded.')
 
-    log("Lecture et indexation du master.mdb courant…")
+    log('Reading and indexing the current master.mdb…')
     resolver = MasterResolver(master)
     unresolved_factors: set[int] = set()
     unresolved_cards: set[int] = set()
@@ -929,7 +928,7 @@ def link_veterans(
             )
             linked_veterans.append(entry)
             if index % 25 == 0 or index == len(veterans):
-                log(f"Liaison : {index}/{len(veterans)}")
+                log(f'Linking: {index}/{len(veterans)}')
     finally:
         resolver.close()
 
@@ -992,10 +991,10 @@ def link_veterans(
     csv_path = artifact_paths["csv"]
     report_path = artifact_paths["report"]
 
-    log("Écriture du JSON enrichi…")
+    log('Writing enriched JSON…')
     write_json_with_history(json_path, output_payload)
 
-    log("Écriture du CSV synthétique…")
+    log('Writing summary CSV…')
     csv_columns = [
         "trained_chara_id",
         "uma_name",
@@ -1059,22 +1058,22 @@ def link_veterans(
                 }
             )
 
-    log("Génération du catalogue skills et conditions…")
+    log('Generating skill and condition catalogues…')
     catalogs = generate_skill_catalogs(master, destination, logger=log)
 
     report_lines = [
-        "Uma Legacy Linker — rapport",
+        'Uma Legacy Linker — report',
         "=" * 34,
-        f"Généré : {generated_at}",
-        f"MDB : {master}",
-        f"JSON source : {json_input}",
-        f"Vétérans : {len(linked_veterans)}",
-        f"Parents/grands-parents analysés : {parent_snapshots}",
-        f"Factors non résolus : {len(unresolved_factors)}",
-        f"Cards non résolues : {len(unresolved_cards)}",
-        f"Divergences de validation G1 : {len(validation_mismatches)}",
+        f'Generated: {generated_at}',
+        f'MDB: {master}',
+        f'JSON source: {json_input}',
+        f'Veterans: {len(linked_veterans)}',
+        f'Parents/grandparents analysed: {parent_snapshots}',
+        f'Unresolved factors: {len(unresolved_factors)}',
+        f'Unresolved costumes: {len(unresolved_cards)}',
+        f'G1 validation mismatches: {len(validation_mismatches)}',
         "",
-        "Sorties :",
+        'Outputs:',
         f"- {json_path.name}",
         f"- {csv_path.name}",
         f"- {catalogs.skills_path.name}",
@@ -1084,14 +1083,14 @@ def link_veterans(
     ]
     if unresolved_factors:
         report_lines.extend(
-            ["", "Factor IDs non résolus :", ", ".join(map(str, sorted(unresolved_factors)))]
+            ["", 'Unresolved factor IDs:', ", ".join(map(str, sorted(unresolved_factors)))]
         )
     if unresolved_cards:
         report_lines.extend(
-            ["", "Costume IDs non résolus :", ", ".join(map(str, sorted(unresolved_cards)))]
+            ["", 'Unresolved costume IDs:', ", ".join(map(str, sorted(unresolved_cards)))]
         )
     if validation_mismatches:
-        report_lines.extend(["", "Divergences G1 :"])
+        report_lines.extend(["", 'G1 mismatches:'])
         for mismatch in validation_mismatches:
             report_lines.append(json.dumps(mismatch, ensure_ascii=False))
     report_path.write_text("\n".join(report_lines) + "\n", encoding="utf-8")
@@ -1113,7 +1112,7 @@ def link_veterans(
     }
     manifest_path = _write_link_manifest(destination, manifest_payload)
 
-    log(f"Terminé : {json_path}")
+    log(f'Complete: {json_path}')
     return LinkResult(
         json_path=json_path,
         csv_path=csv_path,

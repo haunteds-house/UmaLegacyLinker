@@ -109,10 +109,10 @@ class VisualAssetTests(unittest.TestCase):
         self.assertIn('if "planned_slot" in race:', source)
         self.assertIn("scheduled.setdefault(key, []).append", source)
         self.assertIn("if compact or not has_banner:", source)
-        self.assertIn("COURSES NON PLACÉES DANS LE PLANNING OPTIMAL", source)
+        self.assertIn('RACES NOT INCLUDED IN THE OPTIMAL PLAN', source)
         self.assertIn('"shared": ("#3a3015"', source)
         self.assertIn('"remote": ("#29203f"', source)
-        self.assertIn("Planning pour Trackblazer", source)
+        self.assertIn('Schedule for Trackblazer', source)
         self.assertIn("def set_plan(", source)
         self.assertEqual(source.count("class RaceCalendarWidget"), 1)
 
@@ -205,7 +205,7 @@ class VisualAssetTests(unittest.TestCase):
 
     def test_branch_and_grandparent_results_use_the_correct_visual_root(self) -> None:
         single_preview = lineage_preview_for_pair(
-            member(101001, "Candidate Parent", blue=3),
+            member(101001, 'Candidatee Parent', blue=3),
             {},
         )
         self.assertIn("p1", single_preview)
@@ -213,7 +213,7 @@ class VisualAssetTests(unittest.TestCase):
 
         branch_preview = {
             "p1": {
-                "card_name": "Candidate Parent",
+                "card_name": 'Candidatee Parent',
                 "sparks": [{"name": "Speed", "stars": 3, "type": "blue_stat"}],
             },
             "p1-1": {"card_name": "Branch GP 1", "sparks": []},
@@ -221,11 +221,11 @@ class VisualAssetTests(unittest.TestCase):
         }
         branch_nodes = build_result_lineage_nodes(
             {"card_name": "Target Ace"},
-            {"card_name": "Candidate Parent", "lineage_preview": branch_preview},
+            {"card_name": 'Candidatee Parent', "lineage_preview": branch_preview},
             "branch",
         )
         self.assertEqual(branch_nodes["target"]["card_name"], "Target Ace")
-        self.assertEqual(branch_nodes["p1"]["card_name"], "Candidate Parent")
+        self.assertEqual(branch_nodes["p1"]["card_name"], 'Candidatee Parent')
         self.assertNotIn("p2", branch_nodes)
 
         gp_preview = {

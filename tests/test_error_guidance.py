@@ -15,27 +15,27 @@ from uma_legacy_linker.error_guidance import (
     actionable_error,
     guidance_for_error,
 )
-from uma_legacy_linker.i18n import translate_text
+from uma_legacy_linker.labels import display_text
 
 
 @pytest.mark.parametrize(
     ("diagnostic", "guidance"),
     [
         (
-            "Facteur 'Mile' introuvable dans le master.mdb pour le filtre uma.moe.",
+            "Factor 'Mile' not found in master.mdb for the uma.moe filter.",
             LOCAL_DATA_GUIDANCE,
         ),
-        ("Connexion impossible à https://uma.moe.", NETWORK_GUIDANCE),
+        ('Unable to connect to https://uma.moe.', NETWORK_GUIDANCE),
         (
-            "Paramètre requis non résolu pour GET /parents: limit",
+            "Required parameter unresolved for GET /parents: limit",
             CONFIG_GUIDANCE,
         ),
-        ("Réponse JSON invalide depuis le cache local.", FILE_GUIDANCE),
+        ('Invalid JSON response from the local cache.', FILE_GUIDANCE),
         (
-            "Aucune paire parent local × parent distant valide.",
+            'No valid local parent × remote parent pair.',
             SEARCH_GUIDANCE,
         ),
-        ("Erreur interne inattendue.", DEFAULT_GUIDANCE),
+        ('Unexpected internal error.', DEFAULT_GUIDANCE),
     ],
 )
 def test_backend_diagnostics_receive_contextual_recovery_actions(
@@ -44,23 +44,23 @@ def test_backend_diagnostics_receive_contextual_recovery_actions(
 ) -> None:
     assert guidance_for_error(diagnostic) == guidance
     rendered = actionable_error(diagnostic)
-    assert rendered.startswith(diagnostic + "\n\nQue faire : ")
+    assert rendered.startswith(diagnostic + '\n\nWhat to do: ')
     assert rendered.endswith(guidance)
 
 
 def test_already_actionable_messages_are_not_duplicated() -> None:
-    diagnostic = "Sélectionne un master.mdb valide."
+    diagnostic = 'Select a valid master.mdb.'
 
     assert actionable_error(diagnostic) == diagnostic
-    assert actionable_error(actionable_error("HTTP 500 sur l’API.")) == (
-        actionable_error("HTTP 500 sur l’API.")
+    assert actionable_error(actionable_error('HTTP 500 on the API.')) == (
+        actionable_error('HTTP 500 on the API.')
     )
 
 
 def test_translation_keeps_exact_diagnostic_and_action_separate() -> None:
     rendered = actionable_error(
-        "Aucune paire parent local × parent distant valide.",
-        translate=lambda value: str(translate_text(value, "en")),
+        'No valid local parent × remote parent pair.',
+        translate=lambda value: str(display_text(value, "en")),
     )
 
     assert rendered == (
@@ -72,11 +72,11 @@ def test_translation_keeps_exact_diagnostic_and_action_separate() -> None:
 
 def test_presentation_specific_action_preserves_the_diagnostic() -> None:
     rendered = actionable_error(
-        "La clé n’a pas pu être mémorisée.\n\nAccess denied",
+        'The key could not be saved.\n\nAccess denied',
         action=SECRET_STORAGE_GUIDANCE,
     )
 
-    assert rendered.startswith("La clé n’a pas pu être mémorisée.\n\nAccess denied")
+    assert rendered.startswith('The key could not be saved.\n\nAccess denied')
     assert rendered.endswith(SECRET_STORAGE_GUIDANCE)
 
 
@@ -95,7 +95,7 @@ def test_every_exception_presentation_boundary_uses_actionable_guidance() -> Non
 
     assert "context.t(str(exc))" not in combined
     assert (
-        'QMessageBox.critical(self, self.context.t("Erreur"), str(exc))'
+        'QMessageBox.critical(self, self.context.t("Error"), str(exc))'
         not in combined
     )
     assert combined.count("actionable_error(") >= 20
@@ -105,4 +105,4 @@ def test_every_exception_presentation_boundary_uses_actionable_guidance() -> Non
     cli_source = Path("cli.py").read_text(encoding="utf-8")
     assert "traceback.format_exc()" in worker_source
     assert "actionable_error(message, translate=self.context.t)" in main_source
-    assert 'print(f"Erreur : {actionable_error(exc)}"' in cli_source
+    assert "actionable_error(exc)" in cli_source

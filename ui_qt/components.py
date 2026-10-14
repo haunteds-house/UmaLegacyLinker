@@ -29,25 +29,7 @@ from ui_qt.theme import COLORS
 
 
 class NoWheelFilter(QObject):
-    """Blocks accidental value changes from mouse-wheel scrolling.
-
-    ``QComboBox`` and every spin box respond to wheel events even without
-    focus, so scrolling a long page silently changes whatever dropdown or
-    number field the cursor happens to pass over. Install one instance on
-    ``QApplication`` (see :func:`install_no_wheel_filter`) instead of
-    touching every combo/spin box across the project: this intercepts wheel
-    events for both widget families unconditionally, and forwards the
-    scroll to the nearest scrollable ancestor so the page keeps scrolling
-    normally instead of the value changing.
-
-    Focus alone cannot gate this: Qt keeps keyboard focus on a combo or spin
-    box after it is clicked, even once the cursor has moved elsewhere, so a
-    focus-based check still lets the wheel change that same widget's value
-    the next time the cursor happens to pass back over it while scrolling.
-    Blocking unconditionally removes that gap. This does not affect an open
-    combo-box dropdown: the popup is a separate widget, not the QComboBox
-    itself, so scrolling a long open list is unaffected.
-    """
+    "Blocks accidental value changes from mouse-wheel scrolling.\n\n    ``QComboBox`` and every spin box respond to wheel events even without\n    focus, so scrolling a long page silently changes whatever dropdown or\n    number field the cursor happens to pass over. Install one instance on\n    ``QApplication`` (see:func:`install_no_wheel_filter`) instead of\n    touching every combo/spin box across the project: this intercepts wheel\n    events for both widget families unconditionally, and forwards the\n    scroll to the nearest scrollable ancestor so the page keeps scrolling\n    normally instead of the value changing.\n\n    Focus alone cannot gate this: Qt keeps keyboard focus on a combo or spin\n    box after it is clicked, even once the cursor has moved elsewhere, so a\n    focus-based check still lets the wheel change that same widget's value\n    the next time the cursor happens to pass back over it while scrolling.\n    Blocking unconditionally removes that gap. This does not affect an open\n    combo-box dropdown: the popup is a separate widget, not the QComboBox\n    itself, so scrolling a long open list is unaffected.\n    "
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         if (
@@ -271,7 +253,7 @@ class PathPicker(QWidget):
         *,
         mode: str = "file",
         title: str = "",
-        file_filter: str = "Tous les fichiers (*)",
+        file_filter: str = 'All files (*)',
         parent=None,
     ):
         super().__init__(parent)
@@ -282,7 +264,7 @@ class PathPicker(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(7)
         self.edit = QLineEdit(value)
-        self.button = QPushButton("Parcourir…")
+        self.button = QPushButton('Browse…')
         self.button.setFixedWidth(112)
         layout.addWidget(self.edit, 1)
         layout.addWidget(self.button)

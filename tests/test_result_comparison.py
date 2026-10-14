@@ -77,7 +77,7 @@ class ResultComparisonTests(unittest.TestCase):
 
     def test_transfer_wisdom_metric_reads_the_exported_wiz_field(self) -> None:
         wisdom = next(
-            metric for metric in TRANSFER_METRICS if metric.label == "Intelligence"
+            metric for metric in TRANSFER_METRICS if metric.label == 'Wit'
         )
 
         self.assertEqual(wisdom.getter({"stats": {"wiz": 901}}), 901.0)

@@ -238,8 +238,7 @@ def _apply_lineage_factor_filters(
                 if _lineage_factor_type_stars(candidate, name, ftype) >= minimum
             ]
             log(
-                f"Filtre lignée {label} {name} ≥ {minimum}★ (Main + parents) : "
-                f"{len(candidates)} candidats restants."
+                f'Lineage filter {label} {name} ≥ {minimum}★ (Main + parents): {len(candidates)} candidates remaining.'
             )
     return candidates
 
@@ -280,8 +279,7 @@ def resolve_lineage_factor_api_ids(
         resolver.close()
     if not prefixes:
         raise UmaMoeError(
-            f"Facteur {name!r} introuvable dans le master.mdb "
-            f"pour le filtre uma.moe ({factor_type})."
+            f'Factor {name!r} not found in master.mdb for the uma.moe filter ({factor_type}).'
         )
     return sorted(
         prefix * 10 + stars
@@ -377,7 +375,7 @@ def prune_retrieval_plan_conflicts(
     if suppressed:
         if broad is None:
             broad = {
-                "name": "recherche large / filtres durs",
+                "name": 'broad search / filtres durs',
                 "kind": "broad",
                 "share": 0.0,
                 "filters": {},
@@ -744,20 +742,18 @@ class UmaMoeApiClient:
                     ):
                         if yaml is None:
                             raise UmaMoeError(
-                                "Le document OpenAPI est en YAML mais PyYAML n'est pas installé. "
-                                "Réinstalle l'application complète ou lance: pip install pyyaml"
+                                'The OpenAPI document is YAML but PyYAML is not installed. Reinstall the complete application or run: pip install pyyaml'
                             )
                         return yaml.safe_load(decoded)
                     raise UmaMoeError(
-                        f"Réponse ni JSON ni YAML depuis {url} ({content_type or 'type inconnu'})."
+                        f"Response is neither JSON nor YAML from {url} ({content_type or 'type inconnu'})."
                     )
             except urllib.error.HTTPError as exc:
                 retryable = exc.code == 429 or 500 <= exc.code <= 599
                 if retryable and attempt < self.max_retries:
                     delay = self._retry_delay(attempt, exc.headers.get("Retry-After"))
                     self.logger(
-                        f"uma.moe : HTTP {exc.code}, nouvel essai "
-                        f"{attempt + 2}/{self.max_retries + 1} dans {delay:.1f} s…"
+                        f'uma.moe: HTTP {exc.code}, retry {attempt + 2}/{self.max_retries + 1} in {delay:.1f} s…'
                     )
                     self._wait_before_retry(delay)
                     continue
@@ -766,25 +762,24 @@ class UmaMoeApiClient:
                     detail = exc.read(1200).decode("utf-8", errors="replace")
                 except Exception:
                     pass
-                raise UmaMoeError(f"HTTP {exc.code} sur {url}: {detail[:500]}") from exc
+                raise UmaMoeError(f'HTTP {exc.code} on {url}: {detail[:500]}') from exc
             except (urllib.error.URLError, TimeoutError) as exc:
                 if attempt < self.max_retries:
                     delay = self._retry_delay(attempt)
                     self.logger(
-                        "uma.moe : connexion interrompue, nouvel essai "
-                        f"{attempt + 2}/{self.max_retries + 1} dans {delay:.1f} s…"
+                        f'uma.moe: connection interrupted, retry {attempt + 2}/{self.max_retries + 1} in {delay:.1f} s…'
                     )
                     self._wait_before_retry(delay)
                     continue
                 detail = exc.reason if isinstance(exc, urllib.error.URLError) else exc
-                raise UmaMoeError(f"Connexion impossible à {url}: {detail}") from exc
+                raise UmaMoeError(f'Unable to connect to {url}: {detail}') from exc
             except json.JSONDecodeError as exc:
-                raise UmaMoeError(f"Réponse API invalide depuis {url}: {exc}") from exc
+                raise UmaMoeError(f'Invalid API response from {url}: {exc}') from exc
             except Exception as exc:
                 if isinstance(exc, UmaMoeError):
                     raise
-                raise UmaMoeError(f"Document API invalide depuis {url}: {exc}") from exc
-        raise UmaMoeError(f"Connexion impossible à {url}.")
+                raise UmaMoeError(f'Invalid API document from {url}: {exc}') from exc
+        raise UmaMoeError(f'Unable to connect to {url}.')
 
     def _retry_delay(self, attempt: int, retry_after: str | None = None) -> float:
         """Return a bounded delay for a transient API failure."""
@@ -830,7 +825,7 @@ class UmaMoeApiClient:
     ) -> Any:
         payload = self._request_document(url, method=method, query=query, body=body)
         if not isinstance(payload, (dict, list)):
-            raise UmaMoeError(f"Réponse JSON invalide depuis {url}.")
+            raise UmaMoeError(f'Invalid JSON response from {url}.')
         return payload
 
     def discover_openapi(self) -> tuple[dict[str, Any], str]:
@@ -864,8 +859,7 @@ class UmaMoeApiClient:
             except Exception as exc:
                 errors.append(f"{url}: {exc}")
         raise UmaMoeError(
-            "Impossible de découvrir le document OpenAPI de uma.moe. "
-            "Utilise l'import d'une réponse JSON comme solution de secours.\n"
+            'Unable to discover the uma.moe OpenAPI document. Import a JSON response as a fallback.\n'
             + "\n".join(errors[-4:])
         )
 
@@ -979,13 +973,12 @@ class UmaMoeApiClient:
             payload = self._request_json(url, query=query)
         except UmaMoeError as exc:
             raise UmaMoeError(
-                f"Échec de GET /api/v3/search : {exc}\n"
-                "Utilise le bouton d'import JSON si le problème persiste."
+                f'GET /api/v3/search failed: {exc}\nUse the JSON import button if the issue persists.'
             ) from exc
         empty_result = self._is_well_formed_empty_search_payload(payload)
         if not empty_result and not self._contains_candidate_records(payload):
             raise UmaMoeError(
-                f"Réponse /api/v3/search sans records d'héritage détectables (query={sorted(query)})."
+                f'The /api/v3/search response contains no detectable inheritance records (query={sorted(query)}).'
             )
         return payload, {
             "method": "GET",
@@ -1068,7 +1061,7 @@ class UmaMoeApiClient:
         max_pages = max(1, math.ceil(desired_candidates / page_size))
 
         while len(merged_items) < desired_candidates and len(pages_fetched) < max_pages:
-            logger(f"uma.moe : page {page + 1}, objectif {desired_candidates} candidats…")
+            logger(f'uma.moe: page {page + 1}, target {desired_candidates} candidates…')
             payload, operation = self.search(filters=filters, limit=page_size, page=page)
             if first_operation is None:
                 first_operation = dict(operation)
@@ -1100,7 +1093,7 @@ class UmaMoeApiClient:
                 added += 1
                 if len(merged_items) >= desired_candidates:
                     break
-            logger(f"uma.moe : page {page + 1} reçue, {added} nouveaux candidats, {len(merged_items)} cumulés.")
+            logger(f'uma.moe: page {page + 1} received, {added} new candidates, {len(merged_items)} total.')
 
             if not items or added == 0 or len(items) < page_size:
                 break
@@ -1192,7 +1185,7 @@ class UmaMoeApiClient:
             name = str(cohort.get("name") or cohort.get("kind") or "cohort")
             filters = dict(base_filters or {})
             filters.update(dict(cohort.get("filters") or {}))
-            logger(f"uma.moe : cohorte {name} — budget {budget} candidats…")
+            logger(f'uma.moe: cohort {name} — budget {budget} candidates…')
             try:
                 payload, operation = self.search_many(
                     filters=filters,
@@ -1211,7 +1204,7 @@ class UmaMoeApiClient:
                     "outcome": "error",
                     "error": str(exc),
                 })
-                logger(f"uma.moe : cohorte {name} indisponible ({exc}); budget rendu à la recherche large.")
+                logger(f'uma.moe: cohort {name} unavailable ({exc}); budget returned to the broad search.')
                 return
             if first_payload is None:
                 first_payload = dict(payload)
@@ -1238,8 +1231,7 @@ class UmaMoeApiClient:
             })
             if not items:
                 logger(
-                    f"uma.moe : cohorte {name} sans résultat; "
-                    "budget rendu à la recherche large."
+                    f'uma.moe: cohort {name} with no result; budget handed back to the broad search.'
                 )
 
         allocated = 0
@@ -1252,7 +1244,7 @@ class UmaMoeApiClient:
             allocated += budget
 
         broad_cohort = broad or {
-            "name": "recherche large",
+            "name": 'broad search',
             "kind": "broad",
             "share": 0.0,
             "filters": {},
@@ -1503,7 +1495,7 @@ def build_parent_retrieval_plan(
     else:
         broad_share += surface_share
     cohorts.append({
-        "name": "recherche large / whites",
+        "name": 'broad search / whites',
         "kind": "broad",
         "share": round(broad_share, 8),
         "filters": {},
@@ -1719,7 +1711,7 @@ def build_contextual_grandparent_retrieval_plan(
     else:
         broad_share += surface_share
     cohorts.append({
-        "name": "recherche complémentaire / whites",
+        "name": 'complementary search / whites',
         "kind": "broad",
         "share": round(broad_share, 8),
         "filters": {},
@@ -2379,11 +2371,10 @@ def _empty_candidates_diagnostic(records: list[dict[str, Any]]) -> str:
     spotted from the log without needing to share the raw response.
     """
     if not records:
-        return " Diagnostic : la réponse ne contient aucun enregistrement détectable."
+        return ' Diagnostic: the response contains no detectable record.'
     sample_keys = sorted(str(key) for key in records[0].keys())[:25]
     return (
-        f" Diagnostic : {len(records)} enregistrement(s) détecté(s), 0 exploitable. "
-        f"Clés du premier enregistrement : {', '.join(sample_keys) or '(aucune)'}."
+        f" Diagnostic: {len(records)} record(s) detected, 0 usable. First record's keys: {', '.join(sample_keys) or '(none)'}."
     )
 
 
@@ -3476,7 +3467,7 @@ def rank_online_grandparent_pairs(
         )
         if contextual_opposing_parent is None:
             raise UmaMoeError(
-                f"Parent opposé local introuvable : #{opposing_parent_trained_id}"
+                f'Local opposing parent not found: #{opposing_parent_trained_id}'
             )
 
     fixed: dict[str, Any] | None = None
@@ -3486,7 +3477,7 @@ def rank_online_grandparent_pairs(
             None,
         )
         if fixed is None and not exhaustive_pairs:
-            raise UmaMoeError(f"Grand-parent local introuvable : #{fixed_grandparent_trained_id}")
+            raise UmaMoeError(f'Local grandparent not found: #{fixed_grandparent_trained_id}')
 
     if local_pair_mode:
         online_candidates = [copy.deepcopy(veteran) for veteran in veterans]
@@ -3498,7 +3489,7 @@ def rank_online_grandparent_pairs(
             "mode": "local_second_pool",
             "count": len(online_candidates),
         }
-        log(f"Second pool : {len(online_candidates)} GP locaux (aucune requête uma.moe).")
+        log(f'Second pool: {len(online_candidates)} local GPs (no uma.moe request).')
     else:
         normalizer = OnlineRecordNormalizer(master_path)
         try:
@@ -3507,7 +3498,7 @@ def rank_online_grandparent_pairs(
             normalizer.close()
         if not online_candidates:
             raise UmaMoeError(
-                "La réponse uma.moe ne contient aucun candidat avec costume/factors exploitables."
+                'The uma.moe response contains no candidate with usable costume/factor data.'
                 + _empty_candidates_diagnostic(_extract_record_list(raw_payload))
             )
 
@@ -3530,30 +3521,27 @@ def rank_online_grandparent_pairs(
             for item in strict_main_filters
         )
         log(
-            f"Contrôle local strict des pinks : {len(online_candidates)}/{unfiltered_online_count} "
-            f"candidats respectent {filter_text}."
+            f'Strict local Pink Spark validation: {len(online_candidates)}/{unfiltered_online_count} candidates match {filter_text}.'
         )
         normalization_diag["strict_main_factor_filters"] = strict_main_filters
         normalization_diag["pre_filter_count"] = unfiltered_online_count
         normalization_diag["post_filter_count"] = len(online_candidates)
         if not online_candidates:
             raise UmaMoeError(
-                "Aucun candidat uma.moe ne respecte les contraintes Main sélectionnées "
-                f"({filter_text}). L'API a peut-être ignoré le filtre strict ou le pool demandé est trop petit."
+                f'No uma.moe candidate matches the selected Main constraints ({filter_text}). The API may have ignored the strict filter, or the requested pool may be too small.'
             )
     else:
         normalization_diag["strict_main_factor_filters"] = []
         normalization_diag["pre_filter_count"] = unfiltered_online_count
         normalization_diag["post_filter_count"] = unfiltered_online_count
     if not local_pair_mode:
-        log(f"uma.moe : {len(online_candidates)} candidats distants normalisés.")
+        log(f'uma.moe: {len(online_candidates)} remote candidates normalised.')
     online_candidates = _apply_lineage_factor_filters(
         online_candidates, lineage_blue_filter, lineage_pink_filter, log
     )
     if not online_candidates:
         raise UmaMoeError(
-            "Aucun candidat ne respecte les filtres lignée demandés. "
-            "Assouplis le minimum d'étoiles ou vérifie les paramètres envoyés à l'API."
+            'No candidate satisfies the requested lineage filters. Relax the star minimum or check the parameters sent to the API.'
         )
     normalization_diag["lineage_filters"] = {
         "blue": list(lineage_blue_filter) if lineage_blue_filter else None,
@@ -3620,17 +3608,16 @@ def rank_online_grandparent_pairs(
         if contextual_opposing_parent is not None:
             if not _has_complete_parent_branch(contextual_opposing_parent):
                 raise UmaMoeError(
-                    "Le parent opposé doit contenir sa branche complète "
-                    "(parent + deux grands-parents)."
+                    'The opposing parent must include its complete branch (parent + both grandparents).'
                 )
             opposing_chara = int(contextual_opposing_parent.get("chara_id") or 0)
             if opposing_chara <= 0:
-                raise UmaMoeError("Le parent opposé n'a pas pu être résolu.")
+                raise UmaMoeError('The opposing parent could not be resolved.')
             if opposing_chara == ace_chara:
-                raise UmaMoeError("L'Ace ne peut pas être utilisé comme parent opposé.")
+                raise UmaMoeError('The Ace cannot be used as the opposing parent.')
             if opposing_chara == target_parent_chara:
                 raise UmaMoeError(
-                    "Le parent opposé et le parent à produire doivent être deux Umas différentes."
+                    'The opposing parent and the parent to produce must be two different Umas.'
                 )
             opposing_branch = evaluate_parent_branch(
                 resolver,
@@ -3645,17 +3632,15 @@ def rank_online_grandparent_pairs(
                 g1_bonus_value=int((config.get("affinity") or {}).get("g1_common_bonus", 3)),
             )
             log(
-                "Contexte final activé : parent opposé "
-                f"{contextual_opposing_parent.get('card_name') or contextual_opposing_parent.get('uma_name')}. "
-                "Les paires de GP seront classées par leur contribution marginale dans la lignée à six membres."
+                f"Final context enabled: opposing parent {contextual_opposing_parent.get('card_name') or contextual_opposing_parent.get('uma_name')}. GP pairs will be ranked by their marginal contribution within the six-member lineage."
             )
         log(
-            "Pondération future GP effective (locale / Transfer Helper / uma.moe) : "
+            'Effective future-GP weighting (local / Transfer Helper / uma.moe): '
             + ", ".join(f"{key}={value:.1%}" for key, value in mode_weights.items())
         )
         if contextual_mode:
             log(
-                "Pondération finale contextuelle (moteur paire de parents) : "
+                'Final contextual weighting (parent-pair engine): '
                 + ", ".join(f"{key}={value:.1%}" for key, value in pair_weights.items())
             )
         affinity_cfg = config.get("affinity") or {}
@@ -3813,7 +3798,7 @@ def rank_online_grandparent_pairs(
         remote_eligible = [member for member in online_candidates if eligible(member)]
         if not remote_eligible:
             raise UmaMoeError(
-                "Aucun GP distant valide après exclusion du parent à produire."
+                'No valid remote GP remains after excluding the target parent.'
             )
         requested_remote_limit = max(1, min(int(remote_pool_size), 500))
         hard_filter_recall_guard = bool(
@@ -3826,18 +3811,16 @@ def rank_online_grandparent_pairs(
         )
         if exhaustive_pairs and effective_remote_limit > requested_remote_limit:
             log(
-                "Garde-fou de rappel : le filtre dur a réduit le pool ; "
-                f"{effective_remote_limit} GP distants seront conservés au lieu de "
-                f"{requested_remote_limit} avant le calcul exact."
+                f'Recall guard: the hard filter reduced the pool; {effective_remote_limit} remote GPs will be kept instead of {requested_remote_limit} before exact scoring.'
             )
         if exhaustive_pairs:
             local_eligible = [member for member in veterans if eligible(member)]
             if not local_eligible:
                 raise UmaMoeError(
-                    "Aucun GP local valide après exclusion du parent à produire."
+                    'No valid local GP remains after excluding the target parent.'
                 )
-            second_pool_label = "GP locaux (2ᵉ pool)" if local_pair_mode else "GP distants"
-            log(f"Préclassement de {len(local_eligible)} GP locaux et {len(remote_eligible)} {second_pool_label}…")
+            second_pool_label = 'local GPs (2nd pool)' if local_pair_mode else 'Remote GPs'
+            log(f'Pre-ranking {len(local_eligible)} local GPs and {len(remote_eligible)} {second_pool_label}…')
             local_pre = sorted((individual_score(member) for member in local_eligible), key=lambda row: row["score"], reverse=True)
             remote_pre = sorted((individual_score(member) for member in remote_eligible), key=lambda row: row["score"], reverse=True)
             selected_locals = [row["member"] for row in local_pre[: max(1, min(int(local_pool_size), 250))]]
@@ -3847,10 +3830,10 @@ def rank_online_grandparent_pairs(
             pair_mode = "exhaustive_top_pools"
         else:
             if fixed is None:
-                raise UmaMoeError("Sélectionne un GP local ou active le test automatique des paires.")
+                raise UmaMoeError('Select a local GP or enable automatic pair testing.')
             if not eligible(fixed):
                 raise UmaMoeError(
-                    "Le GP local sélectionné est la même Uma que le parent à produire."
+                    'The selected local GP is the same Uma as the target parent.'
                 )
             selected_locals = [fixed]
             selected_remotes = remote_eligible
@@ -3877,9 +3860,9 @@ def rank_online_grandparent_pairs(
         }
 
         log(
-            f"Comparaison exhaustive : {len(selected_locals)} locaux × {len(selected_remotes)} "
-            + ("locaux (2ᵉ pool) " if local_pair_mode else "distants ")
-            + f"(jusqu’à {len(selected_locals) * len(selected_remotes)} paires avant exclusions)."
+            f'Exhaustive comparison: {len(selected_locals)} local × {len(selected_remotes)} '
+            + ('local (2nd pool) ' if local_pair_mode else "remote ")
+            + f'(up to {len(selected_locals) * len(selected_remotes)} pairs before exclusions).'
         )
 
         from uma_legacy_linker.solver_runtime import current_runtime, configured_g1_ranking
@@ -3949,7 +3932,7 @@ def rank_online_grandparent_pairs(
                 else:
                     summaries.append(evaluate_pair(gp1, gp2, detailed=False))
             if not parallel and exhaustive_pairs and (processed % max(1, len(selected_remotes) * 10) == 0 or processed == total_possible):
-                log(f"Paires évaluées : {processed}/{total_possible} — {len(summaries)} valides.")
+                log(f'Pairs evaluated: {processed}/{total_possible} — {len(summaries)} valid.')
 
 
         if parallel:
@@ -3976,7 +3959,7 @@ def rank_online_grandparent_pairs(
             shortlist = sorted(indexed[:2 * detail_count], key=lambda item: item[0])
             pair_context["g1_ranking_mode"] = "exact"
             pair_context["g1_exact_shortlist"] = True
-            log(f"Recalcul G1 exact : {len(shortlist)}/{evaluated_count} paires.")
+            log(f'Exact G1 reranking: {len(shortlist)}/{evaluated_count} pairs.')
             summaries = [evaluate_pair(row["_gp1"], row["_gp2"], detailed=False)
                          for _, row in shortlist]
             del indexed, shortlist
@@ -4545,13 +4528,7 @@ def rank_online_parent_pairs(
     logger: Callable[[str], None] | None = None,
     checkpoint: Callable[[], None] | None = None,
 ) -> OnlineParentSearchResult:
-    """Rank uma.moe parents paired with a local parent for the selected Ace.
-
-    The candidate Main from uma.moe is normalized to the same veteran structure
-    as a local parent, including its two visible grandparents. Every final pair
-    is then evaluated by :func:`parent_optimizer.evaluate_parent_pair`, which is
-    also the engine used by the all-local optimizer.
-    """
+    'Rank uma.moe parents paired with a local parent for the selected Ace.\n\n    The candidate Main from uma.moe is normalized to the same veteran structure\n    as a local parent, including its two visible grandparents. Every final pair\n    is then evaluated by:func:`parent_optimizer.evaluate_parent_pair`, which is\n    also the engine used by the all-local optimizer.\n    '
     log = logger or (lambda _message: None)
     if checkpoint is not None:
         checkpoint()
@@ -4580,7 +4557,7 @@ def rank_online_parent_pairs(
     config = _read_json(scoring_config_path)
     veterans = list(linked.get("veterans") or [])
     if not veterans:
-        raise UmaMoeError("Aucun parent local dans veterans_legacy_linked.json.")
+        raise UmaMoeError('No local parent in veterans_legacy_linked.json.')
 
     fixed: dict[str, Any] | None = None
     if fixed_parent_trained_id is not None:
@@ -4593,7 +4570,7 @@ def rank_online_parent_pairs(
             None,
         )
         if fixed is None and not exhaustive_pairs:
-            raise UmaMoeError(f"Parent local introuvable : #{fixed_parent_trained_id}")
+            raise UmaMoeError(f'Local parent not found: #{fixed_parent_trained_id}')
 
     normalizer = OnlineRecordNormalizer(master_path)
     try:
@@ -4602,7 +4579,7 @@ def rank_online_parent_pairs(
         normalizer.close()
     if not online_candidates:
         raise UmaMoeError(
-            "La réponse uma.moe ne contient aucun parent avec Main/factors exploitables."
+            'The uma.moe response contains no parent with usable Main/Spark data.'
             + _empty_candidates_diagnostic(_extract_record_list(raw_payload))
         )
 
@@ -4625,29 +4602,26 @@ def rank_online_parent_pairs(
             for item in strict_main_filters
         )
         log(
-            f"Contrôle local strict des pinks : {len(online_candidates)}/{unfiltered_online_count} "
-            f"parents respectent {filter_text}."
+            f'Strict local Pink Spark validation: {len(online_candidates)}/{unfiltered_online_count} parents match {filter_text}.'
         )
         normalization_diag["strict_main_factor_filters"] = strict_main_filters
         normalization_diag["pre_filter_count"] = unfiltered_online_count
         normalization_diag["post_filter_count"] = len(online_candidates)
         if not online_candidates:
             raise UmaMoeError(
-                "Aucun parent uma.moe ne respecte les contraintes Main sélectionnées "
-                f"({filter_text}). Le pool demandé est peut-être trop petit."
+                f'No uma.moe parent matches the selected Main constraints ({filter_text}). The requested pool may be too small.'
             )
     else:
         normalization_diag["strict_main_factor_filters"] = []
         normalization_diag["pre_filter_count"] = unfiltered_online_count
         normalization_diag["post_filter_count"] = unfiltered_online_count
-    log(f"uma.moe : {len(online_candidates)} branches parent distantes normalisées.")
+    log(f'uma.moe: {len(online_candidates)} remote parent branches normalised.')
     online_candidates = _apply_lineage_factor_filters(
         online_candidates, lineage_blue_filter, lineage_pink_filter, log
     )
     if not online_candidates:
         raise UmaMoeError(
-            "Aucun candidat ne respecte les filtres lignée demandés. "
-            "Assouplis le minimum d'étoiles ou vérifie les paramètres envoyés à l'API."
+            'No candidate satisfies the requested lineage filters. Relax the star minimum or check the parameters sent to the API.'
         )
     normalization_diag["lineage_filters"] = {
         "blue": list(lineage_blue_filter) if lineage_blue_filter else None,
@@ -4745,13 +4719,11 @@ def rank_online_parent_pairs(
         normalization_diag["incomplete_parent_branches_excluded"] = incomplete_remote_count
         if incomplete_remote_count:
             log(
-                f"Branches distantes incomplètes exclues : {incomplete_remote_count} "
-                "(les deux grands-parents sont requis pour le calcul à six membres)."
+                f'Incomplete remote branches excluded: {incomplete_remote_count} (both grandparents are required for the six-member calculation).'
             )
         if not remote_eligible:
             raise UmaMoeError(
-                "Aucun parent distant compatible avec une branche complète "
-                "(Main + deux grands-parents)."
+                'No compatible remote parent has a complete branch (Main + two grandparents).'
             )
         requested_remote_limit = max(1, min(int(remote_pool_size), 500))
         hard_filter_recall_guard = bool(
@@ -4764,9 +4736,7 @@ def rank_online_parent_pairs(
         )
         if exhaustive_pairs and effective_remote_limit > requested_remote_limit:
             log(
-                "Garde-fou de rappel : le filtre dur a réduit le pool ; "
-                f"{effective_remote_limit} parents distants seront conservés au lieu "
-                f"de {requested_remote_limit} avant le calcul exact."
+                f'Recall guard: the hard filter reduced the pool; {effective_remote_limit} remote parents will be kept instead of {requested_remote_limit} before exact scoring.'
             )
 
         if exhaustive_pairs:
@@ -4775,17 +4745,14 @@ def rank_online_parent_pairs(
             incomplete_local_count = len(local_compatible) - len(local_eligible)
             if incomplete_local_count:
                 log(
-                    f"Branches locales incomplètes exclues : {incomplete_local_count} "
-                    "(les deux grands-parents sont requis)."
+                    f'Incomplete local branches excluded: {incomplete_local_count} (both grandparents are required).'
                 )
             if not local_eligible:
                 raise UmaMoeError(
-                    "Aucun parent local compatible avec une branche complète "
-                    "(parent + deux grands-parents)."
+                    'No compatible local parent has a complete branch (parent + two grandparents).'
                 )
             log(
-                f"Préclassement via le moteur local : {len(local_eligible)} parents locaux et "
-                f"{len(remote_eligible)} parents distants…"
+                f'Pre-ranking through the local engine: {len(local_eligible)} local parents and {len(remote_eligible)} remote parents…'
             )
             local_pre = sorted(
                 (branch_score(member, "local") for member in local_eligible),
@@ -4826,13 +4793,12 @@ def rank_online_parent_pairs(
             pair_mode = "exhaustive_parent_top_pools"
         else:
             if fixed is None:
-                raise UmaMoeError("Sélectionne un parent local ou active le test automatique des paires.")
+                raise UmaMoeError('Select a parent local member or enable automatic pair testing.')
             if not eligible(fixed):
-                raise UmaMoeError("Le parent local sélectionné est l'Ace ou n'a pas pu être résolu.")
+                raise UmaMoeError('The selected local parent is the Ace or could not be resolved.')
             if not _has_complete_parent_branch(fixed):
                 raise UmaMoeError(
-                    "Le parent local sélectionné ne contient pas ses deux grands-parents ; "
-                    "le calcul exact sur six membres est impossible."
+                    'The selected local parent does not contain both grandparents; the exact six-member calculation is impossible.'
                 )
             incomplete_local_count = 0
             selected_locals = [fixed]
@@ -4849,8 +4815,7 @@ def rank_online_parent_pairs(
             pair_mode = "fixed_local_parent"
 
         log(
-            f"Calcul exact des paires de parents : {len(selected_locals)} locaux × "
-            f"{len(selected_remotes)} distants, sur les six membres visibles."
+            f'Exact parent-pair calculation: {len(selected_locals)} local × {len(selected_remotes)} remote parents, using all six visible lineage members.'
         )
 
         pair_context = {
@@ -4898,7 +4863,7 @@ def rank_online_parent_pairs(
                 processed % max(1, len(selected_remotes) * 10) == 0
                 or processed == total_possible
             ):
-                log(f"Paires parent évaluées : {processed}/{total_possible} — {len(summaries)} valides.")
+                log(f'Parent pairs evaluated: {processed}/{total_possible} — {len(summaries)} valid.')
 
 
         if parallel:
@@ -4915,7 +4880,7 @@ def rank_online_parent_pairs(
                     summaries.append(evaluate_pair(selected_locals[i], selected_remotes[j], detailed=False))
 
         if not summaries:
-            raise UmaMoeError("Aucune paire parent local × parent distant valide.")
+            raise UmaMoeError('No valid local parent × remote parent pair.')
         summaries.sort(key=parent_pair_sort_key, reverse=True)
         detail_count = max(1, min(int(top_n), 500))
         top: list[dict[str, Any]] = []

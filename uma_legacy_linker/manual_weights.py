@@ -246,7 +246,6 @@ def generate_manual_skill_weights(
             style_payload[style] = {"skills": skill_weights}
         course_documents[course_key] = {
             "label": course.get("label", course_key),
-            "label_fr": course.get("label_fr"),
             "label_en": course.get("label_en"),
             "category": course.get("category", "other"),
             "sequence": course.get("sequence"),

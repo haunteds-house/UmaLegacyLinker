@@ -54,16 +54,16 @@ def _nested(*keys: str, scale: float = 1.0) -> Getter:
 
 
 SEARCH_METRICS = (
-    ComparisonMetric("Rang", _nested("_rank"), digits=0),
+    ComparisonMetric('rank', _nested("_rank"), digits=0),
     ComparisonMetric("Score", _nested("score")),
     ComparisonMetric(
         "P(S)",
         _nested("distance_s_summary", "probability_reach_s", scale=100.0),
         suffix="%",
     ),
-    ComparisonMetric("Affinité", _nested("affinity", "total")),
-    ComparisonMetric("Bleues", _nested("components", "blue")),
-    ComparisonMetric("Roses", _nested("components", "pink")),
+    ComparisonMetric('Affinity', _nested("affinity", "total")),
+    ComparisonMetric('Blue Sparks', _nested("components", "blue")),
+    ComparisonMetric('Pink Sparks', _nested("components", "pink")),
     ComparisonMetric("Whites", _nested("components", "white_skill")),
     ComparisonMetric("G1", _nested("components", "race")),
     ComparisonMetric("Unique", _nested("components", "unique")),
@@ -71,26 +71,26 @@ SEARCH_METRICS = (
 
 TRANSFER_METRICS = (
     ComparisonMetric("Verdict", _nested("status")),
-    ComparisonMetric("Score d’évaluation", _nested("rank_score"), digits=0),
-    ComparisonMetric("Meilleur parent", _nested("best_parent_score")),
-    ComparisonMetric("Rang parent", _nested("best_parent_percentile"), suffix="%"),
-    ComparisonMetric("Meilleur GP", _nested("best_grandparent_score")),
-    ComparisonMetric("Rang GP", _nested("best_grandparent_percentile"), suffix="%"),
+    ComparisonMetric('Evaluation score', _nested("rank_score"), digits=0),
+    ComparisonMetric('Best parent', _nested("best_parent_score")),
+    ComparisonMetric('Parent rank', _nested("best_parent_percentile"), suffix="%"),
+    ComparisonMetric('Best GP', _nested("best_grandparent_score")),
+    ComparisonMetric('GP rank', _nested("best_grandparent_percentile"), suffix="%"),
     ComparisonMetric(
-        "Contextes parent compétitifs",
+        'Competitive parent contexts',
         _nested("parent_evidence", "competitive_context_count"),
         digits=0,
     ),
     ComparisonMetric(
-        "Contextes GP compétitifs",
+        'Competitive GP contexts',
         _nested("grandparent_evidence", "competitive_context_count"),
         digits=0,
     ),
-    ComparisonMetric("Vitesse", _nested("stats", "speed"), digits=0),
-    ComparisonMetric("Endurance", _nested("stats", "stamina"), digits=0),
-    ComparisonMetric("Puissance", _nested("stats", "power"), digits=0),
-    ComparisonMetric("Cran", _nested("stats", "guts"), digits=0),
-    ComparisonMetric("Intelligence", _nested("stats", "wiz"), digits=0),
+    ComparisonMetric('Speed', _nested("stats", "speed"), digits=0),
+    ComparisonMetric('Stamina', _nested("stats", "stamina"), digits=0),
+    ComparisonMetric('Power', _nested("stats", "power"), digits=0),
+    ComparisonMetric('Guts', _nested("stats", "guts"), digits=0),
+    ComparisonMetric('Wit', _nested("stats", "wiz"), digits=0),
 )
 
 

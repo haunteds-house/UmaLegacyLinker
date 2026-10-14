@@ -97,7 +97,7 @@ class ReleaseConsistencyTests(unittest.TestCase):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
         self.assertIn(
-            "https://github.com/Rom1foucher/UmaLegacyLinker/releases/latest",
+            "https://github.com/haunteds-house/UmaLegacyLinker/releases/latest",
             readme,
         )
         self.assertIn("UmaLegacyLinkerQt-win64.zip", readme)
@@ -143,7 +143,7 @@ class ReleaseConsistencyTests(unittest.TestCase):
         script = (ROOT / "build_windows_qt.ps1").read_text(encoding="utf-8-sig")
 
         self.assertIn("-m pytest -q tests --ignore=tests/test_qt_runtime.py", script)
-        self.assertIn("tests/check_i18n.py", script)
+        self.assertIn("tests/check_english.py", script)
         self.assertIn("from tests.test_qt_runtime import QtRuntimeSmokeTests", script)
         self.assertIn("$env:QT_QPA_PLATFORM = \"offscreen\"", script)
         self.assertIn("$env:QT_QPA_FONTDIR = $WindowsFontDir", script)
@@ -158,7 +158,7 @@ class ReleaseConsistencyTests(unittest.TestCase):
 
         self.assertNotIn('"app"', spec)
         self.assertNotIn("QT_UI_VERSION", package)
-        self.assertNotIn("Tkinter reste disponible", home)
+        self.assertNotIn('Tkinter remains disponible', home)
 
     def test_run_bat_launches_without_a_lingering_console(self) -> None:
         script = (ROOT / "run.bat").read_text(encoding="utf-8")
@@ -200,9 +200,9 @@ class ReleaseConsistencyTests(unittest.TestCase):
         requirements = (ROOT / "requirements-build-qt.txt").read_text(encoding="utf-8")
 
         self.assertFalse(list(ROOT.glob("test_*.py")))
-        self.assertFalse((ROOT / "check_i18n.py").exists())
+        self.assertFalse((ROOT / "check_english.py").exists())
         self.assertTrue((ROOT / "tests" / "__init__.py").is_file())
-        self.assertTrue((ROOT / "tests" / "check_i18n.py").is_file())
+        self.assertTrue((ROOT / "tests" / "check_english.py").is_file())
         self.assertGreaterEqual(len(list((ROOT / "tests").glob("test_*.py"))), 20)
         self.assertRegex(requirements, r"(?m)^pytest(?:\[.*?\])?[<>=]")
 

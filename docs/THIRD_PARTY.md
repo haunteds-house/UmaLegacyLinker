@@ -33,10 +33,22 @@ third-party material.
 | GameTora images | Remote, on-demand artwork | No images vendored | No images pre-bundled; requested files may enter the user's cache | Game and image rights remain with their respective holders |
 | uma.moe | Remote API and optional imported data | No service code or dataset vendored | No service code or dataset pre-bundled | Service-controlled terms and availability |
 | UmaExtractor / umadump | Separately installed extraction tools | Not vendored | Not bundled | Each project's own licence and warnings |
+| UmaParser replay layout | Reference for the Python Team Trials replay decoder | MIT notice in `licenses/UmaParser-MIT.txt` | Same notice included | MIT |
 | `master.mdb` and game files | User-selected local inputs | Not vendored | Not bundled | Game rights and terms apply |
 
 `pytest` and the GitHub Actions used by the release workflow are development or CI tooling, not
 runtime dependencies distributed as part of the application bundle.
+
+The original collection backend and watcher in `uma_workbench/` were provided
+under MIT; their [original notice](../licenses/UmaWorkbench-MIT.txt) is retained.
+The combined application is distributed under this project's GPL-3.0-only licence.
+The replay decoder uses the binary layout and
+skill-event interpretation documented in [UmaParser](https://github.com/stratowagon/UmaParser),
+especially `UmaParser.Core/DataModel/RaceScenario/Parsers.cs` and
+`RaceScenarioData.cs`; its [MIT notice](../licenses/UmaParser-MIT.txt) is retained.
+No extractor executable, game database, collection dump or saved website bundle
+is distributed. `uma_workbench/sync.py` reads exports and can launch the
+separate upstream umadump executable without modifying its extraction process.
 
 ## Bundled runtime software
 
