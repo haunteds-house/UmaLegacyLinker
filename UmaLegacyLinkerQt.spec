@@ -11,6 +11,7 @@ data_files = [
     (str(resources_dir / "default_manual_adjustments.json"), "resources"),
     (str(resources_dir / "default_parent_scoring.json"), "resources"),
     (str(resources_dir / "default_skill_priorities.json"), "resources"),
+    (str(resources_dir / "support_event_hints.json"), "resources"),
     (str(project_root / "docs" / "THIRD_PARTY.md"), "docs"),
     (str(project_root / "docs" / "WORKBENCH.md"), "docs"),
     (str(project_root / "licenses" / "UmaParser-MIT.txt"), "licenses"),

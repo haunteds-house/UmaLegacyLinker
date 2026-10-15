@@ -15,10 +15,12 @@ Windows desktop application · English interface
 This fork is the base for the collection and career planner. **My collection**
 imports umadump ZIP/JSON exports and shows trainees, support cards and veterans
 with pictures and names. **Career plans** uses illustrated choices for trainees,
-parents and support decks. **Team Trials** compares recorded race results.
-**Find inheritance parents** connects the imported veterans to the existing
-inheritance engine. See the [collection guide](docs/WORKBENCH.md) for setup and
-current limits.
+parents and support decks, or starts from skills and aptitudes and searches the
+collection for suitable setups. **Team Trials** compares recorded race results
+and starts replacement plans with the runner choice open. **Calculators** budgets
+skill points, awakening materials and Grand Concert songs inside the app.
+**Lineage linker** keeps the original inheritance tools in the sidebar.
+See the [collection guide](docs/WORKBENCH.md) and [remaining goals](docs/ROADMAP.md).
 
 [Download](#quick-start) · [Features](#features) · [Documentation](#documentation)
 
@@ -36,9 +38,9 @@ Choose the Ace you want to train, the course and your running style. Uma Legacy 
 2. Extract the **whole ZIP** and run `UmaLegacyLinkerQt.exe`. Keep its runtime files together; Python is included.
 3. Obtain your current game database, `master.mdb`, and export your veterans with [umadump](https://github.com/Werseter/umadump) or [UmaExtractor](https://github.com/xancia/UmaExtractor), following that tool's instructions.
 4. From **Home**, choose **1 · Set up and import**. Choose `master.mdb` in **Setup**, click **Save setup**, then **Import my collection** to select your ZIP or JSON exports.
-5. Browse your characters in **My collection**, start a **Career plan**, or choose **Find inheritance parents** to search your veterans.
+5. Browse and sort your characters in **My collection**, start a **Career plan**, or choose **Link collection for lineage** to prepare your veterans for the **Lineage linker**.
 
-These steps support local inheritance ranking without an API key. **Open umadump** launches your existing unmodified executable. The original data and scoring editors are available through **Show advanced tools**. Prepare the inheritance search again after replacing the MDB or collection export.
+These steps support local inheritance ranking without an API key. **Open umadump** launches your existing unmodified executable. **Lineage linker** and **Link exported veterans** are always visible; the transfer and scoring editors are available through **Show advanced tools**. Prepare the inheritance search again after replacing the MDB or collection export.
 
 This README describes the current source tree; published builds and prereleases are described by their own release notes.
 
@@ -117,6 +119,8 @@ Remote searches contact uma.moe. The UI can also download optional GameTora artw
 | Document | Contents |
 | --- | --- |
 | [User guide](docs/USER_GUIDE.md) | Setup, workflows, result states and troubleshooting |
+| [Collection and career plans](docs/WORKBENCH.md) | Requirement search, sorting, replacement plans and internal calculators |
+| [Remaining goals](docs/ROADMAP.md) | Implemented scope, limits and next development steps |
 | [Scoring](docs/SCORING.md) | Formulas, probabilities and model limits |
 | [Scoring configuration](docs/SCORING_CONFIGURATION.md) | Weights, overrides and merge rules |
 | [Architecture](docs/ARCHITECTURE.md) | Modules, processes, execution settings and persistence |

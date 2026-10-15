@@ -2,7 +2,24 @@
 
 This project uses feature-level semantic versioning. Small internal iterations are consolidated into the nearest meaningful release instead of receiving their own public version.
 
-## Unreleased
+## 1.10.0 - Collection setup planner
+
+- Start career plans from skills, aptitudes and a race role without choosing a
+  trainee. Compare owned trainees, parent pairs and support skill sources with
+  named, illustrated setup previews; apply a result or save requirements alone.
+- Find Team Trials replacements across the collection while retaining the
+  selected division and style. Edit saved plans and check existing veterans
+  against their skill, stat and aptitude requirements.
+- Sort trainees by name, rarity and awakening; supports by name, rarity, level
+  and limit breaks; veterans by name, rating, date, stats and inheritance stars.
+- Add internal skill-point, awakening-material and Grand Concert song budgets.
+  Balances, discounted skill prices and material earning rates are entered by
+  the user and saved locally.
+- Restore visible Lineage linker and Link exported veterans sidebar entries,
+  retaining the existing inheritance engines and inspectors.
+- Treat event hints and inherited skill access as possibilities with source
+  explanations. Setup search uses bounded shortlists; it does not forecast
+  training stats, event success or TT/CM race results.
 
 - Use the haunteds-house fork as the Windows app base and integrate collection,
   Team Trials evidence, training goals, raw game data and resource milestones in

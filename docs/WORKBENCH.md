@@ -25,22 +25,30 @@ whole built directory together. Source does not contain a prebuilt executable.
 2. Click **Import my collection** and select your umadump ZIP or collection/race
    JSON files. Executables inside a ZIP are neither extracted nor run.
 3. Open **My collection**. Switch between **Trainees**, **Support cards** and
-   **Veterans**, or search by name. Each item has a portrait or card illustration.
+   **Veterans**, search by name and choose a sort order. Each item has a portrait or card illustration.
    Click **View** for readable stats, learned skills and inheritance sparks.
    Raw fields are available only on the separate **Technical data** tab.
-4. Open **Career plans → Plan a career**. Choose a trainee, parents and supports
-   from illustrated menus. Optional stat targets and skill checklists use names.
-   Duplicate veteran copies are distinguished by their stats. No IDs need typing.
+4. Open **Career plans → Plan a career**. Set a race role, skills and aptitude
+   targets, then **Find setups in my collection**. Leave the trainee empty to
+   compare owned characters. Suggested setups show pictures, names, parents,
+   supports, aptitude changes and skill sources. **Use this setup** fills the
+   lineup. You can also save requirements alone or fix choices before searching.
 5. Use **Team Trials** to compare recorded runners and skill activations.
    Double-click a runner for its picture, stats and a readable race summary.
-   **Train a better version** starts a plan with that character already chosen.
-6. Click **Find inheritance parents** above the collection to prepare your
-   veterans and open the existing inheritance search. Choose a target and open
+   **Find a replacement** keeps the selected division and running style while
+   leaving the trainee open, so another character can take that role.
+6. Click **Link collection for lineage** above the collection to prepare your
+   veterans and open the original **Lineage linker**. Choose a target and open
    results for the illustrated lineage. Repeat after importing new veterans.
 
-The **Home** page explains each workflow. **Show advanced tools** in the sidebar
-reveals the original data, transfer and weight editors, plus raw game-data
-browsing. These tools are hidden initially; their saved settings still apply.
+The **Home** page explains each workflow. **Lineage linker** and **Link exported
+veterans** are always visible in the sidebar. **Show advanced tools** reveals the
+transfer and weight editors, plus raw game-data browsing.
+
+Trainees sort by name, rarity or awakening. Supports also sort by level and limit
+breaks. Veterans sort by name, rating, date, individual stats and blue/red spark
+totals. Each collection remembers its sort order; illustrated choice dialogs
+offer the same options. Records with missing values sort last.
 
 Pictures load on demand from GameTora. If a portrait or support image cannot
 load, the app tries the corresponding asset in
@@ -97,19 +105,64 @@ per character and three per division, with optional distinct styles. Its
 shortlist spans recorded cohorts; historical comparisons can be confounded.
 It does not model teammate interactions or simulate an untrained runner.
 
-Career plans record target stats, skills, support decks, parents, scenario,
-prerequisites, attempt limits and stop conditions. The editor validates
-collection ownership and character conflicts. Dependencies must be complete
+Career plans record a race role, skill and aptitude requirements, optional stat
+targets, support decks, parents, scenario, prerequisites, attempt limits and
+stop conditions. A final trainee is optional. **Edit / find setups** refines an
+existing plan without creating a duplicate. Dependencies must be complete
 before starting a goal. Completion remains manual; career observations are
-retained for inspection.
+retained for inspection. **Check collection** shows owned veterans meeting the
+plan's stored character, stat, skill and aptitude checks for you to review; it
+does not infer that a new career satisfied every finish condition.
 
-Resources are manual milestones. Balances, shop inventories and verified
-earning rates are not present in the supplied dump. Game database browsing
-shows raw technical fields and does not claim a validated skill tier list.
+### How setup search works
 
-The fork's existing inheritance scorer is available. Full TT/CM race
-simulation, collection-wide ace selection, automatic lineage career scheduling,
-support-deck optimisation and a Concert calculator still need implementation.
+The search compares owned trainees, legal local parent pairs and support decks
+with distinct characters. Fixed choices stay fixed. It excludes borrowed
+veterans from owned parents and permits at most one explicitly chosen borrowed
+support. The selected division/style supplies aptitude targets; exact distance
+also determines its distance group. Individual aptitude targets override the
+profile's minimum grade.
+
+The preview explains starting aptitudes using red sparks in each parent branch
+and its two immediate grandparents. S requires an in-career inheritance roll.
+Skill sources distinguish the trainee's owned awakening level, support hint
+pools, possible support-event rewards, and actual skill sparks. A skill merely
+learned by a parent is not counted as an inheritance source. Higher skill tiers
+cover their positive prerequisite steps. Known surface, distance and style
+restrictions are checked; this is not a complete skill-activation simulator.
+
+Ranking prioritises aptitude gaps, missing skill sources, complete lineups,
+trainee skill access, stat growth alignment and trained support levels. Every
+legal parent pair is screened, with up to 80 per trainee passed to joint support
+comparison. Support coverage keeps a bounded frontier. The shortlist can miss
+another setup. Event choices can conflict, and events, hints and inheritance
+are possibilities. Stat targets are goals, not predicted outcomes. The original
+lineage tool remains available for its deeper affinity, inheritance-probability
+and G1 analysis.
+
+## Internal calculators
+
+**Calculators** contains native tools rather than a list of external links:
+
+- **Skill points:** choose named skills, include positive prerequisite steps
+  once, mark learned skills and enter the discounted prices shown in game.
+  The tool shows the total, remaining points and deficit. A missing price
+  remains unknown until entered.
+- **Awakening materials:** choose an owned trainee and current/target awakening
+  levels. Named material totals come from the MDB. Enter balances and average
+  materials per run, including fractional averages, to estimate missing
+  materials and runs. Missing upgrade rows are labelled as incomplete.
+- **Grand Concert:** select wanted songs and mark bought songs. Enter current
+  Dance, Passion, Vocal, Visual and Composure balances to see costs and
+  shortages separately. Song effects are shown from the MDB. This is a song
+  budget; it does not simulate lesson offers, techniques or an optimal shopping
+  sequence.
+- **Resource milestones:** retain manual saving targets and progress.
+
+Calculator inputs are saved locally. Balances, current shop offerings and
+verified material earning rates are not supplied by the collection dump, so
+they remain manual inputs. Game database browsing stays an advanced raw-data
+tool. See [Remaining goals](ROADMAP.md) for the next development steps.
 
 ## English interface
 

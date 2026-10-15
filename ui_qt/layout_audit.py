@@ -185,6 +185,11 @@ def run_audit(output_dir: Path) -> dict[str, object]:
                 application.processEvents()
                 variants: list[tuple[str, str | None]] = [(page, None)]
                 current_page = window._pages[page]
+                if page == "workbench":
+                    variants = [("workbench", "collection"), ("career-plans", "goals"),
+                        ("team-trials", "trials"), ("calculator-skills", "calculator-0"),
+                        ("calculator-awakening", "calculator-1"), ("calculator-concert", "calculator-2"),
+                        ("resource-milestones", "calculator-3"), ("collection-setup", "setup")]
                 if page == "search" and hasattr(current_page, "set_rail_collapsed"):
                     # The rail is the page's main layout state: both positions
                     # have to survive every audited width.
@@ -207,6 +212,12 @@ def run_audit(output_dir: Path) -> dict[str, object]:
                     ]
                 for variant, mode in variants:
                     print(f"Auditing {language}/{variant}...", flush=True)
+                    if page == "workbench" and mode:
+                        index = {"collection": 0, "trials": 1, "goals": 2, "setup": 5}.get(mode, 4)
+                        current_page.tabs.setCurrentIndex(index)
+                        if mode.startswith("calculator-"):
+                            current_page.calculator_tabs.setCurrentIndex(int(mode.rsplit("-", 1)[1]))
+                        application.processEvents()
                     if page == "search" and mode is not None:
                         current_page.set_rail_collapsed(
                             mode == "rail-collapsed", persist=False

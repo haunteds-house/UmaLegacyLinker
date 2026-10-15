@@ -117,6 +117,7 @@ class MasterData:
         self.factors = {}
         self.courses = {}
         self.sha256 = ""
+        self._planning_catalog = None
         if path:
             self.load(path)
 
@@ -156,6 +157,7 @@ class MasterData:
             self.names, self.cards, self.supports, self.factors, self.courses = names, cards, supports, factors, courses
             self.support_levels, self.support_limits = support_levels, support_limits
             self.sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
+            self._planning_catalog = None
         except Exception:
             self.path = previous
             raise
@@ -511,6 +513,31 @@ class Store:
         for row in rows:
             row["details"] = json.loads(row.pop("payload"))
         return rows
+
+    def update_goal(self, identity, title, payload):
+        if not title.strip():
+            raise ValueError("A career plan needs a name")
+        dependencies = [int(value) for value in payload.get("prerequisites", [])]
+        if len(set(dependencies)) != len(dependencies):
+            raise ValueError("A prerequisite plan is repeated")
+        with self.connection() as con:
+            graph = {row[0]: json.loads(row[1]).get("prerequisites", [])
+                for row in con.execute("SELECT id,payload FROM goals")}
+            if identity not in graph:
+                raise ValueError("The career plan no longer exists")
+            if any(value not in graph for value in dependencies):
+                raise ValueError("A prerequisite plan no longer exists")
+            graph[identity] = dependencies
+            def reaches_current(node, seen):
+                if node == identity:
+                    return True
+                if node in seen:
+                    return False
+                seen.add(node)
+                return any(reaches_current(int(other), seen) for other in graph.get(node, []))
+            if any(reaches_current(value, set()) for value in dependencies):
+                raise ValueError("These prerequisites create a circular training order")
+            con.execute("UPDATE goals SET title=?,payload=? WHERE id=?", (title.strip(), canonical(payload), identity))
 
     def change_goal_status(self, identity, status):
         if status not in ("Planned", "In progress", "Complete", "Abandoned"):

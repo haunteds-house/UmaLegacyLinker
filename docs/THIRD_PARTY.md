@@ -31,6 +31,8 @@ third-party material.
 | Lucide icons | Vendored SVG UI chrome | Nine SVG files | The same nine SVG files | ISC, with four Feather-derived icons under MIT |
 | Domain badges | Project-maintained SVGs | Twelve SVG files | The same twelve SVG files | Project-authored; GPL-3.0-only |
 | GameTora images | Remote, on-demand artwork | No images vendored | No images pre-bundled; requested files may enter the user's cache | Game and image rights remain with their respective holders |
+| Hakuraku images | Fallback character and support artwork | No images vendored | No images pre-bundled; requested files may enter the user's cache | Game and image rights remain with their respective holders |
+| Support-event hint associations | Derived factual card-to-skill mappings | `resources/support_event_hints.json` | Same numeric mapping | Source and scope documented below; no source code or event prose copied |
 | uma.moe | Remote API and optional imported data | No service code or dataset vendored | No service code or dataset pre-bundled | Service-controlled terms and availability |
 | UmaExtractor / umadump | Separately installed extraction tools | Not vendored | Not bundled | Each project's own licence and warnings |
 | UmaParser replay layout | Reference for the Python Team Trials replay decoder | MIT notice in `licenses/UmaParser-MIT.txt` | Same notice included | MIT |
@@ -175,9 +177,8 @@ tested as a project UI contract; they are not copies supplied by Lucide, GameTor
 ### GameTora artwork
 
 The Qt interface can derive HTTPS URLs for trainee standing art, support-card art, skill icons and
-race banners from `master.mdb` identifiers. The current interface displays trainee art, skill
-icons and race banners. A support-card URL builder exists for future use but support-card artwork
-is not currently displayed.
+race banners from `master.mdb` identifiers. The current interface displays trainee art,
+support-card art, skill icons and race banners.
 
 [`ui_qt/asset_catalog.py`](../ui_qt/asset_catalog.py) restricts image requests to these hosts:
 
@@ -203,6 +204,32 @@ licence for the underlying game artwork is assigned by this project.
 GameTora states that it is not affiliated with the developers of Umamusume and that game material
 is copyrighted by Cygames, Inc. Neither access through GameTora nor local caching grants a licence
 to redistribute those images.
+
+### Hakuraku artwork and interface reference
+
+If GameTora cannot supply a character or support image, the app requests the
+matching WebP from [Hakuraku's public assets](https://github.com/ayaliz/hakuraku/tree/main/public/assets)
+on `raw.githubusercontent.com`. Only the specific character/support asset paths
+accepted by `asset_catalog.py` are allowed. The same cache, download limit and
+offline controls apply. No artwork is pre-bundled.
+
+Hakuraku's named portrait selectors and expandable race cards informed the Qt
+collection interface. Its application code and race simulator are not integrated.
+Availability of its assets does not assign rights to the underlying game artwork.
+
+### Support-event hint associations
+
+[`resources/support_event_hints.json`](../resources/support_event_hints.json)
+records potential support-card-to-skill associations derived from
+[Uma-Musume-Auto-Train's support-event data](https://github.com/Kisegami/Uma-Musume-Auto-Train/blob/main/assets/events/support_card.json),
+blob `1819f757badde950424dd67d4aae63ebf5592112`. Only numerical card and skill IDs
+are retained; no event prose or source code is copied or executed.
+
+These are possible hint routes, including conditional event rewards. They do
+not simulate event appearance, mutually exclusive choices, event-chain endings
+or acquisition chances. The planner filters the mapping against the user's MDB
+and presents event sources separately from regular support hint pools. Names,
+aptitudes, prices, awakening costs and Concert costs come from that local MDB.
 
 ### uma.moe
 

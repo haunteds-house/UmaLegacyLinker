@@ -22,10 +22,12 @@ from uma_workbench.goals import validate_training_goal
 from uma_workbench.sync import ExportWatcher, check_release, launch_umadump
 from ui_qt.components import PageHeader, PathPicker, muted_label
 from ui_qt.context import AppContext
-from ui_qt.collection_widgets import ArtworkLabel, CollectionGallery, STAT_LABELS, character_name, describe_records, display_name
+from ui_qt.collection_widgets import ArtworkLabel, CollectionGallery, SORT_OPTIONS, STAT_LABELS, character_name, describe_records, display_name, sort_records
 from ui_qt.training_goal_dialog import TrainingGoalDialog
 from ui_qt.image_assets import ImageRepository, online_images_enabled
 from ui_qt.avatar import AsyncAvatarProvider
+from ui_qt.resource_calculators import SkillBudgetWidget, AwakeningBudgetWidget, ConcertBudgetWidget
+from uma_workbench.planning import APTITUDES, GRADE_LABELS, distance_group, matching_veterans, requirements_aptitudes
 
 
 def _table(headers, parent=None):
@@ -80,7 +82,7 @@ class WorkbenchPage(QWidget):
             "Browse your umas, review their races, and decide what to train next."))
         actions = QHBoxLayout()
         self._button(actions, "Import my collection", self.import_dump)
-        self._button(actions, "Find inheritance parents", self.prepare_lineage)
+        self._button(actions, "Link collection for lineage", self.prepare_lineage)
         actions.addStretch()
         root.addLayout(actions)
         self.notice = muted_label("")
@@ -161,19 +163,41 @@ class WorkbenchPage(QWidget):
         self.filter.setAccessibleName("Search collection names")
         row.addWidget(self.collection_kind)
         row.addWidget(self.filter, 1)
+        self.collection_sort = QComboBox()
+        self.collection_sort.setAccessibleName("Sort my collection")
+        row.addWidget(self.collection_sort)
         layout.addLayout(row)
         self.collection = CollectionGallery(self.images)
         layout.addWidget(self.collection, 1)
         self.collection.activated.connect(self._view_collection)
-        self.collection_kind.currentIndexChanged.connect(self.refresh_collection)
+        self.collection_kind.currentIndexChanged.connect(self._collection_kind_changed)
+        self.collection_sort.currentIndexChanged.connect(self._collection_sort_changed)
         self.filter.textChanged.connect(self.refresh_collection)
+        self._collection_kind_changed()
+
+    def _collection_kind_changed(self, *_):
+        kind = self.collection_kind.currentData()
+        self.collection_sort.blockSignals(True)
+        self.collection_sort.clear()
+        for label, code in SORT_OPTIONS[kind]:
+            self.collection_sort.addItem(label, code)
+        previous = self.store.setting("collection_sort", {}).get(kind, "name_asc")
+        self.collection_sort.setCurrentIndex(max(0, self.collection_sort.findData(previous)))
+        self.collection_sort.blockSignals(False)
+        self.refresh_collection()
+
+    def _collection_sort_changed(self, *_):
+        settings = self.store.setting("collection_sort", {})
+        settings[self.collection_kind.currentData()] = self.collection_sort.currentData()
+        self.store.set_setting("collection_sort", settings)
+        self.refresh_collection()
 
 
     def refresh_collection(self, *_):
         kind = self.collection_kind.currentData()
         search = self.filter.text().casefold()
         records = describe_records(self.master, kind, self.store.entities(kind))
-        self.collection.set_records([row for row in records if search in (row["name"] + " " + row["summary"]).casefold()])
+        self.collection.set_records(sort_records([row for row in records if search in (row["name"] + " " + row["summary"]).casefold()], self.collection_sort.currentData() or "name_asc"))
 
     def _view_collection(self, descriptor, observation=None):
         record = descriptor["record"]
@@ -226,7 +250,8 @@ class WorkbenchPage(QWidget):
             for factor in record["factor_info_array"]:
                 identity = factor.get("factor_id")
                 name = self.master.names.get((147, identity), "Inheritance spark")
-                factors.append(f"{name} {'★' * int(factor.get('level', 0))}".strip())
+                stars = int(self.master.factors.get(int(identity), {}).get("rarity", 0))
+                factors.append(f"{name} {'★' * stars}".strip())
             layout.addWidget(muted_label("Inheritance: " + " · ".join(factors)))
         if descriptor["kind"] == "trainees":
             button = QPushButton("Plan a career with this trainee")
@@ -234,9 +259,9 @@ class WorkbenchPage(QWidget):
             button.clicked.connect(lambda: self._plan_trainee(dialog, record))
             layout.addWidget(button)
         elif observation:
-            button = QPushButton("Plan a career to improve this runner")
+            button = QPushButton("Find a replacement for this team slot")
             button.setObjectName("primary")
-            button.clicked.connect(lambda: self._plan_trainee(dialog, record))
+            button.clicked.connect(lambda: self._plan_replacement(dialog, observation))
             layout.addWidget(button)
         overview_scroll = QScrollArea()
         overview_scroll.setWidgetResizable(True)
@@ -255,6 +280,10 @@ class WorkbenchPage(QWidget):
         dialog.accept()
         self.new_goal({"card_id": record["card_id"], "style": 2})
 
+    def _plan_replacement(self, dialog, runner):
+        dialog.accept()
+        self.new_goal({**runner, "lock_trainee": False})
+
 
     def _make_trials(self):
         _, layout = self._tab("Team Trials")
@@ -266,9 +295,9 @@ class WorkbenchPage(QWidget):
         self.distinct_styles.setChecked(True)
         row.addWidget(self.cohort, 1)
         row.addWidget(self.distinct_styles)
-        self._button(row, "Train a better version", self.goal_from_runner)
+        self._button(row, "Find a replacement", self.goal_from_runner)
         layout.addLayout(row)
-        sub = QTabWidget()
+        sub = self.trials_tabs = QTabWidget()
         self.tt = _table(["Runner", "Division", "Style", "Races", "Average points", "Win rate", "Win-rate range"])
         self.skills = _table(["Runner", "Skill", "Races with this skill", "Races activated", "Activation rate"])
         self.roster = _table(["Division", "Runner", "Style", "Races", "Average points", "Cautious points estimate"])
@@ -308,7 +337,7 @@ class WorkbenchPage(QWidget):
         if metrics:
             focus = min(metrics, key=lambda item: item["mean"])
             name = character_name(self.master, "veterans", focus["card_id"])
-            self.trial_focus.setText(f"Lowest recorded average: {name} in {DIVISIONS.get(focus['division'], 'this division')} — {focus['mean']:,.0f} points over {focus['races']} races. Select a runner, then choose ‘Train a better version’. This is a comparison of recorded results.")
+            self.trial_focus.setText(f"Lowest recorded average: {name} in {DIVISIONS.get(focus['division'], 'this division')} — {focus['mean']:,.0f} points over {focus['races']} races. ‘Find a replacement’ searches any owned trainee for that role. These are recorded results.")
         else:
             self.trial_focus.setText("No Team Trials races yet. Record a few races with umadump, then import the exports or enable live updates in Setup.")
         self._update_runner_portraits()
@@ -318,9 +347,14 @@ class WorkbenchPage(QWidget):
 
     def _make_goals(self):
         _, layout = self._tab("Career plans")
-        layout.addWidget(muted_label("A career plan records who to train, which parents and supports to use, and when the result is good enough. Start by choosing a trainee."))
+        layout.addWidget(muted_label("Start with the skills, aptitudes and race role you need. Search your collection for candidate trainees, parents and supports, then save a setup or keep a requirement-only plan."))
         row = QHBoxLayout()
         self._button(row, "Plan a career", self.new_goal)
+        self._button(row, "Edit / find setups", self.edit_goal)
+        self._button(row, "Check collection", self.check_goal_matches)
+        row.addStretch()
+        layout.addLayout(row)
+        row = QHBoxLayout()
         for label, status in (("Start selected", "In progress"), ("Mark complete", "Complete"), ("Abandon", "Abandoned")):
             self._button(row, label, lambda _checked=False, target=status: self.change_goal(target))
         row.addStretch()
@@ -333,21 +367,51 @@ class WorkbenchPage(QWidget):
         layout.addWidget(self.careers)
 
     def goal_from_runner(self):
-        runner = _selected(self.tt)
+        runner = _selected(self.trials_tabs.currentWidget())
         if runner:
-            self.new_goal(runner)
+            if "division" not in runner:
+                runner = next((row for row in self.store.metrics(self.cohort.currentData())
+                    if str(row["veteran_id"]) == str(runner["veteran_id"])), runner)
+            self.new_goal({**runner, "lock_trainee": False})
+        else:
+            self._error("Select a runner in the Team Trials table first")
 
-    def new_goal(self, runner=None):
+    def new_goal(self, runner=None, *, goal=None):
         if isinstance(runner, bool):
             runner = None
         if not self.master.path:
             self.tabs.setCurrentWidget(self.sync_tab)
             self._error("Finish setup by choosing the game's data file. It lets the app show character, card and skill names.")
             return
-        dialog = TrainingGoalDialog(self.store, self.master, self.images, runner, self)
+        dialog = TrainingGoalDialog(self.store, self.master, self.images, runner, self, goal=goal)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.refresh()
             self.tabs.setCurrentIndex(2)
+
+    def edit_goal(self):
+        goal = _selected(self.goals)
+        if goal:
+            self.new_goal(goal=goal)
+
+    def check_goal_matches(self):
+        goal = _selected(self.goals)
+        if not goal:
+            self._error("Select a career plan first")
+            return
+        matches = matching_veterans(self.store, self.master, goal["details"])
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Veterans matching this plan")
+        dialog.resize(900, 640)
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(muted_label(f"{len(matches)} existing veterans meet the selected skill, stat and aptitude targets. Review a match before marking the plan complete."))
+        gallery = CollectionGallery(self.images)
+        gallery.set_records(describe_records(self.master, "veterans", matches))
+        gallery.activated.connect(self._view_collection)
+        layout.addWidget(gallery, 1)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        dialog.exec()
 
 
     def change_goal(self, status):
@@ -391,14 +455,19 @@ class WorkbenchPage(QWidget):
             self._error(exc)
 
     def _make_resources(self):
-        _, layout = self._tab("Resources")
-        layout.addWidget(muted_label("Enter balances and verified earning rates manually; the current dump does not provide shop inventories or currency balances."))
-        links = QHBoxLayout()
-        for label, url in (("Grand Concert calculator", "https://uma.guide/grand-live-calculator/"),
-            ("GameTora", "https://gametora.com/umamusume"), ("Bestderby", "https://uma-bestderby.com/")):
-            self._button(links, label, lambda _checked=False, target=url: QDesktopServices.openUrl(QUrl(target)))
-        links.addStretch()
-        layout.addLayout(links)
+        _, root = self._tab("Calculators")
+        self.calculator_tabs = QTabWidget()
+        root.addWidget(self.calculator_tabs, 1)
+        self.skill_budget = SkillBudgetWidget(self.master, self.store)
+        self.awakening_budget = AwakeningBudgetWidget(self.master, self.store, self.images)
+        self.concert_budget = ConcertBudgetWidget(self.master, self.store)
+        self.resource_tools = [self.skill_budget, self.awakening_budget, self.concert_budget]
+        for title, tool in zip(("Skill points", "Awakening materials", "Grand Concert"), self.resource_tools):
+            self.calculator_tabs.addTab(tool, title)
+        milestones = QWidget()
+        layout = QVBoxLayout(milestones)
+        self.calculator_tabs.addTab(milestones, "Resource milestones")
+        layout.addWidget(muted_label("Track currencies and other targets here. Enter balances and average earnings from your game."))
         row = QHBoxLayout()
         self._button(row, "Add milestone", self.new_resource)
         self._button(row, "Remove selected milestone", self.remove_resource)
@@ -608,6 +677,8 @@ class WorkbenchPage(QWidget):
         career_count = sum(career["snapshots"] for career in self.store.career_summary())
         self.careers.setText(f"{career_count} career observations retained. Inspect completed careers and mark goals complete manually.")
         self.refresh_database()
+        for tool in self.resource_tools:
+            tool.refresh()
 
     def _artwork_changed(self, enabled):
         self.context.store.update({"online_images": "1" if enabled else "0"})
@@ -645,9 +716,15 @@ class WorkbenchPage(QWidget):
         layout = QVBoxLayout(content)
         layout.addWidget(QLabel(goal["title"]))
         layout.addWidget(muted_label(goal["status"] + " · " + details.get("scenario", "")))
-        trainee = describe_records(self.master, "trainees", [{"card_id": details["card_id"]}])[0]
-        layout.addWidget(ArtworkLabel(self.images, trainee["url"], trainee["name"], size=100))
-        layout.addWidget(QLabel(trainee["name"]))
+        if details.get("card_id"):
+            trainee = describe_records(self.master, "trainees", [{"card_id": details["card_id"]}])[0]
+            layout.addWidget(ArtworkLabel(self.images, trainee["url"], trainee["name"], size=100))
+            layout.addWidget(QLabel(trainee["name"]))
+        else:
+            layout.addWidget(QLabel("Trainee: any suitable character in my collection"))
+        layout.addWidget(muted_label(" · ".join(details.get(key, "") for key in ("surface", "distance_type", "style"))))
+        targets = requirements_aptitudes(details)
+        layout.addWidget(muted_label("Aptitude targets: " + (" · ".join(f"{label} {GRADE_LABELS[targets[key]]}" for key, label, _ in APTITUDES if key in targets) or "None set")))
         supports = [display_name(self.master, "supports", identity) for identity in details.get("deck_ids", [])]
         layout.addWidget(muted_label("Support deck: " + (" · ".join(supports) or "Not chosen yet")))
         veteran_map = {int(row["trained_chara_id"]): row for row in self.store.entities("veterans")}
@@ -658,11 +735,39 @@ class WorkbenchPage(QWidget):
         skills = [self.master.names.get((47, identity), "Skill name unavailable") for identity in details.get("skill_ids", [])]
         layout.addWidget(muted_label("Required skills: " + (" · ".join(skills) or "None set")))
         layout.addWidget(muted_label("When to stop: " + details.get("stop_condition", "")))
+        budget = QPushButton("Budget this plan's skills")
+        budget.clicked.connect(lambda: (dialog.accept(), self._budget_goal(details)))
+        layout.addWidget(budget)
+        if details.get("card_id"):
+            linker = QPushButton("Inspect this trainee in the lineage linker")
+            linker.clicked.connect(lambda: (dialog.accept(), self._link_goal(details)))
+            layout.addWidget(linker)
+        edit = QPushButton("Edit requirements / find setups")
+        edit.clicked.connect(lambda: (dialog.accept(), self.new_goal(goal=goal)))
+        layout.addWidget(edit)
         layout.addStretch()
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.rejected.connect(dialog.reject)
         root.addWidget(buttons)
         dialog.exec()
+
+    def _budget_goal(self, details):
+        self.skill_budget.use_skills(details.get("skill_ids", []))
+        self.tabs.setCurrentIndex(4)
+        self.calculator_tabs.setCurrentIndex(0)
+
+    def _link_goal(self, details):
+        changes = {"ace_card_id" if details.get("role") in ("TT", "CM") else "future_parent_card_id": int(details["card_id"])}
+        if details.get("surface") in ("Turf", "Dirt"):
+            changes["surface"] = details["surface"].lower()
+        group = distance_group(details)
+        if group in ("Sprint", "Mile", "Medium", "Long"):
+            changes["distance"] = group.lower()
+        styles = {"Front Runner": "front_runner", "Pace Chaser": "pace_chaser", "Late Surger": "late_surger", "End Closer": "end_closer"}
+        if details.get("style") in styles:
+            changes["style"] = styles[details["style"]]
+        self.context.update_lineage(**changes)
+        self.prepare_lineage()
 
     def _update_advanced_visibility(self):
         self.tabs.setTabVisible(3, self.context.store.get("advanced_tools", "0") == "1")

@@ -109,9 +109,9 @@ class MainWindow(QMainWindow):
         nav_group = QButtonGroup(self)
         nav_group.setExclusive(True)
         nav_sections = (
-            ("overview", ("home", "workbench", "search")),
+            ("overview", ("home", "workbench")),
+            ("prepare", ("search", "data")),
             ("configure", ("tools",)),
-            ("prepare", ("data",)),
             ("analyse", ("transfer", "weights")),
         )
         for section_key, page_keys in nav_sections:
@@ -263,9 +263,9 @@ class MainWindow(QMainWindow):
         self.cancel_button.setText(t('Cancel task'))
         labels = {
             "home": 'Home',
-            "data": 'Local data',
+            "data": 'Link exported veterans',
             "workbench": "My collection",
-            "search": 'Find parents',
+            "search": 'Lineage linker',
             "transfer": "Transfer Helper",
             "weights": 'Weights',
             "tools": 'Settings',
@@ -276,7 +276,7 @@ class MainWindow(QMainWindow):
             self._nav_buttons[key].setAccessibleName(translated)
         section_labels = {
             "overview": 'YOUR DESK',
-            "prepare": 'ADVANCED DATA',
+            "prepare": 'LINEAGE',
             "analyse": 'ADVANCED ANALYSIS',
             "configure": 'PREFERENCES',
         }
@@ -302,6 +302,8 @@ class MainWindow(QMainWindow):
         # Compatibility for home shortcuts and integrations saved by v1.7.x.
         if key in {"optimizer", "online"}:
             key = "search"
+        if key == "lineage":
+            key = "search"
         tab = {"setup": 5, "trials": 1, "goals": 2}.get(key)
         if tab is not None:
             key = "workbench"
@@ -324,9 +326,9 @@ class MainWindow(QMainWindow):
         self.advanced_toggle.blockSignals(True)
         self.advanced_toggle.setChecked(enabled)
         self.advanced_toggle.blockSignals(False)
-        for key in ("data", "transfer", "weights"):
+        for key in ("transfer", "weights"):
             self._nav_buttons[key].setVisible(enabled)
-        for key in ("prepare", "analyse"):
+        for key in ("analyse",):
             self._nav_sections[key].setVisible(enabled)
 
     def append_log(self, message: str) -> None:

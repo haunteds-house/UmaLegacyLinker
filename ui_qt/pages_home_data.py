@@ -134,7 +134,7 @@ class HomePage(QWidget):
         )
         self.quick_title.setText('Start here')
         self.quick_detail.setText(
-            'Set up names once, import your collection, then choose a character to train.',
+            'Set up names once, import your collection, then describe what your next runner needs.',
         )
         self.data_button.setText('1 · Set up and import')
         self.search_button.setText('2 · Browse my collection')
@@ -143,9 +143,10 @@ class HomePage(QWidget):
         self.preview_title.setText('What can I do here?')
         self.preview_text.setText(
             'My collection: recognize trainees and supports by their pictures and names. Open a card to see its details.\n\n'
-            'Team Trials: compare recorded race results and choose a runner to improve.\n\n'
-            'Career plans: choose a trainee, parents, supports and targets for your next run. Mark plans complete as you finish them.\n\n'
-            'Find parents: search your veterans for an inheritance pairing.',
+            'Team Trials: compare recorded results, then search any owned trainee as a replacement.\n\n'
+            'Career plans: set skills and aptitudes, compare collection setups, then choose a trainee, parents and supports.\n\n'
+            'Lineage linker: use the original inheritance search, lineage viewer and race planner.\n\n'
+            'Calculators: budget skill points, awakening materials and Grand Concert songs inside the app.',
         )
         self.refresh()
 

@@ -25,6 +25,165 @@ class QtRuntimeSmokeTests(unittest.TestCase):
         assert QApplication is not None
         cls.application = QApplication.instance() or QApplication([])
 
+    def test_requirement_only_goal_saves_and_reopens_without_picking_a_trainee(self) -> None:
+        from PySide6.QtCore import Qt
+        from ui_qt.training_goal_dialog import TrainingGoalDialog
+        from ui_qt.image_assets import ImageRepository
+        from uma_workbench.core import MasterData, Store
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            store = Store(root / "profile")
+            master = MasterData()
+            master.names[(47, 200001)] = "Corner Recovery"
+            repository = ImageRepository(root / "images", enabled=False)
+            dialog = TrainingGoalDialog(store, master, repository)
+            dialog.distance_type.setCurrentText("Mile")
+            dialog.aptitudes["proper_ground_dirt"].setCurrentIndex(7)
+            dialog.skills.item(0).setCheckState(Qt.CheckState.Checked)
+            dialog.save()
+            saved = store.goals()[0]
+            self.assertIsNone(saved["details"]["card_id"])
+            self.assertEqual(saved["details"]["planning_mode"], "requirements")
+            reopened = TrainingGoalDialog(store, master, repository, goal=saved)
+            self.assertIsNone(reopened.trainee.identity())
+            self.assertEqual(reopened.distance_type.currentText(), "Mile")
+            self.assertEqual(reopened.aptitudes["proper_ground_dirt"].currentData(), 7)
+            self.assertEqual(reopened.checked(reopened.skills), [200001])
+            reopened.title.setText("Edited requirement plan")
+            reopened.save()
+            self.assertEqual(len(store.goals()), 1)
+            self.assertEqual(store.goals()[0]["id"], saved["id"])
+            self.assertEqual(store.goals()[0]["title"], "Edited requirement plan")
+            dialog.close(); reopened.close()
+
+    def test_team_trials_replacement_keeps_the_role_and_searches_other_trainees(self) -> None:
+        from unittest.mock import patch
+        from ui_qt.context import AppContext
+        from ui_qt.pages_workbench import WorkbenchPage
+        from ui_qt.training_goal_dialog import TrainingGoalDialog
+        from uma_legacy_linker.application import SettingsStore
+        from uma_workbench.core import Store
+        from tests.test_workbench_core import capture
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            settings = SettingsStore(root / "config.json")
+            settings.update({"online_images": "0", "output_dir": str(root / "output")})
+            store = Store(root / "profile")
+            store.import_bytes("card_data.json", b'[{"card_id":100101},{"card_id":100201}]')
+            store.import_bytes("race.json", json.dumps(capture()).encode())
+            page = WorkbenchPage(AppContext(settings), store=store)
+            for table in (page.tt, page.skills, page.roster):
+                if not table.rowCount():
+                    continue
+                page.trials_tabs.setCurrentWidget(table)
+                table.setCurrentCell(0, 0)
+                with patch.object(page, "new_goal") as create:
+                    page.goal_from_runner()
+                runner = create.call_args.args[0]
+                self.assertFalse(runner["lock_trainee"])
+                dialog = TrainingGoalDialog(store, page.master, page.images, runner)
+                self.assertIsNone(dialog.trainee.identity())
+                self.assertEqual(dialog.distance_type.currentText(), "Sprint")
+                self.assertEqual(dialog.style.currentText(), "Front Runner")
+                dialog.close()
+            page.shutdown(); page.close()
+
+    def test_collection_level_sort_persists_and_missing_levels_stay_last(self) -> None:
+        from ui_qt.context import AppContext
+        from ui_qt.pages_workbench import WorkbenchPage
+        from uma_legacy_linker.application import SettingsStore
+        from uma_workbench.core import Store
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            settings = SettingsStore(root / "config.json")
+            settings.update({"online_images": "0", "output_dir": str(root / "output")})
+            store = Store(root / "profile")
+            store.import_bytes("support_card_data.json", b'[{"support_card_id":1,"level":20},{"support_card_id":2,"level":45},{"support_card_id":3}]')
+            page = WorkbenchPage(AppContext(settings), store=store)
+            page.collection_kind.setCurrentIndex(page.collection_kind.findData("supports"))
+            page.collection_sort.setCurrentIndex(page.collection_sort.findData("level_desc"))
+            self.assertEqual([row["record"]["support_card_id"] for row in page.collection.records], [2, 1, 3])
+            page.filter.setText("Level")
+            self.assertEqual([row["record"]["support_card_id"] for row in page.collection.records], [2, 1, 3])
+            page.collection_sort.setCurrentIndex(page.collection_sort.findData("level_asc"))
+            self.assertEqual([row["record"]["support_card_id"] for row in page.collection.records], [1, 2, 3])
+            page.collection_kind.setCurrentIndex(0)
+            page.collection_kind.setCurrentIndex(page.collection_kind.findData("supports"))
+            self.assertEqual(page.collection_sort.currentData(), "level_asc")
+            page.shutdown(); page.close()
+
+    def test_setup_search_runs_in_background_and_applies_the_selected_lineup(self) -> None:
+        from ui_qt.training_goal_dialog import TrainingGoalDialog
+        from ui_qt.image_assets import ImageRepository
+        from tests.test_workbench_planning import PlanningTests
+        fixture = PlanningTests("test_requirements_search_compares_trainees_without_choosing_one")
+        fixture.setUp()
+        dialog = None
+        try:
+            fixture.master.names[(47, 102)] = "A gold skill"
+            dialog = TrainingGoalDialog(fixture.store, fixture.master,
+                ImageRepository(Path(fixture.temp.name) / "images", enabled=False))
+            dialog.distance_type.setCurrentText("Mile")
+            dialog.style.setCurrentText("Pace Chaser")
+            from PySide6.QtCore import Qt
+            dialog.skills.item(0).setCheckState(Qt.CheckState.Checked)
+            dialog.start_search()
+            deadline = time.monotonic() + 10
+            while dialog._search_worker and time.monotonic() < deadline:
+                self.application.processEvents()
+                time.sleep(0.005)
+            self.application.processEvents()
+            self.assertIsNone(dialog._search_worker)
+            self.assertGreater(dialog.results.list.count(), 0)
+            selected = dialog.results.list.currentItem().data(Qt.ItemDataRole.UserRole)[0]
+            dialog.results.use_button.click()
+            self.assertEqual(dialog.trainee.identity(), selected["card_id"])
+            self.assertEqual([picker.identity() for picker in dialog.parents],
+                [row["trained_chara_id"] for row in selected["parents"]])
+            self.assertEqual([picker.identity() for picker in dialog.deck],
+                [row["support_card_id"] for row in selected["supports"]])
+            dialog.save()
+            self.assertEqual(fixture.store.goals()[0]["details"]["card_id"], selected["card_id"])
+        finally:
+            if dialog:
+                dialog.close()
+            fixture.tearDown()
+
+    def test_internal_calculators_update_totals_and_keep_their_state(self) -> None:
+        from ui_qt.resource_calculators import SkillBudgetWidget, ConcertBudgetWidget
+        from uma_workbench.core import MasterData, Store
+        from uma_workbench.planning import PlanningCatalog
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            master = MasterData()
+            master.path = root / "master.mdb"
+            master.sha256 = "fixture"
+            master.names = {(47, 1): "Base skill", (47, 2): "Gold skill"}
+            catalog = PlanningCatalog()
+            catalog.skills = {1: {"group_id": 1, "group_rate": 1}, 2: {"group_id": 1, "group_rate": 2}}
+            catalog.costs = {1: 100, 2: 180}
+            catalog.songs = [{"id": 1, "square_title_text_id": 1, "square_content_text_id": 1,
+                "perf_type_1": 1, "perf_value_1": 20, "perf_type_2": 3, "perf_value_2": 10}]
+            catalog.texts = {(209, 1): "A Concert song", (207, 1): "Speed +22"}
+            master._planning_catalog = catalog
+            store = Store(root / "profile")
+            skills = SkillBudgetWidget(master, store)
+            skills.refresh()
+            skills.use_skills([2])
+            skills.balance.setValue(300)
+            self.assertIn("280", skills.summary.text())
+            self.assertIn("20 SP left", skills.summary.text())
+            skills.costs.cellWidget(0, 3).setChecked(True)
+            self.assertIn("180", skills.summary.text())
+            concert = ConcertBudgetWidget(master, store)
+            concert.refresh()
+            concert.costs.cellWidget(0, 0).setChecked(True)
+            self.assertIn("Dance: 20 needed, 20 short", concert.summary.text())
+            concert.costs.cellWidget(0, 1).setChecked(True)
+            self.assertIn("0 planned songs", concert.summary.text())
+            self.assertEqual(store.setting("concert_budget")["bought"], [1])
+            skills.close(); concert.close()
+
     def test_named_career_choices_save_the_exact_selected_records(self) -> None:
         from PySide6.QtCore import Qt
         from ui_qt.training_goal_dialog import TrainingGoalDialog
@@ -138,7 +297,8 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             window = MainWindow(AppContext(settings))
             window.show()
             self.application.processEvents()
-            self.assertFalse(window._nav_buttons["data"].isVisible())
+            self.assertTrue(window._nav_buttons["data"].isVisible())
+            self.assertEqual(window._nav_buttons["search"].text(), "Lineage linker")
             window._pages["home"].data_button.click()
             page = window._pages["workbench"]
             self.assertIs(page.tabs.currentWidget(), page.sync_tab)

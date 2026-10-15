@@ -16,6 +16,17 @@ from ui_qt.components import muted_label
 from ui_qt.image_assets import ImageRepository
 
 STAT_LABELS = (("speed", "Speed"), ("stamina", "Stamina"), ("power", "Power"), ("guts", "Guts"), ("wiz", "Wit"))
+SORT_OPTIONS = {
+    "trainees": (("Name A–Z", "name_asc"), ("Name Z–A", "name_desc"),
+        ("Rarity: highest", "rarity_desc"), ("Rarity: lowest", "rarity_asc"), ("Awakening: highest", "awakening_desc")),
+    "supports": (("Name A–Z", "name_asc"), ("Name Z–A", "name_desc"),
+        ("Rarity: highest", "rarity_desc"), ("Rarity: lowest", "rarity_asc"),
+        ("Level: highest", "level_desc"), ("Level: lowest", "level_asc"), ("Limit breaks: most", "limit_desc")),
+    "veterans": (("Name A–Z", "name_asc"), ("Name Z–A", "name_desc"), ("Rating: highest", "rating_desc"),
+        ("Newest first", "newest"), ("Oldest first", "oldest"),
+        *((label + ": highest", key + "_desc") for key, label in STAT_LABELS),
+        ("Blue sparks: most stars", "blue_desc"), ("Aptitude sparks: most stars", "pink_desc")),
+}
 
 
 def display_name(master, kind, identity):
@@ -58,9 +69,29 @@ def describe_records(master, kind, records, *, borrowed=False):
             summary = " · ".join(f"{label} {record.get(key, '?')}" for key, label in STAT_LABELS[:3])
         result.append({"name": name, "character": character, "costume": costume,
             "summary": summary, "badge": badge, "url": url,
+            "sort_values": {"rarity": rarity if kind == "supports" else record.get("rarity"),
+                "level": level if kind == "supports" else None,
+                "awakening": record.get("talent_level"), "limit": record.get("limit_break_count"),
+                "rating": record.get("rank_score"), "time": record.get("create_time", record.get("register_time")),
+                **{key: record.get(key) for key, _label in STAT_LABELS},
+                "blue": sum(int(master.factors.get(int(f.get("factor_id", 0)), {}).get("rarity", 0))
+                    for f in record.get("factor_info_array", []) if master.factors.get(int(f.get("factor_id", 0)), {}).get("factor_type") == 1),
+                "pink": sum(int(master.factors.get(int(f.get("factor_id", 0)), {}).get("rarity", 0))
+                    for f in record.get("factor_info_array", []) if master.factors.get(int(f.get("factor_id", 0)), {}).get("factor_type") == 2)},
             "kind": kind, "record": record, "borrowed": borrowed})
     return sorted(result, key=lambda item: (item["character"].casefold(), item["name"].casefold(),
         -int(item["record"].get("rank_score", 0))))
+
+
+def sort_records(records, order="name_asc"):
+    records = sorted(records, key=lambda row: (row["character"].casefold(), row["name"].casefold()))
+    if order.startswith("name_"):
+        return list(reversed(records)) if order == "name_desc" else records
+    key = "time" if order in ("newest", "oldest") else order.rsplit("_", 1)[0]
+    known = [row for row in records if row.get("sort_values", {}).get(key) is not None]
+    unknown = [row for row in records if row.get("sort_values", {}).get(key) is None]
+    return sorted(known, key=lambda row: float(row["sort_values"][key]),
+        reverse=order.endswith("_desc") or order == "newest") + unknown
 
 
 class ArtworkLabel(QLabel):
@@ -229,16 +260,30 @@ class CollectionPicker(QDialog):
         self.search = QLineEdit()
         self.search.setPlaceholderText("Search by character or card name")
         self.search.setAccessibleName("Search collection names")
-        layout.addWidget(self.search)
+        from PySide6.QtWidgets import QComboBox
+        filters = QHBoxLayout()
+        filters.addWidget(self.search, 1)
+        self.sort = QComboBox()
+        self.sort.setAccessibleName("Sort collection choices")
+        kind = records[0]["kind"] if records else "trainees"
+        for label, code in SORT_OPTIONS[kind]:
+            self.sort.addItem(label, code)
+        filters.addWidget(self.sort)
+        layout.addLayout(filters)
         self.gallery = CollectionGallery(repository, "Choose")
         layout.addWidget(self.gallery, 1)
         self.gallery.set_records(records)
         self.gallery.activated.connect(self._choose)
-        self.search.textChanged.connect(lambda text: self.gallery.set_records([
-            record for record in self.records if text.casefold() in (record["name"] + " " + record["summary"]).casefold()]))
+        self.search.textChanged.connect(self._refresh)
+        self.sort.currentIndexChanged.connect(self._refresh)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
+
+    def _refresh(self, *_):
+        text = self.search.text().casefold()
+        self.gallery.set_records(sort_records([row for row in self.records
+            if text in (row["name"] + " " + row["summary"]).casefold()], self.sort.currentData()))
 
     def _choose(self, record):
         self.choice = record
