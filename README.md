@@ -22,6 +22,11 @@ skill points, awakening materials and Grand Concert songs inside the app.
 **Lineage linker** keeps the original inheritance tools in the sidebar.
 See the [collection guide](docs/WORKBENCH.md) and [remaining goals](docs/ROADMAP.md).
 
+Suggested setups include a **Practice estimate** tab. Compare your owned support
+effects under an editable practice plan, see stat contributions and skill points,
+and review similar completed careers. These are practice subtotals under saved
+conditions; whole-career and race forecasts are still in development.
+
 [Download](#quick-start) · [Features](#features) · [Documentation](#documentation)
 
 </div>
@@ -121,6 +126,7 @@ Remote searches contact uma.moe. The UI can also download optional GameTora artw
 | [User guide](docs/USER_GUIDE.md) | Setup, workflows, result states and troubleshooting |
 | [Collection and career plans](docs/WORKBENCH.md) | Requirement search, sorting, replacement plans and internal calculators |
 | [Remaining goals](docs/ROADMAP.md) | Implemented scope, limits and next development steps |
+| [Practice model](docs/TRAINING_MODEL.md) | Support effects, formula checks, comparison assumptions and limits |
 | [Scoring](docs/SCORING.md) | Formulas, probabilities and model limits |
 | [Scoring configuration](docs/SCORING_CONFIGURATION.md) | Weights, overrides and merge rules |
 | [Architecture](docs/ARCHITECTURE.md) | Modules, processes, execution settings and persistence |

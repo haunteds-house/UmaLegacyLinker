@@ -3,13 +3,14 @@ from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QFrame, QGridLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
-    QPushButton, QScrollArea, QSplitter, QVBoxLayout, QWidget,
+    QPushButton, QScrollArea, QSplitter, QTabWidget, QVBoxLayout, QWidget,
 )
 
 from ui_qt.collection_widgets import ArtworkLabel, describe_records
 from ui_qt.avatar import circular_avatar
 from ui_qt.components import muted_label
 from uma_workbench.planning import GRADE_LABELS
+from ui_qt.training_preview import TrainingEstimate
 
 
 class SetupResults(QWidget):
@@ -33,7 +34,13 @@ class SetupResults(QWidget):
         splitter.addWidget(self.list)
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
-        splitter.addWidget(self.scroll)
+        self.preview_tabs = QTabWidget()
+        self.preview_tabs.addTab(self.scroll, "Lineup")
+        self.training_scroll = QScrollArea()
+        self.training_scroll.setWidgetResizable(True)
+        self.preview_tabs.addTab(self.training_scroll, "Practice estimate")
+        self.preview_tabs.setTabEnabled(1, False)
+        splitter.addWidget(self.preview_tabs)
         splitter.setStretchFactor(0, 2)
         splitter.setStretchFactor(1, 3)
         self.use_button = QPushButton("Use this setup")
@@ -53,8 +60,10 @@ class SetupResults(QWidget):
             fit = "Aptitudes fit" if not row["aptitude_gap"] else "Aptitudes need work"
             parents = " · ".join(describe_records(self.master, "veterans", [parent])[0]["character"] for parent in row["parents"])
             text = f"{descriptor['character']}\n{descriptor['costume']}\n{fit} · {skills}/{len(row['skills'])} skill sources\n{parents}"
+            if row.get("training"):
+                text += f"\nPractice gains ~{round(sum(row['training']['gains'][stat] for stat in ('speed','stamina','power','guts','wiz'))):,} stats"
             item = QListWidgetItem(text)
-            item.setSizeHint(QSize(250, 112))
+            item.setSizeHint(QSize(250, 138 if row.get("training") else 112))
             item.setToolTip(text)
             item.setData(Qt.ItemDataRole.UserRole, (row, descriptor))
             self.list.addItem(item)
@@ -63,7 +72,12 @@ class SetupResults(QWidget):
                 item.setIcon(QIcon(circular_avatar(source, 54)))
         self.summary.setText(f"Compared {report['trainees_examined']} owned trainees and their possible collection setups. "
             + ("Showing the strongest shortlist. " if report["shortlisted"] else "")
-            + "Order: aptitude fit, skill sources, complete lineups, trainee skill access, growth, then support levels.")
+            + ("Order: aptitude fit, skill sources, complete lineups, then practice output for the selected plan."
+                if report.get("training_enabled") else "Order: aptitude fit, skill sources, complete lineups, trainee skill access, growth, then support levels."))
+        if report.get("training_restriction"):
+            self.summary.setText(self.summary.text() + " " + report["training_restriction"])
+        elif report.get("training_enabled"):
+            self.summary.setText(self.summary.text() + " Compare the Lineup and Practice estimate tabs.")
         if not report["setups"]:
             self.summary.setText("No legal setup found with the fixed choices. Clear the trainee, parent or support choices to widen the search.")
             self.use_button.setEnabled(False)
@@ -75,9 +89,12 @@ class SetupResults(QWidget):
         self.report = None
         self.list.clear()
         self.use_button.setEnabled(False)
-        previous = self.scroll.takeWidget()
-        if previous:
-            previous.deleteLater()
+        for scroll in (self.scroll, self.training_scroll):
+            previous = scroll.takeWidget()
+            if previous:
+                previous.deleteLater()
+        self.preview_tabs.setCurrentIndex(0)
+        self.preview_tabs.setTabEnabled(1, False)
 
     def _art_ready(self, url, pixmap):
         for index in range(self.list.count()):
@@ -137,6 +154,13 @@ class SetupResults(QWidget):
         layout.addWidget(muted_label("Hints, event rewards and inheritance are possibilities. Choices can end an event chain or conflict with another reward. Stat targets still need a successful career."))
         layout.addStretch()
         self.scroll.setWidget(body)
+        previous = self.training_scroll.takeWidget()
+        if previous:
+            previous.deleteLater()
+        self.preview_tabs.setTabEnabled(1, bool(row.get("training")))
+        if row.get("training"):
+            self.training_scroll.setWidget(TrainingEstimate(row["training"], row["requirements"].get("stats", {}),
+                row.get("career_comparison"), self.report.get("training_validation"), master=self.master))
         self.use_button.setEnabled(True)
 
     def _member(self, grid, index, descriptor):

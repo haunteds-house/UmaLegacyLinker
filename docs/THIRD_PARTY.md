@@ -252,6 +252,17 @@ as a community reference for inheritance behaviour. Its text, images and underly
 not bundled. [`SCORING.md`](SCORING.md) documents the project's own implemented model and must be
 used for the exact formulas and configured values.
 
+### Training formula references
+
+The independently implemented practice comparison model was checked against
+the mathematical relationships and facility schedules in
+[mee1080/umasim](https://github.com/mee1080/umasim), commit
+`cf9366f6a487bd8f197b53d8a11981207beb9f6c`. The reference project is AGPL-3.0
+licensed. No source code or external dataset from it is incorporated or bundled.
+The app obtains support curves, unique effects and scenario endpoints from the
+user's MDB. [Practice model](TRAINING_MODEL.md) records the exact scope,
+assumptions, primary source links and validation behavior.
+
 ## External local tools and inputs
 
 ### Veteran extractors

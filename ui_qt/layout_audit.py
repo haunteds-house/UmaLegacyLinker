@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QApplication,
     QAbstractButton,
     QCheckBox,
+    QDialog,
     QLabel,
     QPushButton,
     QRadioButton,
@@ -20,6 +21,7 @@ from PySide6.QtWidgets import (
     QStyleOptionButton,
     QTextBrowser,
     QToolButton,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -31,6 +33,9 @@ from ui_qt.main_window import MainWindow
 from ui_qt.result_panes import OnlineResultsPane, ResultPane
 from ui_qt.presentation import online_detail_html, result_detail_html
 from ui_qt.theme import application_stylesheet
+from ui_qt.training_goal_dialog import TrainingGoalDialog
+from ui_qt.training_preview import TrainingEstimate
+from uma_workbench.training import DEFAULT_OPTIONS, STATS
 
 
 SIZES = ((1120, 720), (1366, 768), (1600, 900))
@@ -338,6 +343,31 @@ def run_audit(output_dir: Path) -> dict[str, object]:
                         report["screens"].append(entry)
                         for issue in issues:
                             report["issues"].append(f"{language}/{variant}/{width}x{height}: {issue}")
+
+            workbench = window._pages["workbench"]
+            practice_dialog = TrainingGoalDialog(workbench.store, workbench.master, workbench.images, parent=window)
+            practice_dialog.tabs.setCurrentIndex(3)
+            preview_dialog = QDialog(window)
+            preview_layout = QVBoxLayout(preview_dialog)
+            preview_layout.addWidget(TrainingEstimate({"options": DEFAULT_OPTIONS,
+                "subtotal": dict(zip(STATS, (972, 360, 750, 280, 620))), "skill_points": 420,
+                "notes": ["Outing rewards and group friendship are not included"]},
+                dict(zip(STATS, (1200, 500, 1000, 300, 900))),
+                {"rows": [{"matching_supports": 4, "stats": dict.fromkeys(STATS, 850)}]},
+                {"checked": 8, "exact": 8}))
+            for dialog, variant, narrow in ((practice_dialog, "practice-plan", False), (preview_dialog, "practice-estimate", True)):
+                for width, height in SIZES:
+                    dialog.hide()
+                    dialog.resize(min(740, width - 400) if narrow else min(1220, width - 130), height - 40)
+                    dialog.show()
+                    application.processEvents()
+                    name = f"{language}-{variant}-{width}x{height}.png"
+                    dialog.grab().save(str(output_dir / name), "PNG")
+                    issues = audit_window(dialog)
+                    report["screens"].append({"language": language, "page": variant,
+                        "size": [dialog.width(), dialog.height()], "screenshot": name, "issues": issues})
+                    report["issues"].extend(f"{language}/{variant}/{width}x{height}: {issue}" for issue in issues)
+                _dispose_widget(dialog, application)
 
             def member(card_id: int, name: str, blue: int, pink: int) -> dict[str, object]:
                 shared_whites = (

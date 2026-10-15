@@ -131,14 +131,43 @@ learned by a parent is not counted as an inheritance source. Higher skill tiers
 cover their positive prerequisite steps. Known surface, distance and style
 restrictions are checked; this is not a complete skill-activation simulator.
 
-Ranking prioritises aptitude gaps, missing skill sources, complete lineups,
-trainee skill access, stat growth alignment and trained support levels. Every
+Ranking prioritises aptitude gaps, missing skill sources and complete lineups,
+then the practice model's contribution toward your stat targets when available.
+Trainee skill access, growth and levels remain fallback/tie-break measures. Every
 legal parent pair is screened, with up to 80 per trainee passed to joint support
-comparison. Support coverage keeps a bounded frontier. The shortlist can miss
+comparison. Support coverage keeps a bounded frontier with several support-type
+compositions, then evaluates practice output jointly. The shortlist can miss
 another setup. Event choices can conflict, and events, hints and inheritance
 are possibilities. Stat targets are goals, not predicted outcomes. The original
 lineage tool remains available for its deeper affinity, inheritance-probability
 and G1 analysis.
+
+### Compare training output
+
+The career editor's **Practice plan** tab uses the same training counts and
+conditions to compare different owned decks. Choose an example plan or enter
+your own counts. Set the comparison facility level, mood, the share of practices
+after friendships are built, later-stage fans and typical energy. Borrowed
+support level and limit breaks are explicit; owned cards use their exports.
+
+In **Suggested setups**, **Lineup** retains the illustrated parents and supports.
+**Practice estimate** shows five stat bars, skill points from practices and the
+remaining targets. The subtotal includes trainee starting stats, support starting
+bonuses and expected practice gains under the selected conditions. It excludes
+inheritance, race/event rewards, scenario bonuses, shop items and energy/rest
+management. It is not a final-career or race forecast.
+
+When available, the same panel shows a completed career for the same trainee and
+scenario. Support-card overlap is stated; their levels and other career choices
+may differ. This is a reference result, not calibration of the subtotal.
+Comparable enabled practice previews in imported career snapshots are checked
+against the formula. Unmodelled teammates, character conditions and unsupported
+unique effects are excluded. Disagreement disables practice-based sorting for
+that search; aptitude and skill-source search remains usable.
+
+Applying and saving a setup retains its comparison. The saved plan labels it as
+a snapshot; **Edit / find setups** recalculates after collection or MDB changes.
+See [Practice model](TRAINING_MODEL.md) for the assumptions and formula.
 
 ## Internal calculators
 

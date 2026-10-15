@@ -2,6 +2,27 @@
 
 This project uses feature-level semantic versioning. Small internal iterations are consolidated into the nearest meaningful release instead of receiving their own public version.
 
+## 1.11.0 - Support training comparisons
+
+- Compare practice output using owned support levels, limit breaks, unlocked
+  unique effects, trainee growth and scenario training values from the MDB.
+- Add a saved practice plan with named presets and editable counts, facility
+  level, mood, friendship share, fans, energy and borrowed support assumptions.
+- Rank legal decks by contribution to stat targets, with several support-type
+  compositions retained per skill-source mask. Card level is no longer the
+  training-quality measure when the practice model is available.
+- Show five stat bars, estimated practice skill points and remaining target
+  gaps in a separate Practice estimate tab, keeping the illustrated lineup
+  visible. Save the selected comparison with the career plan.
+- Check the formula against comparable enabled practice previews in imported
+  career snapshots. Exclude unsupported additions and duplicate observations;
+  fall back to aptitude/skill sorting if comparable previews disagree.
+- Show completed careers for the same trainee/scenario as reference results,
+  including support-card overlap. Historical totals are not fitted forecasts.
+- Document the practice model's assumptions and limits. Energy management,
+  event/race rewards, scenario mechanics, optimal practice selection and TT/CM
+  outcomes remain outside this estimate.
+
 ## 1.10.0 - Collection setup planner
 
 - Start career plans from skills, aptitudes and a race role without choosing a

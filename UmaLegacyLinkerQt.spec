@@ -14,6 +14,8 @@ data_files = [
     (str(resources_dir / "support_event_hints.json"), "resources"),
     (str(project_root / "docs" / "THIRD_PARTY.md"), "docs"),
     (str(project_root / "docs" / "WORKBENCH.md"), "docs"),
+    (str(project_root / "docs" / "TRAINING_MODEL.md"), "docs"),
+    (str(project_root / "docs" / "ROADMAP.md"), "docs"),
     (str(project_root / "licenses" / "UmaParser-MIT.txt"), "licenses"),
     (str(project_root / "licenses" / "UmaWorkbench-MIT.txt"), "licenses"),
 ]

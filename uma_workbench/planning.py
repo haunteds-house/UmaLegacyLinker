@@ -5,7 +5,7 @@ event rolls or race scores. Large support searches retain a bounded frontier.
 """
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from itertools import chain, combinations
 import json
@@ -15,6 +15,7 @@ import sys
 from uma_legacy_linker.legacy_linker import is_borrowed_veteran
 from uma_legacy_linker.parent_optimizer import _initial_aptitude_rank
 from uma_legacy_linker.skill_catalog import parse_condition
+from uma_workbench.training import TrainingData, TrainingModel, completed_career_comparison, validate_recorded_practices
 
 
 APTITUDES = (
@@ -54,6 +55,7 @@ class PlanningCatalog:
     texts: dict = field(default_factory=dict)
     hint_data_available: bool = False
     event_data_available: bool = False
+    training_data: TrainingData = field(default_factory=TrainingData)
     _lower_map: dict | None = field(default=None, repr=False)
     _hint_cache: dict = field(default_factory=dict, repr=False)
     _event_cache: dict = field(default_factory=dict, repr=False)
@@ -92,6 +94,7 @@ class PlanningCatalog:
             result.support_events = {int(sid): {int(skill) for skill in skills if int(skill) in result.skills}
                 for sid, skills in data.get("skill_ids_by_support", {}).items() if int(sid) in master.supports}
             result.event_data_available = bool(result.support_events)
+        result.training_data = TrainingData.load(master)
         return result
 
     def lower_skills(self, identities):
@@ -203,7 +206,7 @@ def _branch_evidence(master, catalog, veteran):
     return dict(stars), catalog.lower_skills(skills)
 
 
-def _deck_frontier(master, catalog, supports, target_character, wanted, pinned, checkpoint):
+def _deck_frontier(master, catalog, supports, target_character, wanted, pinned, checkpoint, *, training_scores=None, training_quality=None):
     by_id = {int(row["support_card_id"]): dict(row) for row in supports}
     for identity in pinned:
         if identity not in by_id and identity in master.supports:
@@ -221,24 +224,28 @@ def _deck_frontier(master, catalog, supports, target_character, wanted, pinned, 
             continue
         hints = catalog.hint_skills(master, identity) | catalog.event_skills(identity)
         masks[identity] = sum(1 << index for index, skill in enumerate(wanted) if skill in hints)
-        levels[identity] = master.support_level(row) or 0
+        levels[identity] = training_scores.get(identity, 0) if training_scores is not None else (master.support_level(row) or 0)
         if identity not in pinned and character not in chars:
             groups[character].append(identity)
     initial_mask = 0
     for identity in pinned:
         initial_mask |= masks[identity]
-    states = {(len(pinned), initial_mask): (sum(levels[identity] for identity in pinned), tuple(pinned))}
+    def signature(ids):
+        return tuple(sorted(Counter(master.supports.get(identity, {}).get("command_id", 0) for identity in ids).items())) if training_scores is not None else ()
+    states = {(len(pinned), initial_mask, signature(pinned)): (
+        training_quality(pinned) if training_quality else sum(levels[identity] for identity in pinned), tuple(pinned))}
     truncated = False
     for character in sorted(groups):
         checkpoint()
         options = sorted(groups[character])
         updated = dict(states)
-        for (count, mask), (quality, ids) in states.items():
+        for (count, mask, _composition), (quality, ids) in states.items():
             if count >= 6:
                 continue
             for identity in options:
-                key = count + 1, mask | masks[identity]
-                value = quality + levels[identity], tuple(sorted((*ids, identity)))
+                chosen = tuple(sorted((*ids, identity)))
+                key = count + 1, mask | masks[identity], signature(chosen)
+                value = (training_quality(chosen) if training_quality else quality + levels[identity]), chosen
                 previous = updated.get(key)
                 if previous is None or value[0] > previous[0] or (value[0] == previous[0] and value[1] < previous[1]):
                     updated[key] = value
@@ -250,7 +257,7 @@ def _deck_frontier(master, catalog, supports, target_character, wanted, pinned, 
             states.update(entries[:256])
     largest = max((key[0] for key in states), default=0)
     return [(mask, level, [by_id[identity] for identity in ids], truncated)
-        for (count, mask), (level, ids) in states.items() if count == largest]
+        for (count, mask, _composition), (level, ids) in states.items() if count == largest]
 
 
 def find_setups(store, master, requirements, *, catalog=None, limit=24, checkpoint=None, progress=None, logger=None):
@@ -263,6 +270,14 @@ def find_setups(store, master, requirements, *, catalog=None, limit=24, checkpoi
     checkpoint = checkpoint or (lambda: None)
     progress = progress or (lambda *_: None)
     catalog = catalog or catalog_for(master)
+    training = TrainingModel(master, catalog.training_data, requirements)
+    validation = validate_recorded_practices(store, master, catalog.training_data) if training.available else None
+    training_restriction = None
+    if validation and validation["exact"] < validation["checked"]:
+        training.available = False
+        training_restriction = "Practice estimates were left out because exported practice previews disagreed with the formula."
+    elif training.options["enabled"] and not training.available:
+        training_restriction = "Practice estimates are unavailable for this game database or scenario."
     targets = requirements_aptitudes(requirements)
     wanted = sorted(set(int(identity) for identity in requirements.get("skill_ids", [])))
     blocked = {identity for identity in wanted if _skill_incompatible(catalog.skills.get(identity, {}), requirements)}
@@ -307,10 +322,26 @@ def find_setups(store, master, requirements, *, catalog=None, limit=24, checkpoi
         checkpoint()
         identity = int(trainee["card_id"])
         character = master.character_id(identity)
+        pinned_deck = tuple(int(sid) for sid in requirements.get("deck_ids", []))
+        training_scores = None
+        if training.available:
+            available = [*supports, *({"support_card_id": sid, "borrowed": True} for sid in pinned_deck
+                if not any(int(row["support_card_id"]) == sid for row in supports))]
+            training_scores = training.card_scores(trainee, available)
         decks = _deck_frontier(master, catalog, supports, character, wanted,
-            tuple(int(sid) for sid in requirements.get("deck_ids", [])), checkpoint)
+            pinned_deck, checkpoint, training_scores=training_scores, training_quality=training.proxy_quality if training.available else None)
         if not decks:
             continue
+        estimates = {}
+        if training.available:
+            grouped = defaultdict(list)
+            for deck in decks:
+                grouped[deck[0]].append(deck)
+            used_shortlist |= any(len(group) > 3 for group in grouped.values())
+            decks = [deck for group in grouped.values() for deck in sorted(group, key=lambda row: (-row[1], tuple(s["support_card_id"] for s in row[2])))[:3]]
+            for deck in decks:
+                checkpoint()
+                estimates[tuple(row["support_card_id"] for row in deck[2])] = training.estimate(trainee, deck[2])
         base_skills = catalog.base_skills(master, trainee)
         base_mask = mask(base_skills)
         support_union = 0
@@ -346,22 +377,29 @@ def find_setups(store, master, requirements, *, catalog=None, limit=24, checkpoi
             checkpoint()
             best = min(decks, key=lambda row: (
                 len(wanted) - ((base_mask | parent_mask | row[0]) & allowed_mask).bit_count(),
+                -(estimates[tuple(s["support_card_id"] for s in row[2])]["value"]) if training.available else 0,
+                -(estimates[tuple(s["support_card_id"] for s in row[2])]["skill_points"]) if training.available else 0,
                 -(row[0] & ~base_mask & ~parent_mask).bit_count(), -row[1],
                 tuple(int(s["support_card_id"]) for s in row[2])))
             deck_mask, deck_level, deck, truncated = best
+            estimate = estimates.get(tuple(s["support_card_id"] for s in deck))
+            deck_level = sum(master.support_level(s) or 0 for s in deck)
             covered = (base_mask | parent_mask | deck_mask) & allowed_mask
             missing = [skill for bit, skill in enumerate(wanted) if not (covered & (1 << bit))]
             slot_gap = (2 - len(pair)) + (6 - len(deck))
             conditional = sum(row["needs_s_roll"] for row in aptitudes)
             growth = sum(master.cards.get(identity, {}).get("talent_" + ("pow" if stat == "power" else stat), 0)
                 for stat, target in requirements.get("stats", {}).items() if target)
-            rank = (parent_key[0], len(missing), slot_gap, conditional, -base_mask.bit_count(), -growth, -deck_level,
+            rank = (parent_key[0], len(missing), slot_gap, conditional,
+                -(estimate["value"] if estimate else 0), -(estimate["skill_points"] if estimate else 0),
+                -base_mask.bit_count(), -growth, -deck_level,
                 identity, tuple(int(row["trained_chara_id"]) for row in pair))
             row = {"card_id": identity, "trainee": dict(trainee), "parents": list(pair), "supports": deck,
                 "aptitudes": aptitudes, "missing_skills": missing,
                 "aptitude_gap": parent_key[0], "slot_gap": slot_gap,
                 "requires_s_roll": bool(conditional), "support_level_total": deck_level,
                 "growth_alignment": growth, "frontier_pruned": truncated,
+                "training": estimate,
                 "requirements": dict(requirements), "rank_key": rank}
             trainee_results.append(row)
         trainee_results.sort(key=lambda row: row["rank_key"])
@@ -383,14 +421,17 @@ def find_setups(store, master, requirements, *, catalog=None, limit=24, checkpoi
                             "card_id": int(parent["card_id"])})
                 routes.append({"skill_id": skill, "sources": providers, "incompatible": skill in blocked})
             row["skills"] = routes
+            row["career_comparison"] = completed_career_comparison(store, requirements, identity, row["supports"], veterans=parents)
             results.append(row)
-        progress(int(100 * (index + 1) / max(1, len(trainees))), "Comparing trainees, parents and support skill sources…")
+        progress(int(100 * (index + 1) / max(1, len(trainees))), "Comparing trainees, inheritance and support training…")
     results.sort(key=lambda row: row["rank_key"])
     return {"setups": results[:limit], "trainees_examined": len(trainees), "parent_pairs_examined": examined_pairs,
         "shortlisted": used_shortlist or any(row["frontier_pruned"] for row in results),
         "blocked_skills": sorted(blocked), "event_data_available": catalog.event_data_available,
-        "notes": ["Ranked by aptitude gaps, missing skill sources, complete lineups, trainee skill access, stat growth and trained support levels.",
-            "Stat targets are saved goals, not predicted training outcomes. Hints, events and inheritance still depend on the career.",
+        "training_enabled": training.available,
+        "training_validation": validation, "training_restriction": training_restriction,
+        "notes": ["Ranked by aptitude gaps, missing skill sources and complete lineups, with practice output considered when enabled.",
+            "Practice subtotals use the saved comparison conditions; they do not forecast a complete career. Hints, events and inheritance still depend on the career.",
             "Support-event sources are individual possibilities. Event choices and chain endings can conflict; check the listed routes."]}
 
 

@@ -24,6 +24,7 @@ from ui_qt.components import PageHeader, PathPicker, muted_label
 from ui_qt.context import AppContext
 from ui_qt.collection_widgets import ArtworkLabel, CollectionGallery, SORT_OPTIONS, STAT_LABELS, character_name, describe_records, display_name, sort_records
 from ui_qt.training_goal_dialog import TrainingGoalDialog
+from ui_qt.training_preview import TrainingEstimate
 from ui_qt.image_assets import ImageRepository, online_images_enabled
 from ui_qt.avatar import AsyncAvatarProvider
 from ui_qt.resource_calculators import SkillBudgetWidget, AwakeningBudgetWidget, ConcertBudgetWidget
@@ -735,6 +736,10 @@ class WorkbenchPage(QWidget):
         skills = [self.master.names.get((47, identity), "Skill name unavailable") for identity in details.get("skill_ids", [])]
         layout.addWidget(muted_label("Required skills: " + (" · ".join(skills) or "None set")))
         layout.addWidget(muted_label("When to stop: " + details.get("stop_condition", "")))
+        estimate = details.get("setup_evidence", {}).get("training")
+        if estimate:
+            layout.addWidget(muted_label("Saved practice comparison. Edit / find setups to recalculate after importing new game data or support levels."))
+            layout.addWidget(TrainingEstimate(estimate, details.get("stats", {}), master=self.master))
         budget = QPushButton("Budget this plan's skills")
         budget.clicked.connect(lambda: (dialog.accept(), self._budget_goal(details)))
         layout.addWidget(budget)

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 def validate_training_goal(payload, store, master):
     from uma_workbench.planning import APTITUDES
+    from uma_workbench.training import options_for
+    options_for(payload)
     card_id = int(payload["card_id"]) if payload.get("card_id") is not None else None
     if card_id is not None and card_id not in {int(row["card_id"]) for row in store.entities("trainees")}:
         raise ValueError("The target trainee is not in your imported collection")

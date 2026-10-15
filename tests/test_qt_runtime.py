@@ -25,6 +25,52 @@ class QtRuntimeSmokeTests(unittest.TestCase):
         assert QApplication is not None
         cls.application = QApplication.instance() or QApplication([])
 
+    def test_practice_plan_conditions_survive_goal_save_and_reopen(self) -> None:
+        from ui_qt.training_goal_dialog import TrainingGoalDialog
+        from ui_qt.image_assets import ImageRepository
+        from uma_workbench.core import MasterData, Store
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            store = Store(root / "profile")
+            images = ImageRepository(root / "images", enabled=False)
+            dialog = TrainingGoalDialog(store, MasterData(), images)
+            dialog.scenario.setCurrentText("Our Grand Concert")
+            plan = dialog.training_options
+            plan.preset.setCurrentIndex(1)
+            plan.facility.setValue(4)
+            plan.friendships.setValue(40)
+            plan.borrowed_level.setValue(35)
+            plan.borrowed_breaks.setValue(1)
+            signature = dialog._signature(dialog.payload())
+            plan.mood.setCurrentIndex(plan.mood.findData(4))
+            self.assertNotEqual(signature, dialog._signature(dialog.payload()))
+            dialog.save()
+            goal = store.goals()[0]
+            reopened = TrainingGoalDialog(store, MasterData(), images, goal=goal)
+            self.assertEqual(reopened.scenario.currentText(), "Our Grand Concert")
+            self.assertEqual(reopened.training_options.payload(), goal["details"]["training"])
+            self.assertEqual(goal["details"]["training"]["sessions"]["speed"], 20)
+            self.assertEqual(goal["details"]["training"]["borrowed_level"], 35)
+            reopened.reject()
+
+    def test_training_preview_shows_stat_targets_and_labels_recorded_careers_as_context(self) -> None:
+        from PySide6.QtWidgets import QLabel
+        from ui_qt.training_preview import TrainingEstimate
+        from uma_workbench.core import MasterData
+        from uma_workbench.training import TrainingModel
+        from tests.test_workbench_training import training_data
+        master = MasterData()
+        estimate = TrainingModel(master, training_data(), {"stats": {"speed": 1000}}).estimate({"card_id": 1}, [])
+        history = {"rows": [{"matching_supports": 3, "stats": dict.fromkeys(("speed", "stamina", "power", "guts", "wiz"), 800)}]}
+        view = TrainingEstimate(estimate, {"speed": 1000}, history, {"checked": 2, "exact": 2})
+        self.assertEqual(len(view.bars), 5)
+        self.assertEqual(view.bars["speed"].maximum(), 1000)
+        labels = " ".join(label.text() for label in view.findChildren(QLabel))
+        self.assertIn("not final career stats", labels)
+        self.assertIn("3/6 matching support cards", labels)
+        self.assertIn("2/2 exported previews matched", labels)
+        view.deleteLater()
+
     def test_requirement_only_goal_saves_and_reopens_without_picking_a_trainee(self) -> None:
         from PySide6.QtCore import Qt
         from ui_qt.training_goal_dialog import TrainingGoalDialog

@@ -14,6 +14,7 @@ from ui_qt.components import muted_label
 from uma_workbench.goals import validate_training_goal
 from uma_workbench.planning import APTITUDES, GRADE_LABELS, catalog_for, find_setups
 from ui_qt.setup_results import SetupResults
+from ui_qt.training_preview import TrainingOptions
 from ui_qt.workers import FunctionWorker
 
 
@@ -158,6 +159,12 @@ class TrainingGoalDialog(QDialog):
         targets_layout.addWidget(self.skills, 1)
         tabs.addTab(targets, "3 · Aptitudes and skills")
 
+        self.training_options = TrainingOptions()
+        training_scroll = QScrollArea()
+        training_scroll.setWidgetResizable(True)
+        training_scroll.setWidget(self.training_options)
+        tabs.addTab(training_scroll, "4 · Practice plan")
+
         finish = QWidget()
         finish_form = QFormLayout(finish)
         self.stop = QLineEdit("Meet the targets I selected, then review the finished runner")
@@ -176,10 +183,10 @@ class TrainingGoalDialog(QDialog):
         finish_form.addRow("When can I stop?", self.stop)
         finish_form.addRow("Maximum career attempts", self.attempts)
         finish_form.addRow("Plans to finish first (optional)", self.dependencies)
-        tabs.addTab(finish, "4 · Finish conditions")
+        tabs.addTab(finish, "5 · Finish conditions")
         self.results = SetupResults(master, repository)
         self.results.use_requested.connect(self._apply_setup)
-        tabs.addTab(self.results, "5 · Suggested setups")
+        tabs.addTab(self.results, "6 · Suggested setups")
         self.search_progress = QProgressBar()
         self.search_progress.setVisible(False)
         root.addWidget(self.search_progress)
@@ -210,6 +217,7 @@ class TrainingGoalDialog(QDialog):
             "distance_type": self.distance_type.currentText(), "minimum_aptitude": self.minimum_aptitude.currentData(),
             "aptitudes": {key: combo.currentData() for key, combo in self.aptitudes.items() if combo.currentData()},
             "planning_mode": "chosen" if self.trainee.identity() is not None else "requirements",
+            "training": self.training_options.payload(),
             "stats": stats if any(stats.values()) else {}, "skill_ids": self.checked(self.skills),
             "parent_ids": [picker.identity() for picker in self.parents if picker.identity() is not None],
             "deck_ids": [picker.identity() for picker in self.deck if picker.identity() is not None],
@@ -224,6 +232,8 @@ class TrainingGoalDialog(QDialog):
             if self._selected_setup and getattr(self, "_selected_setup_signature", None) == self._signature(payload):
                 payload["setup_evidence"] = {key: self._selected_setup[key] for key in
                     ("missing_skills", "aptitude_gap", "slot_gap", "requires_s_roll")}
+                payload["setup_evidence"]["training"] = self._selected_setup.get("training")
+                payload["setup_evidence"]["master_sha256"] = self.master.sha256
             if self.existing_goal:
                 self.store.update_goal(self.existing_goal["id"], title, payload)
             else:
@@ -235,7 +245,7 @@ class TrainingGoalDialog(QDialog):
     @staticmethod
     def _signature(payload):
         return {key: payload.get(key) for key in ("card_id", "surface", "style", "distance", "distance_type", "stats",
-            "minimum_aptitude", "aptitudes", "skill_ids", "parent_ids", "deck_ids")}
+            "minimum_aptitude", "aptitudes", "skill_ids", "parent_ids", "deck_ids", "scenario", "training")}
 
     def start_search(self):
         if self._search_worker:
@@ -292,6 +302,7 @@ class TrainingGoalDialog(QDialog):
 
     def _load_goal(self, goal):
         payload = goal["details"]
+        self.training_options.load(payload.get("training", {}))
         self.title.setText(goal["title"])
         self.role.setCurrentIndex(max(0, self.role.findData(payload.get("role"))))
         for combo, key in ((self.scenario, "scenario"), (self.surface, "surface"),
