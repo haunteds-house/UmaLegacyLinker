@@ -1,4 +1,5 @@
 import itertools
+from contextlib import closing
 import json
 import sqlite3
 import tempfile
@@ -79,9 +80,10 @@ class RosterWorkflowTests(unittest.TestCase):
     def test_existing_goal_database_migrates_without_losing_plans(self):
         legacy = Path(self.temp.name) / "old"
         legacy.mkdir()
-        with sqlite3.connect(legacy / "workbench.sqlite3") as con:
-            con.execute("CREATE TABLE goals(id INTEGER PRIMARY KEY,title TEXT,status TEXT,payload TEXT,created_at TEXT)")
-            con.execute("INSERT INTO goals VALUES(1,'Older plan','Complete','{}','2026-01-01')")
+        with closing(sqlite3.connect(legacy / "workbench.sqlite3")) as con:
+            with con:
+                con.execute("CREATE TABLE goals(id INTEGER PRIMARY KEY,title TEXT,status TEXT,payload TEXT,created_at TEXT)")
+                con.execute("INSERT INTO goals VALUES(1,'Older plan','Complete','{}','2026-01-01')")
         self.assertEqual(Store(legacy).goals(include_removed=False)[0]["title"], "Older plan")
 
     def test_filters_combine_actual_aptitudes_sparks_skills_and_stats(self):
