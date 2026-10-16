@@ -25,6 +25,588 @@ class QtRuntimeSmokeTests(unittest.TestCase):
         assert QApplication is not None
         cls.application = QApplication.instance() or QApplication([])
 
+    def test_collection_and_picker_share_spark_and_aptitude_filters(self) -> None:
+        from ui_qt.collection_widgets import CollectionPicker, describe_records
+        from ui_qt.image_assets import ImageRepository
+        from uma_workbench.core import MasterData
+        with tempfile.TemporaryDirectory() as temp:
+            master = MasterData()
+            master.names = {(4, 100101): "Special Week", (147, 103): "Speed"}
+            master.factors = {103: {"factor_type": 1, "factor_group_id": 1, "rarity": 3}}
+            images = ImageRepository(Path(temp) / "images", enabled=False)
+            records = describe_records(master, "veterans", [
+                {"trained_chara_id": 1, "card_id": 100101, "proper_distance_mile": 7, "factor_info_array": [{"factor_id": 103, "level": 0}]},
+                {"trained_chara_id": 2, "card_id": 100101, "proper_distance_mile": 6, "factor_info_array": [{"factor_id": 103}]}])
+            picker = CollectionPicker("Pick a parent", records, images)
+            picker.facets.aptitudes["proper_distance_mile"].setCurrentIndex(7)
+            spark, stars = picker.facets.sparks[0]
+            spark.setCurrentIndex(spark.findData("Blue:1"))
+            stars.setValue(3)
+            self.assertEqual([row["record"]["trained_chara_id"] for row in picker.gallery.records], [1])
+            picker.facets.clear()
+            self.assertEqual(picker.gallery.rowCount(), 2)
+            picker.reject()
+
+    def test_native_roster_filters_details_lineage_and_exact_plan_handoff(self) -> None:
+        from unittest.mock import patch
+        from ui_qt.roster_smoke import run_roster_smoke
+        with patch.dict(sys.modules, {"PySide6.QtWebEngineCore": None, "PySide6.QtWebEngineWidgets": None}):
+            self.assertEqual(run_roster_smoke(self.application), 0)
+
+    def test_studio_forecasts_and_retains_a_planned_runner(self) -> None:
+        from ui_qt.planning_tools import PlanningTools
+        from ui_qt.image_assets import ImageRepository
+        from tests.test_planning_studio import fixture
+        from uma_workbench.analysis import forecast_runners
+        with tempfile.TemporaryDirectory() as temp:
+            store,master=fixture(temp)
+            identity=store.save_goal('Mile runner',{'scenario':'URA','role':'TT','surface':'Turf','distance_type':'Mile',
+                'style':'Pace Chaser','stats':{},'skill_ids':[],'max_attempts':10,'stop_condition':'Meet targets'})
+            widget=PlanningTools(store,master,ImageRepository(Path(temp)/'images',enabled=False))
+            widget.goal.setCurrentIndex(1);widget.runs.setValue(4);widget.run_forecast()
+            deadline=time.monotonic()+10
+            while widget._worker and time.monotonic()<deadline:
+                self.application.processEvents();time.sleep(.01)
+            self.assertIsNone(widget._worker,widget.status.text())
+            self.assertIsNotNone(widget._last_forecast,widget.status.text())
+            self.assertEqual(widget.forecast_view.timeline.rowCount(),78)
+            widget.keep_forecast();self.assertEqual(forecast_runners(store,master)[0]['plan_id'],identity)
+            widget.shutdown();widget.close()
+
+    def test_studio_concert_recording_and_reference_profiles(self) -> None:
+        from PySide6.QtCore import Qt
+        from ui_qt.planning_tools import PlanningTools
+        from ui_qt.image_assets import ImageRepository
+        from tests.test_planning_studio import fixture
+        with tempfile.TemporaryDirectory() as temp:
+            store,master=fixture(temp)
+            widget=PlanningTools(store,master,ImageRepository(Path(temp)/'images',enabled=False))
+            widget.references.setCurrentRow(0)
+            self.assertIn('Corner Adept',widget.reference_text.toPlainText())
+            for spin in widget.performance:spin.setValue(20)
+            for i in range(widget.lessons.count()):widget.lessons.item(i).setCheckState(Qt.CheckState.Checked)
+            widget.run_concert();self.assertTrue(widget._concert_report['purchases'])
+            widget.buy_concert();self.assertEqual(len(store.setting('concert_bought')),2)
+            self.assertEqual(widget.performance[0].value(),10)
+            widget.shutdown();widget.close()
+
+    def test_editing_a_generated_plan_preserves_automatic_tracking(self) -> None:
+        from ui_qt.training_goal_dialog import TrainingGoalDialog
+        from ui_qt.image_assets import ImageRepository
+        from tests.test_planning_studio import fixture
+        with tempfile.TemporaryDirectory() as temp:
+            store,master=fixture(temp)
+            identity=store.save_goal('Project runner',{'scenario':'URA','role':'TT','card_id':100101,'stats':{},'skill_ids':[],
+                'max_attempts':10,'stop_condition':'Meet targets','project_id':'project','auto_track':True,'source_stages':['parent-0'],
+                'career':{'runs':4,'race_success':1.}})
+            dialog=TrainingGoalDialog(store,master,ImageRepository(Path(temp)/'images',enabled=False),goal=store.goals()[0])
+            dialog.save()
+            details=store.goals()[0]['details']
+            self.assertEqual(details['project_id'],'project');self.assertTrue(details['auto_track'])
+            self.assertEqual(details['source_stages'],['parent-0']);self.assertEqual(details['career']['runs'],4)
+
+    def test_roster_dates_support_exported_text_and_numeric_timestamps(self) -> None:
+        from ui_qt.collection_widgets import describe_records, sort_records
+        from ui_qt.roster_viewer import _copy_label
+        from uma_workbench.core import MasterData
+        records = describe_records(MasterData(), "veterans", [
+            {"trained_chara_id": 1, "card_id": 100101, "create_time": "2025-12-24 10:34:10"},
+            {"trained_chara_id": 2, "card_id": 100101, "create_time": 1700000000},
+            {"trained_chara_id": 3, "card_id": 100101}])
+        self.assertEqual([row["record"]["trained_chara_id"] for row in sort_records(records, "newest")], [1, 2, 3])
+        self.assertEqual([row["record"]["trained_chara_id"] for row in sort_records(records, "oldest")], [2, 1, 3])
+        self.assertIn("24 Dec 2025", _copy_label(records[0]["record"]))
+
+    def test_simplified_plan_has_five_owned_pickers_and_a_separate_rental(self) -> None:
+        from ui_qt.training_goal_dialog import TrainingGoalDialog
+        from ui_qt.image_assets import ImageRepository
+        from uma_workbench.core import MasterData, Store
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            store = Store(root / "profile")
+            store.import_bytes("support_card_data.json", b'[{"support_card_id":1}]')
+            master = MasterData()
+            master.supports = {1: {"chara_id": 1002, "rarity": 3}}
+            dialog = TrainingGoalDialog(store, master, ImageRepository(root / "images", enabled=False))
+            self.assertEqual(sum(dialog.tabs.isTabVisible(index) for index in range(dialog.tabs.count())), 3)
+            self.assertEqual(len(dialog.deck[:5]), 5)
+            self.assertFalse(dialog.training_options.enabled.isChecked())
+            self.assertEqual(dialog.borrowed_support.records[0]["record"]["support_card_id"], 1)
+            dialog.borrowed_support.set_choice(dialog.borrowed_support.records[0])
+            dialog.save()
+            saved = store.goals()[0]
+            self.assertEqual(saved["details"]["borrowed_support_id"], 1)
+            reopened = TrainingGoalDialog(store, master, dialog.repository, goal=saved)
+            self.assertEqual(reopened.borrowed_support.identity(), 1)
+            self.assertTrue(all(picker.identity() is None for picker in reopened.deck[:5]))
+            reopened.reject()
+
+    def test_plan_removal_and_restore_preserve_completed_status_in_ui(self) -> None:
+        from ui_qt.context import AppContext
+        from ui_qt.pages_workbench import WorkbenchPage
+        from uma_legacy_linker.application import SettingsStore
+        from uma_workbench.core import Store
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            settings = SettingsStore(root / "config.json")
+            settings.update({"online_images": "0"})
+            store = Store(root / "profile")
+            identity = store.save_goal("Finished runner", {"role": "TT"}, status="Complete")
+            page = WorkbenchPage(AppContext(settings), store=store)
+            page.goals.selectRow(0)
+            page.remove_goal()
+            self.assertEqual(page.goals.rowCount(), 0)
+            page.show_removed.setChecked(True)
+            self.assertEqual(page.goals.rowCount(), 1)
+            page.goals.selectRow(0)
+            page.restore_goal()
+            self.assertEqual(store.goals()[0]["id"], identity)
+            self.assertEqual(store.goals()[0]["status"], "Complete")
+            self.assertFalse(store.goals()[0]["removed"])
+            page.close()
+
+    def test_practice_plan_conditions_survive_goal_save_and_reopen(self) -> None:
+        from ui_qt.training_goal_dialog import TrainingGoalDialog
+        from ui_qt.image_assets import ImageRepository
+        from uma_workbench.core import MasterData, Store
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            store = Store(root / "profile")
+            images = ImageRepository(root / "images", enabled=False)
+            dialog = TrainingGoalDialog(store, MasterData(), images)
+            dialog.scenario.setCurrentText("Our Grand Concert")
+            plan = dialog.training_options
+            plan.preset.setCurrentIndex(1)
+            plan.facility.setValue(4)
+            plan.friendships.setValue(40)
+            plan.borrowed_level.setValue(35)
+            plan.borrowed_breaks.setValue(1)
+            signature = dialog._signature(dialog.payload())
+            plan.mood.setCurrentIndex(plan.mood.findData(4))
+            self.assertNotEqual(signature, dialog._signature(dialog.payload()))
+            dialog.save()
+            goal = store.goals()[0]
+            reopened = TrainingGoalDialog(store, MasterData(), images, goal=goal)
+            self.assertEqual(reopened.scenario.currentText(), "Our Grand Concert")
+            self.assertEqual(reopened.training_options.payload(), goal["details"]["training"])
+            self.assertEqual(goal["details"]["training"]["sessions"]["speed"], 20)
+            self.assertEqual(goal["details"]["training"]["borrowed_level"], 35)
+            reopened.reject()
+
+    def test_training_preview_shows_stat_targets_and_labels_recorded_careers_as_context(self) -> None:
+        from PySide6.QtWidgets import QLabel
+        from ui_qt.training_preview import TrainingEstimate
+        from uma_workbench.core import MasterData
+        from uma_workbench.training import TrainingModel
+        from tests.test_workbench_training import training_data
+        master = MasterData()
+        estimate = TrainingModel(master, training_data(), {"stats": {"speed": 1000}}).estimate({"card_id": 1}, [])
+        history = {"rows": [{"matching_supports": 3, "stats": dict.fromkeys(("speed", "stamina", "power", "guts", "wiz"), 800)}]}
+        view = TrainingEstimate(estimate, {"speed": 1000}, history, {"checked": 2, "exact": 2})
+        self.assertEqual(len(view.bars), 5)
+        self.assertEqual(view.bars["speed"].maximum(), 1000)
+        labels = " ".join(label.text() for label in view.findChildren(QLabel))
+        self.assertIn("not final career stats", labels)
+        self.assertIn("3/6 matching support cards", labels)
+        self.assertIn("2/2 exported previews matched", labels)
+        view.deleteLater()
+
+    def test_requirement_only_goal_saves_and_reopens_without_picking_a_trainee(self) -> None:
+        from PySide6.QtCore import Qt
+        from ui_qt.training_goal_dialog import TrainingGoalDialog
+        from ui_qt.image_assets import ImageRepository
+        from uma_workbench.core import MasterData, Store
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            store = Store(root / "profile")
+            master = MasterData()
+            master.names[(47, 200001)] = "Corner Recovery"
+            repository = ImageRepository(root / "images", enabled=False)
+            dialog = TrainingGoalDialog(store, master, repository)
+            dialog.distance_type.setCurrentText("Mile")
+            dialog.aptitudes["proper_ground_dirt"].setCurrentIndex(7)
+            dialog.skills.item(0).setCheckState(Qt.CheckState.Checked)
+            dialog.save()
+            saved = store.goals()[0]
+            self.assertIsNone(saved["details"]["card_id"])
+            self.assertEqual(saved["details"]["planning_mode"], "requirements")
+            reopened = TrainingGoalDialog(store, master, repository, goal=saved)
+            self.assertIsNone(reopened.trainee.identity())
+            self.assertEqual(reopened.distance_type.currentText(), "Mile")
+            self.assertEqual(reopened.aptitudes["proper_ground_dirt"].currentData(), 7)
+            self.assertEqual(reopened.checked(reopened.skills), [200001])
+            reopened.title.setText("Edited requirement plan")
+            reopened.save()
+            self.assertEqual(len(store.goals()), 1)
+            self.assertEqual(store.goals()[0]["id"], saved["id"])
+            self.assertEqual(store.goals()[0]["title"], "Edited requirement plan")
+            dialog.close(); reopened.close()
+
+    def test_team_trials_replacement_keeps_the_role_and_searches_other_trainees(self) -> None:
+        from unittest.mock import patch
+        from ui_qt.context import AppContext
+        from ui_qt.pages_workbench import WorkbenchPage
+        from ui_qt.training_goal_dialog import TrainingGoalDialog
+        from uma_legacy_linker.application import SettingsStore
+        from uma_workbench.core import Store
+        from tests.test_workbench_core import capture
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            settings = SettingsStore(root / "config.json")
+            settings.update({"online_images": "0", "output_dir": str(root / "output")})
+            store = Store(root / "profile")
+            store.import_bytes("card_data.json", b'[{"card_id":100101},{"card_id":100201}]')
+            store.import_bytes("race.json", json.dumps(capture()).encode())
+            page = WorkbenchPage(AppContext(settings), store=store)
+            for table in (page.tt, page.skills, page.roster):
+                if not table.rowCount():
+                    continue
+                page.trials_tabs.setCurrentWidget(table)
+                table.setCurrentCell(0, 0)
+                with patch.object(page, "new_goal") as create:
+                    page.goal_from_runner()
+                runner = create.call_args.args[0]
+                self.assertFalse(runner["lock_trainee"])
+                dialog = TrainingGoalDialog(store, page.master, page.images, runner)
+                self.assertIsNone(dialog.trainee.identity())
+                self.assertEqual(dialog.distance_type.currentText(), "Sprint")
+                self.assertEqual(dialog.style.currentText(), "Front Runner")
+                dialog.close()
+            page.shutdown(); page.close()
+
+    def test_collection_level_sort_persists_and_missing_levels_stay_last(self) -> None:
+        from ui_qt.context import AppContext
+        from ui_qt.pages_workbench import WorkbenchPage
+        from uma_legacy_linker.application import SettingsStore
+        from uma_workbench.core import Store
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            settings = SettingsStore(root / "config.json")
+            settings.update({"online_images": "0", "output_dir": str(root / "output")})
+            store = Store(root / "profile")
+            store.import_bytes("support_card_data.json", b'[{"support_card_id":1,"level":20},{"support_card_id":2,"level":45},{"support_card_id":3}]')
+            page = WorkbenchPage(AppContext(settings), store=store)
+            page.collection_kind.setCurrentIndex(page.collection_kind.findData("supports"))
+            page.collection_sort.setCurrentIndex(page.collection_sort.findData("level_desc"))
+            self.assertEqual([row["record"]["support_card_id"] for row in page.collection.records], [2, 1, 3])
+            page.filter.setText("Level")
+            self.assertEqual([row["record"]["support_card_id"] for row in page.collection.records], [2, 1, 3])
+            page.collection_sort.setCurrentIndex(page.collection_sort.findData("level_asc"))
+            self.assertEqual([row["record"]["support_card_id"] for row in page.collection.records], [1, 2, 3])
+            page.collection_kind.setCurrentIndex(0)
+            page.collection_kind.setCurrentIndex(page.collection_kind.findData("supports"))
+            self.assertEqual(page.collection_sort.currentData(), "level_asc")
+            page.shutdown(); page.close()
+
+    def test_setup_search_runs_in_background_and_applies_the_selected_lineup(self) -> None:
+        from ui_qt.training_goal_dialog import TrainingGoalDialog
+        from ui_qt.image_assets import ImageRepository
+        from tests.test_workbench_planning import PlanningTests
+        fixture = PlanningTests("test_requirements_search_compares_trainees_without_choosing_one")
+        fixture.setUp()
+        dialog = None
+        try:
+            fixture.master.names[(47, 102)] = "A gold skill"
+            dialog = TrainingGoalDialog(fixture.store, fixture.master,
+                ImageRepository(Path(fixture.temp.name) / "images", enabled=False))
+            dialog.distance_type.setCurrentText("Mile")
+            dialog.style.setCurrentText("Pace Chaser")
+            from PySide6.QtCore import Qt
+            dialog.skills.item(0).setCheckState(Qt.CheckState.Checked)
+            dialog.start_search()
+            deadline = time.monotonic() + 10
+            while dialog._search_worker and time.monotonic() < deadline:
+                self.application.processEvents()
+                time.sleep(0.005)
+            self.application.processEvents()
+            self.assertIsNone(dialog._search_worker)
+            self.assertGreater(dialog.results.list.count(), 0)
+            selected = dialog.results.list.currentItem().data(Qt.ItemDataRole.UserRole)[0]
+            dialog.results.use_button.click()
+            self.assertEqual(dialog.trainee.identity(), selected["card_id"])
+            self.assertEqual([picker.identity() for picker in dialog.parents],
+                [row["trained_chara_id"] for row in selected["parents"]])
+            self.assertEqual([picker.identity() for picker in dialog.deck],
+                [row["support_card_id"] for row in selected["supports"]])
+            dialog.save()
+            self.assertEqual(fixture.store.goals()[0]["details"]["card_id"], selected["card_id"])
+        finally:
+            if dialog:
+                dialog.close()
+            fixture.tearDown()
+
+    def test_internal_calculators_update_totals_and_keep_their_state(self) -> None:
+        from ui_qt.resource_calculators import SkillBudgetWidget, ConcertBudgetWidget
+        from uma_workbench.core import MasterData, Store
+        from uma_workbench.planning import PlanningCatalog
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            master = MasterData()
+            master.path = root / "master.mdb"
+            master.sha256 = "fixture"
+            master.names = {(47, 1): "Base skill", (47, 2): "Gold skill"}
+            catalog = PlanningCatalog()
+            catalog.skills = {1: {"group_id": 1, "group_rate": 1}, 2: {"group_id": 1, "group_rate": 2}}
+            catalog.costs = {1: 100, 2: 180}
+            catalog.songs = [{"id": 1, "square_title_text_id": 1, "square_content_text_id": 1,
+                "perf_type_1": 1, "perf_value_1": 20, "perf_type_2": 3, "perf_value_2": 10}]
+            catalog.texts = {(209, 1): "A Concert song", (207, 1): "Speed +22"}
+            master._planning_catalog = catalog
+            store = Store(root / "profile")
+            skills = SkillBudgetWidget(master, store)
+            skills.refresh()
+            skills.use_skills([2])
+            skills.balance.setValue(300)
+            self.assertIn("280", skills.summary.text())
+            self.assertIn("20 SP left", skills.summary.text())
+            skills.costs.cellWidget(0, 3).setChecked(True)
+            self.assertIn("180", skills.summary.text())
+            concert = ConcertBudgetWidget(master, store)
+            concert.refresh()
+            concert.costs.cellWidget(0, 0).setChecked(True)
+            self.assertIn("Dance: 20 needed, 20 short", concert.summary.text())
+            concert.costs.cellWidget(0, 1).setChecked(True)
+            self.assertIn("0 planned songs", concert.summary.text())
+            self.assertEqual(store.setting("concert_budget")["bought"], [1])
+            skills.close(); concert.close()
+
+    def test_named_career_choices_save_the_exact_selected_records(self) -> None:
+        from PySide6.QtCore import Qt
+        from ui_qt.training_goal_dialog import TrainingGoalDialog
+        from ui_qt.image_assets import ImageRepository
+        from uma_workbench.core import MasterData, Store
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            store = Store(root / "profile")
+            for filename, rows in (
+                ("card_data.json", [{"card_id": 100101, "rarity": 3, "talent_level": 4}]),
+                ("trained_chara_data.json", [
+                    {"trained_chara_id": 42, "card_id": 100201, "speed": 800},
+                    {"trained_chara_id": 43, "card_id": 100201, "speed": 1000}]),
+                ("support_card_data.json", [{"support_card_id": 30011, "level": 40}]),
+            ):
+                store.import_bytes(filename, json.dumps(rows).encode())
+            first_plan = store.save_goal("Prepare inheritance", {"prerequisites": []})
+            master = MasterData()
+            master.names = {(4, 100101): "Special Week", (4, 100201): "Silence Suzuka",
+                (77, 30011): "Tokai Teio", (76, 30011): "Dream Chaser",
+                (47, 200001): "Corner Recovery"}
+            master.supports = {30011: {"rarity": 3, "chara_id": 1003}}
+            repository = ImageRepository(root / "images", enabled=False)
+            dialog = TrainingGoalDialog(store, master, repository)
+            dialog.trainee.set_choice(dialog.trainee.records[0])
+            selected_parent = next(row for row in dialog.parents[0].records
+                if row["record"]["trained_chara_id"] == 43)
+            dialog.parents[0].set_choice(selected_parent)
+            dialog.deck[0].set_choice(dialog.deck[0].records[0])
+            dialog.stats["speed"].setValue(1000)
+            dialog.skills.item(0).setCheckState(Qt.CheckState.Checked)
+            dialog.dependencies.item(0).setCheckState(Qt.CheckState.Checked)
+            self.assertEqual(dialog.trainee.label.text().splitlines()[0], "Special Week")
+            self.assertIn("Speed 1000", dialog.parents[0].label.text())
+            self.assertNotIn("100201", dialog.parents[0].label.text())
+            self.assertNotIn("30011", dialog.deck[0].label.text())
+            dialog.save()
+            saved = store.goals()[-1]
+            self.assertEqual(saved["details"]["card_id"], 100101)
+            self.assertEqual(saved["details"]["parent_ids"], [43])
+            self.assertEqual(saved["details"]["deck_ids"], [30011])
+            self.assertEqual(saved["details"]["skill_ids"], [200001])
+            self.assertEqual(saved["details"]["prerequisites"], [first_plan])
+            self.assertEqual(saved["title"], "Train Special Week · Team Trials runner")
+            dialog.close()
+
+    def test_trials_overview_matches_veteran_stats_and_uses_retained_race_data(self) -> None:
+        from unittest.mock import patch
+        from ui_qt.context import AppContext
+        from ui_qt.pages_workbench import WorkbenchPage
+        from uma_legacy_linker.application import SettingsStore
+        from uma_workbench.core import Store
+        from tests.test_workbench_core import capture
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            settings = SettingsStore(root / "config.json")
+            settings.update({"online_images": "0", "output_dir": str(root / "output")})
+            store = Store(root / "profile")
+            store.import_bytes("trained_chara_data.json", json.dumps([
+                {"trained_chara_id": 42, "card_id": 100101, "speed": 900,
+                    "skill_array": [{"skill_id": 200001}]}]).encode())
+            race = capture()
+            race["race_start_params_array"][0]["race_horse_data_array"][0]["speed"] = 850
+            race["race_start_params_array"][0]["race_horse_data_array"][0]["pow"] = 700
+            store.import_bytes("race.json", json.dumps(race).encode())
+            page = WorkbenchPage(AppContext(settings), store=store)
+            page.tt.setCurrentCell(0, 0)
+            with patch.object(page, "_view_collection") as overview:
+                page._details(page.tt)
+                self.assertEqual(overview.call_args.args[0]["record"]["speed"], 900)
+                self.assertEqual(overview.call_args.args[0]["record"]["skill_array"], [{"skill_id": 200001}])
+                store.import_bytes("trained_chara_data.json", b"[]")
+                page._details(page.tt)
+                self.assertEqual(overview.call_args.args[0]["record"]["speed"], 850)
+                self.assertEqual(overview.call_args.args[0]["record"]["power"], 700)
+                self.assertEqual(overview.call_args.args[0]["record"]["skill_array"], [{"skill_id": 200001}])
+            page.shutdown()
+            page.close()
+
+    def test_collection_picker_filters_names_and_distinguishes_veteran_copies(self) -> None:
+        from ui_qt.collection_widgets import CollectionPicker, describe_records
+        from ui_qt.image_assets import ImageRepository
+        from uma_workbench.core import MasterData
+
+        with tempfile.TemporaryDirectory() as temp:
+            master = MasterData()
+            master.names = {(4, 100201): "Silence Suzuka", (4, 100301): "Tokai Teio"}
+            rows = [{"trained_chara_id": 1, "card_id": 100201, "speed": 800},
+                {"trained_chara_id": 2, "card_id": 100201, "speed": 1000},
+                {"trained_chara_id": 3, "card_id": 100301, "speed": 900}]
+            picker = CollectionPicker("Choose a parent", describe_records(master, "veterans", rows),
+                ImageRepository(Path(temp), enabled=False))
+            picker.search.setText("SUZUKA")
+            self.assertEqual(picker.gallery.rowCount(), 2)
+            choice = next(row for row in picker.gallery.records if row["record"]["speed"] == 1000)
+            picker.gallery._choose(choice)
+            self.assertEqual(picker.choice["record"]["trained_chara_id"], 2)
+            self.assertEqual(picker.result(), picker.DialogCode.Accepted)
+            picker.close()
+
+    def test_guided_navigation_keeps_advanced_tools_optional(self) -> None:
+        from ui_qt.context import AppContext
+        from ui_qt.main_window import MainWindow
+        from uma_legacy_linker.application import SettingsStore
+
+        with tempfile.TemporaryDirectory() as temp:
+            settings = SettingsStore(Path(temp) / "config.json")
+            settings.update({"online_images": "0", "output_dir": str(Path(temp) / "output")})
+            window = MainWindow(AppContext(settings))
+            window.show()
+            self.application.processEvents()
+            self.assertTrue(window._nav_buttons["data"].isVisible())
+            self.assertEqual(window._nav_buttons["search"].text(), "Lineage linker")
+            window._pages["home"].data_button.click()
+            page = window._pages["workbench"]
+            self.assertIs(page.tabs.currentWidget(), page.sync_tab)
+            self.assertFalse(page.tabs.isTabVisible(3))
+            window.advanced_toggle.setChecked(True)
+            self.assertTrue(window._nav_buttons["weights"].isVisible())
+            self.assertTrue(page.tabs.isTabVisible(3))
+            window.show_page("goals")
+            self.assertEqual(page.tabs.currentIndex(), 2)
+            window.close()
+
+    def test_artwork_falls_back_to_hakuraku_and_stays_available_offline(self) -> None:
+        from PySide6.QtCore import QByteArray, QBuffer, QIODevice, QObject, Signal
+        from PySide6.QtGui import QColor, QPixmap
+        from PySide6.QtNetwork import QNetworkReply
+        from ui_qt.asset_catalog import hakuraku_fallback_url, trainee_image_url
+        from ui_qt.image_assets import ImageRepository
+
+        class Reply(QObject):
+            finished = Signal()
+            def __init__(self, payload, error):
+                super().__init__()
+                self.payload, self.failure = payload, error
+            def error(self):
+                return self.failure
+            def readAll(self):
+                return QByteArray(self.payload)
+
+        class Manager:
+            def __init__(self, payload):
+                self.payload, self.requests, self.replies = payload, [], []
+            def get(self, request):
+                self.requests.append(request.url().toString())
+                reply = Reply(self.payload, QNetworkReply.NetworkError.ContentNotFoundError
+                    if len(self.requests) == 1 else QNetworkReply.NetworkError.NoError)
+                self.replies.append(reply)
+                return reply
+
+        with tempfile.TemporaryDirectory() as temp:
+            source = QPixmap(32, 64)
+            source.fill(QColor("#4488cc"))
+            buffer = QBuffer()
+            buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+            source.save(buffer, "PNG")
+            repository = ImageRepository(Path(temp))
+            manager = Manager(bytes(buffer.data()))
+            repository._manager = manager
+            ready, failed = [], []
+            repository.image_ready.connect(lambda url, pixmap: ready.append(url))
+            repository.image_failed.connect(failed.append)
+            url = trainee_image_url(100701)
+            self.assertIsNone(repository.pixmap(url))
+            manager.replies[0].finished.emit()
+            self.assertEqual(manager.requests, [url, hakuraku_fallback_url(url)])
+            manager.replies[1].finished.emit()
+            self.assertEqual(ready, [url])
+            self.assertEqual(failed, [])
+            self.assertEqual(repository._pending, {})
+            offline = ImageRepository(Path(temp), enabled=False)
+            self.assertEqual(offline.pixmap(url).size(), source.size())
+
+    def test_migrated_race_settings_keep_numeric_weather_and_season(self) -> None:
+        from ui_qt.context import AppContext
+        from ui_qt.lineage_settings import LineageRaceEditor
+        from uma_legacy_linker.application import SettingsStore
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            path = root / "config.json"
+            path.write_text(json.dumps({"output_dir": str(root / "output"),
+                "optimizer_season": "Été", "optimizer_weather": "Pluie",
+                "optimizer_ground": "Soft", "online_images": "0"}))
+            editor = LineageRaceEditor(AppContext(SettingsStore(path)))
+            conditions = editor.selected_conditions()
+            self.assertEqual(conditions["season"], 2)
+            self.assertEqual(conditions["weather"], 3)
+            self.assertEqual(conditions["ground_condition"], 3)
+            editor.close()
+
+    def test_workbench_imports_collection_and_uses_the_fork_linker(self) -> None:
+        from unittest.mock import patch
+        from ui_qt.context import AppContext
+        from ui_qt.pages_workbench import WorkbenchPage
+        from uma_legacy_linker.application import SettingsStore, run_link
+        from uma_workbench.core import Store
+        from tests.test_workbench_core import capture
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            config = SettingsStore(root / "config.json")
+            config.update({"output_dir": str(root / "output"), "online_images": "0"})
+            context = AppContext(config)
+            store = Store(root / "profile")
+            store.import_bytes("card_data.json", json.dumps([{"card_id": 100101}]).encode())
+            store.import_bytes("trained_chara_data.json", json.dumps([
+                {"trained_chara_id": 42, "card_id": 100101},
+            ]).encode())
+            store.import_bytes("race.json", json.dumps(capture()).encode())
+            page = WorkbenchPage(context, store=store)
+            page.master.path = root / "master.mdb"
+            page.master.path.touch()
+            requests, destinations = [], []
+            page.task_requested.connect(lambda operation, title, callback: requests.append((operation, callback)))
+            page.navigate_requested.connect(destinations.append)
+            with patch.object(page.master, "browse", return_value=[]):
+                page.prepare_lineage()
+                self.assertEqual(len(requests), 1)
+                operation, callback = requests[0]
+                self.assertIs(operation.func, run_link)
+                request = operation.args[0]
+                self.assertEqual(request.master_path, page.master.path)
+                exported = json.loads(request.veterans_json_path.read_text())
+                self.assertEqual(exported[0]["trained_chara_id"], 42)
+                self.assertEqual(page.tt.rowCount(), 1)
+                self.assertEqual(page.skills.rowCount(), 1)
+                callback(None)
+            self.assertEqual(destinations, ["search"])
+            self.assertEqual(Path(context.veterans_json_path), request.veterans_json_path)
+            self.assertEqual(page.tabs.count(), 7)
+            page.shutdown()
+            page.close()
+
     def test_every_page_constructs_and_retranslates(self) -> None:
         from ui_qt.context import AppContext
         from uma_legacy_linker.application import SettingsStore
@@ -36,21 +618,21 @@ class QtRuntimeSmokeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             store = SettingsStore(root / "config.json")
-            store.update({"output_dir": str(root / "output"), "ui_language": "fr"})
+            store.update({"output_dir": str(root / "output"), "ui_language": "en"})
             window = MainWindow(AppContext(store))
             window.show()
             self.application.processEvents()
             self.assertEqual(set(window._pages), {"home"})
             self.assertEqual(window.stack.count(), 1)
-            for language in ("fr", "en"):
-                window.context.set_language(language)
+            for language in ("en",):
+                window.context.configuration_changed.emit()
                 for page in window._nav_order:
                     window.show_page(page)
                     self.application.processEvents()
                     self.assertIs(window.stack.currentWidget(), window._pages[page])
             self.assertEqual(set(window._pages), set(window._nav_order))
             self.assertEqual(window.stack.count(), len(window._nav_order))
-            self.assertEqual(len(window._shortcuts), 8)
+            self.assertEqual(len(window._shortcuts), len(window._nav_order) + 2)
             self.assertTrue(
                 all(button.accessibleName() for button in window._nav_buttons.values())
             )
@@ -265,7 +847,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.assertIsNotNone(page._provenance)
             assert page._provenance is not None
             self.assertEqual(page._provenance.revision.key, PREVIOUS_REVISION)
-            self.assertIn("précédente", page.revision_badge.text())
+            self.assertIn("Previous", page.revision_badge.text())
             self.assertIn("transfer_helper_report.prev.json", page.revision_badge.toolTip())
             self.assertIn("veterans-old.json · old-sha256", page.revision_badge.toolTip())
             self.assertEqual(
@@ -274,7 +856,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
                     for action in page.history_menu.actions()
                     if not action.isSeparator()
                 ][-1],
-                "Comparer courant ↔ précédent",
+                'Compare current ↔ previous',
             )
             _dispose_widget(page, self.application)
 
@@ -292,7 +874,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             )
             candidate = {
                 "trained_chara_id": 1,
-                "card_name": "Candidate",
+                "card_name": 'Candidatee',
                 "rank_score": 100,
                 "status": "safe_transfer",
                 "dominated_by": {"trained_chara_id": 2},
@@ -437,8 +1019,8 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
             self.assertEqual(data.extract_button.objectName(), "primary")
             self.assertNotEqual(data.link_button.objectName(), "primary")
-            self.assertEqual(data.extract_button.text(), "Extraire ma collection")
-            self.assertEqual(data.link_button.text(), "Relier un export existant")
+            self.assertEqual(data.extract_button.text(), 'Extract my collection')
+            self.assertEqual(data.link_button.text(), 'Link an existing export')
             self.assertTrue(data.extract_detail.text())
             self.assertTrue(data.link_detail.text())
             self.assertTrue(data.catalog_button.toolTip())
@@ -456,7 +1038,6 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             ):
                 self.assertTrue(widget.toolTip(), type(widget).__name__)
 
-            context.set_language("en")
             self.assertEqual(data.extract_button.text(), "Extract my collection")
             self.assertEqual(data.link_button.text(), "Link an existing export")
             data.deleteLater()
@@ -482,12 +1063,11 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             weights = window._pages["weights"]
             tools = window._pages["tools"]
 
-            for language in ("fr", "en"):
-                context.set_language(language)
+            for language in ("en",):
+                context.configuration_changed.emit()
                 self.application.processEvents()
 
                 for label, control in (
-                    (window.language_label, window.language_combo),
                     (search.ace_label, search.ace_combo),
                     (search.target_label, search.target_combo),
                     (search.top_label, search.top_spin),
@@ -788,8 +1368,8 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.assertFalse(hasattr(first, "rotation_combo"))
             first.set_track_options(tracks)
             second.set_track_options(tracks)
-            self.assertEqual(context.lineage_state().rotation, "Droite")
-            self.assertEqual(state.season, "Automne")
+            self.assertEqual(context.lineage_state().rotation, 'Right')
+            self.assertEqual(state.season, 'Autumn')
             self.assertEqual(second.course_combo.currentData(), "full")
             self.assertEqual(second.track_combo.currentData(), 10008)
 
@@ -815,10 +1395,10 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.assertEqual((state.surface, state.distance), ("dirt", "mile"))
             # Rotation is no longer accepted from a preset/manual control when
             # there is no resolved MDB track/course to derive it from.
-            self.assertEqual(state.rotation, "Non précisé")
-            self.assertEqual(state.season, "Non précisé")
-            self.assertEqual(state.weather, "Non précisé")
-            self.assertEqual(state.ground_condition, "Non précisé")
+            self.assertEqual(state.rotation, 'Unspecified')
+            self.assertEqual(state.season, 'Unspecified')
+            self.assertEqual(state.weather, 'Unspecified')
+            self.assertEqual(state.ground_condition, 'Unspecified')
             self.assertEqual(state.track_id, 0)
 
             second.course_combo.setCurrentIndex(0)
@@ -918,9 +1498,9 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             # prose. The target section especially must not regress to the old
             # ``Ace → parent · N results`` sentence.
             objective_summary = search.section_objective.summary.text()
-            self.assertIn(context.t("Ace visé") + ":", objective_summary)
-            self.assertIn(context.t("Parent à produire") + ":", objective_summary)
-            self.assertIn(context.t("Résultats") + ":", objective_summary)
+            self.assertIn(context.t('Target Ace') + ":", objective_summary)
+            self.assertIn(context.t('Parent to produce') + ":", objective_summary)
+            self.assertIn(context.t('Results') + ":", objective_summary)
             self.assertNotIn(" → ", objective_summary)
             self.assertGreaterEqual(objective_summary.count("\n"), 2)
             self.assertTrue(search.section_objective.summary_visual.isVisible())
@@ -937,8 +1517,8 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.assertGreaterEqual(objective_icons[0].pixmap().width(), 36)
 
             course_summary = search.section_course.summary.text()
-            self.assertIn(context.t("Profil") + ":", course_summary)
-            self.assertIn(context.t("Course") + ":", course_summary)
+            self.assertIn(context.t('Profile') + ":", course_summary)
+            self.assertIn(context.t('Race') + ":", course_summary)
             course_icons = search.section_course.summary_visual.findChildren(
                 QLabel, "settingSummaryIcon"
             )
@@ -946,16 +1526,16 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.assertGreaterEqual(course_icons[0].pixmap().width(), 26)
 
             remote_summary = search.section_online_parent.summary.text()
-            self.assertIn(context.t("Appariement") + ":", remote_summary)
-            self.assertIn(context.t("Candidats API") + ":", remote_summary)
-            self.assertIn(context.t("Pool de paires") + ":", remote_summary)
+            self.assertIn(context.t('Pairing') + ":", remote_summary)
+            self.assertIn(context.t('API candidates') + ":", remote_summary)
+            self.assertIn(context.t('Pair pool') + ":", remote_summary)
             self.assertNotIn(" · ", remote_summary)
 
-            context.update_lineage(season="Été", weather="Pluie")
+            context.update_lineage(season='Summer', weather='Rain')
             self.application.processEvents()
             summary = search.section_conditions.summary.text()
-            self.assertIn(context.t("Été"), summary)
-            self.assertIn(context.t("Pluie"), summary)
+            self.assertIn(context.t('Summer'), summary)
+            self.assertIn(context.t('Rain'), summary)
             condition_icons = search.section_conditions.summary_visual.findChildren(
                 QLabel, "settingSummaryIcon"
             )
@@ -965,8 +1545,8 @@ class QtRuntimeSmokeTests(unittest.TestCase):
 
             search.race_editor.clear_static_conditions()
             self.application.processEvents()
-            self.assertEqual(context.lineage_state().season, "Non précisé")
-            self.assertEqual(context.lineage_state().weather, "Non précisé")
+            self.assertEqual(context.lineage_state().season, 'Unspecified')
+            self.assertEqual(context.lineage_state().weather, 'Unspecified')
             self.assertFalse(search.section_conditions.modified.isVisible())
             # A path is user configuration, not a race condition: reset keeps it.
             self.assertEqual(
@@ -1232,7 +1812,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             assert view.provenance is not None
             self.assertEqual(view.provenance.revision.key, PREVIOUS_REVISION)
             self.assertEqual(view.profile["surface"], "dirt")
-            self.assertIn("Précédent", search.provenance_badge.text())
+            self.assertIn('Previous', search.provenance_badge.text())
             self.assertIn("uma_moe_parent_pairs.prev.json", search.provenance_badge.toolTip())
             self.assertIn("imported response", search.provenance_badge.toolTip())
             self.assertEqual(
@@ -1241,7 +1821,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
                     for action in search.history_menu.actions()
                     if not action.isSeparator()
                 ][-1],
-                "Comparer courant ↔ précédent",
+                'Compare current ↔ previous',
             )
             _dispose_widget(search, self.application)
 
@@ -1371,14 +1951,14 @@ class QtRuntimeSmokeTests(unittest.TestCase):
                 },
             ]
             left = search_comparison_dataset(
-                "branches", rows, title="Candidat A"
+                "branches", rows, title='Candidate A'
             )
             right = search_comparison_dataset(
-                "branches", rows, title="Candidat B"
+                "branches", rows, title='Candidate B'
             )
             dialog = ResultComparisonDialog(
                 context,
-                title="Comparer deux candidats",
+                title='Compare two candidates',
                 left=left,
                 right=right,
                 metrics=SEARCH_METRICS,
@@ -1393,7 +1973,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.assertEqual(dialog.metric_table.item(1, 3).text(), "+2.50")
             self.assertIn("First", dialog.left_detail.toPlainText())
             self.assertIn("Second", dialog.right_detail.toPlainText())
-            self.assertEqual(dialog.metric_table.accessibleName(), "Comparaison chiffrée")
+            self.assertEqual(dialog.metric_table.accessibleName(), 'Numeric comparison')
             self.assertFalse(
                 any("overflow" in issue for issue in audit_window(dialog))
             )
@@ -1439,8 +2019,8 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.application.processEvents()
             self.assertTrue(search.import_button.isVisible())
             self.assertTrue(search.local_gp_pairs_button.isVisible())
-            self.assertEqual(search.import_button.text(), "Reclasser JSON…")
-            self.assertIn("sans appel à l’API", search.import_button.toolTip())
+            self.assertEqual(search.import_button.text(), 'Re-rank JSON…')
+            self.assertIn("without calling the API", search.import_button.toolTip())
 
             local_profile = {
                 "surface": "turf",
@@ -1625,16 +2205,14 @@ class QtRuntimeSmokeTests(unittest.TestCase):
                 self.assertTrue(pane.detail.isHidden())
                 hidden_label = pane.detail_toggle.text()
 
-                # The choice survives a language switch.
-                context.set_language("en")
+                # The choice survives a display refresh.
                 self.application.processEvents()
                 self.assertTrue(pane.detail.isHidden())
-                self.assertNotEqual(pane.detail_toggle.text(), hidden_label)
+                self.assertEqual(pane.detail_toggle.text(), hidden_label)
 
                 pane.set_detail_hidden(False)
                 self.application.processEvents()
                 self.assertFalse(pane.detail.isHidden())
-                context.set_language("fr")
                 self.application.processEvents()
 
             _dispose_widget(search, self.application)
@@ -1684,12 +2262,12 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             lineage = LineageRaceEditor(context)
             weights = WeightsPage(context)
 
-            self.assertEqual(weights.export_button.text(), "Exporter le profil…")
-            self.assertEqual(weights.reset_all_button.text(), "Rétablir tout")
-            self.assertEqual(weights.reset_button.text(), "Rétablir la valeur")
-            self.assertEqual(weights.reset_group_button.text(), "Rétablir le bloc")
-            self.assertEqual(weights.open_priority_button.text(), "Ouvrir le fichier")
-            self.assertEqual(weights.reset_priority_button.text(), "Rétablir le défaut")
+            self.assertEqual(weights.export_button.text(), 'Export profile…')
+            self.assertEqual(weights.reset_all_button.text(), 'Restore all')
+            self.assertEqual(weights.reset_button.text(), 'Restore value')
+            self.assertEqual(weights.reset_group_button.text(), 'Restore block')
+            self.assertEqual(weights.open_priority_button.text(), 'Open file')
+            self.assertEqual(weights.reset_priority_button.text(), 'Restore default')
 
             weights.priority_picker.set_text(str(first_profile))
             weights.priority_picker.path_changed.emit(str(first_profile))
@@ -1841,14 +2419,14 @@ class QtRuntimeSmokeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             store = SettingsStore(root / "config.json")
-            store.update({"output_dir": str(root / "output"), "ui_language": "fr"})
+            store.update({"output_dir": str(root / "output"), "ui_language": "en"})
             window = MainWindow(AppContext(store))
             window.resize(1120, 720)
             window.show()
             self.application.processEvents()
             try:
-                for language in ("fr", "en"):
-                    window.context.set_language(language)
+                for language in ("en",):
+                    window.context.configuration_changed.emit()
                     window.show_page("data")
                     self.application.processEvents()
                     self.assertFalse(
@@ -2308,7 +2886,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.assertEqual(page.percent_slider.value(), 375)
             self.assertAlmostEqual(float(page._read_editor_value()), 0.375)
             self.assertTrue(page._editor_pending)
-            self.assertEqual(page.draft_state.text(), "Modification en cours")
+            self.assertEqual(page.draft_state.text(), 'Editing in progress')
             page.search.setText(str(percentage_row["label"]))
             self.application.processEvents()
             self.assertAlmostEqual(page.percent_spin.value(), 37.5)
@@ -2368,7 +2946,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             )
             page._show_selection(probability_row)
             self.assertEqual(page._editor_kind, "percentage")
-            self.assertEqual(page.type_badge.text(), "Probabilité")
+            self.assertEqual(page.type_badge.text(), 'Probability')
             boolean_row = next(
                 row
                 for row in page._all_rows

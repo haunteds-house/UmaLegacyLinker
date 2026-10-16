@@ -30,11 +30,11 @@ unfinished work in `Unreleased`; do not describe an unperformed validation as pa
 ```powershell
 py -m pip install -r requirements-build-qt.txt
 py -m pytest -q tests --ignore=tests/test_qt_runtime.py
-py tests/check_i18n.py
+py tests/check_english.py
 .\build_windows_qt.ps1 -SkipInstall -RunLayoutAudit
 ```
 
-The PowerShell script runs the portable suite and i18n audit, imports Qt, discovers
+The PowerShell script runs the portable suite and English text audit, imports Qt, discovers
 every `QtRuntimeSmokeTests` case and runs each in a fresh offscreen process. It
 then runs the bilingual layout audit, invokes PyInstaller and produces the ZIP
 and SHA-256. Qt platform/font environment values are restored afterward. Inspect
@@ -96,8 +96,8 @@ workflow runs only on manual dispatch or `v*` tag pushes, not every main-branch 
 After validation, commit the intended changes and push the matching tag:
 
 ```powershell
-git tag v1.9.0
-git push origin v1.9.0
+git tag v1.14.0
+git push origin v1.14.0
 ```
 
 The tag-triggered workflow builds the same package and uploads ZIP/checksum to an

@@ -83,4 +83,4 @@ def test_internal_ids_are_hidden_and_absent_from_transfer_search() -> None:
     ]
     assert 'record.get("trained_chara_id")' not in filter_source
     assert 'replacement.get("trained_chara_id")' not in filter_source
-    assert "Rechercher un nom, un score ou un remplaçant" in transfer_source
+    assert "Search a name, score, or replacement" in transfer_source

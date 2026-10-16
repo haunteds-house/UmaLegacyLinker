@@ -14,9 +14,9 @@ from uma_legacy_linker.output_history import (
 
 def revision_title(revision_key: str, translate: Callable[[str], str]) -> str:
     return translate(
-        "Exécution courante"
+        'Current run'
         if revision_key == CURRENT_REVISION
-        else "Exécution précédente"
+        else 'Previous run'
     )
 
 
@@ -34,9 +34,9 @@ def provenance_badge_text(
     translate: Callable[[str], str],
 ) -> str:
     title = translate(
-        "Courant"
+        'Current'
         if provenance.revision.key == CURRENT_REVISION
-        else "Précédent"
+        else 'Previous'
     )
     timestamp = format_output_timestamp(
         provenance.generated_at_utc or provenance.revision.modified_at_utc
@@ -53,18 +53,18 @@ def provenance_tooltip(
     )
     lines = [
         revision_title(provenance.revision.key, translate),
-        f"{translate('Fichier')} : {provenance.revision.path.name}",
+        f"{translate('File')}: {provenance.revision.path.name}",
     ]
     if generated:
-        lines.append(f"{translate('Générée le')} : {generated}")
+        lines.append(f"{translate('Generated on')}: {generated}")
     if provenance.source:
-        lines.append(f"{translate('Source')} : {provenance.source}")
+        lines.append(f"{translate('Source')}: {provenance.source}")
     if provenance.schema_version:
         lines.append(
-            f"{translate('Version de schéma')} : {provenance.schema_version}"
+            f"{translate('Schema version')}: {provenance.schema_version}"
         )
     if provenance.sources:
-        lines.append(translate("Entrées et empreintes SHA-256"))
+        lines.append(translate('Inputs and SHA-256 fingerprints'))
         for artifact in provenance.sources:
             identity = artifact.filename or artifact.role
             digest = artifact.sha256 or "—"

@@ -2,7 +2,111 @@
 
 This project uses feature-level semantic versioning. Small internal iterations are consolidated into the nearest meaningful release instead of receiving their own public version.
 
-## Unreleased
+## 1.14.0 - Integrated planning studio
+
+- Add seeded turn-based career forecasts with energy/recovery, practice-board
+  selection, bond, objectives, races, events, inheritance and scenario assumptions.
+  Show outcome ranges, turn timelines, skill acquisition/costs and same-career
+  snapshot backtests. Retain forecasts for evaluating planned runners.
+- Rank setup shortlists using career targets and race comparisons when data are
+  available. Keep practice comparisons and the original inheritance engine.
+- Add native race fields, editable opponents and course conditions; compare
+  skills, stamina exhaustion, times and conditional win rates. Build TT/CM teams
+  with unique characters, constrained assignment and bounded joint refinement.
+  Calibrate base-point forecasts only with sufficient recorded runner evidence.
+- Generate reusable grandparent/parent/runner projects, reuse existing results,
+  track new imports and attempts, bind exact parent copies and show the next
+  ready career. Preserve tracking metadata when editing plans.
+- Add readable skill/card profiles, collection sources, course-specific skill
+  values and owned support/trainee comparisons.
+- Add awakening priorities, missing balances, verified MDB reward routes and
+  expected run/time budgets. Never invent a missing acquisition route.
+- Add Grand Concert offer selection, lesson/song/recovery comparisons, reserves,
+  local purchase recording and career forecast integration.
+- Keep all tools native and document model assumptions and unsupported mechanics.
+
+## 1.13.0 - Native roster and lineage planner
+
+- Replace the embedded website with native illustrated veteran cards, sorting,
+  filters, stat bars, aptitude grades, learned skills and ancestry inspectors.
+- Add a local lineage planner with exact veteran copies, six-member spark
+  totals, canonical character compatibility, recorded G1 bonuses, starting
+  aptitudes and possible inherited hints. Carry selections into career plans.
+- Keep trainee selection optional, validate parent character restrictions and
+  retain lineup selections between sessions. Borrowed veterans remain visible
+  while owned parent pickers exclude them.
+- Remove Qt WebEngine, website scripts and browser-specific startup workarounds.
+  Check the packaged native workflow and reject bundled browser runtimes.
+- Expand the roadmap to cover the original account, TT/CM, career, project,
+  reference, currency and Grand Concert goals with their remaining work.
+
+## 1.12.0 - Roster-first planning
+
+- Embed the actual online Uma.guide roster viewer in the collection page.
+  Load imported veterans into its public JSON importer, browse its sparks,
+  affinity and Lineage Planner, and start a local plan from an owned target.
+- Keep offline collection browsing alongside the online tool. Add shared
+  filters for aptitude grades, named sparks and stars, immediate-grandparent
+  sparks, skills, stat minimums, rarity, support type, levels and limit breaks.
+- Reduce the career editor to Goal, Lineup and Suggested setups. Keep practice
+  comparison and scheduling controls behind an optional More options tab.
+- Require a single borrowed support slot and at most five owned supports.
+  Search rental copies of owned cards as well as unowned cards; preserve their
+  separate effects and let the player pin a particular rental.
+- Remove and restore plans without losing their status or prerequisite links.
+  Previously saved plans and collection data migrate automatically.
+- Bundle Qt WebEngine and run a deterministic smoke check against the packaged
+  executable, including roster import and owned target/parent handoff. Scope
+  the native wheel guard to avoid Chromium event-filter crashes.
+
+## 1.11.0 - Support training comparisons
+
+- Compare practice output using owned support levels, limit breaks, unlocked
+  unique effects, trainee growth and scenario training values from the MDB.
+- Add a saved practice plan with named presets and editable counts, facility
+  level, mood, friendship share, fans, energy and borrowed support assumptions.
+- Rank legal decks by contribution to stat targets, with several support-type
+  compositions retained per skill-source mask. Card level is no longer the
+  training-quality measure when the practice model is available.
+- Show five stat bars, estimated practice skill points and remaining target
+  gaps in a separate Practice estimate tab, keeping the illustrated lineup
+  visible. Save the selected comparison with the career plan.
+- Check the formula against comparable enabled practice previews in imported
+  career snapshots. Exclude unsupported additions and duplicate observations;
+  fall back to aptitude/skill sorting if comparable previews disagree.
+- Show completed careers for the same trainee/scenario as reference results,
+  including support-card overlap. Historical totals are not fitted forecasts.
+- Document the practice model's assumptions and limits. Energy management,
+  event/race rewards, scenario mechanics, optimal practice selection and TT/CM
+  outcomes remain outside this estimate.
+
+## 1.10.0 - Collection setup planner
+
+- Start career plans from skills, aptitudes and a race role without choosing a
+  trainee. Compare owned trainees, parent pairs and support skill sources with
+  named, illustrated setup previews; apply a result or save requirements alone.
+- Find Team Trials replacements across the collection while retaining the
+  selected division and style. Edit saved plans and check existing veterans
+  against their skill, stat and aptitude requirements.
+- Sort trainees by name, rarity and awakening; supports by name, rarity, level
+  and limit breaks; veterans by name, rating, date, stats and inheritance stars.
+- Add internal skill-point, awakening-material and Grand Concert song budgets.
+  Balances, discounted skill prices and material earning rates are entered by
+  the user and saved locally.
+- Restore visible Lineage linker and Link exported veterans sidebar entries,
+  retaining the existing inheritance engines and inspectors.
+- Treat event hints and inherited skill access as possibilities with source
+  explanations. Setup search uses bounded shortlists; it does not forecast
+  training stats, event success or TT/CM race results.
+
+- Use the haunteds-house fork as the Windows app base and integrate collection,
+  Team Trials evidence, training goals, raw game data and resource milestones in
+  a native Qt workbench page.
+- Link imported veterans directly with the fork's existing inheritance engine.
+- Replace French source copy with English labels, help, logs and CLI/report text;
+  remove the language selector and translation catalog.
+- Migrate saved race-condition labels while retaining their condition codes.
+- Read daemon exports separately and preserve the unmodified upstream umadump launcher.
 
 ## 1.9.0 - Desktop hardening and faster lineage searches
 

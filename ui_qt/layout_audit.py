@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QApplication,
     QAbstractButton,
     QCheckBox,
+    QDialog,
     QLabel,
     QPushButton,
     QRadioButton,
@@ -20,6 +21,7 @@ from PySide6.QtWidgets import (
     QStyleOptionButton,
     QTextBrowser,
     QToolButton,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -31,6 +33,17 @@ from ui_qt.main_window import MainWindow
 from ui_qt.result_panes import OnlineResultsPane, ResultPane
 from ui_qt.presentation import online_detail_html, result_detail_html
 from ui_qt.theme import application_stylesheet
+from ui_qt.training_goal_dialog import TrainingGoalDialog
+from ui_qt.training_preview import TrainingEstimate
+from ui_qt.roster_viewer import RosterViewer, VeteranDetails
+from uma_workbench.core import MasterData, Store
+from uma_workbench.planning import PlanningCatalog
+from uma_workbench.smoke_data import make_profile
+from uma_workbench.analysis import forecast_plan
+from uma_workbench.projects import generate_project
+from uma_workbench.strategy import spending_advice
+from ui_qt.planning_tools import PlanningTools
+from uma_workbench.training import DEFAULT_OPTIONS, STATS
 
 
 SIZES = ((1120, 720), (1366, 768), (1600, 900))
@@ -168,7 +181,7 @@ def run_audit(output_dir: Path) -> dict[str, object]:
         store.update(
             {
                 "output_dir": str(temp / "output"),
-                "ui_language": "fr",
+                "ui_language": "en",
                 "online_images": "0",
             }
         )
@@ -178,13 +191,19 @@ def run_audit(output_dir: Path) -> dict[str, object]:
         application.processEvents()
         for section in window.findChildren(CollapsibleSection):
             section.toggle.setChecked(True)
-        for language in ("fr", "en"):
-            window.context.set_language(language)
+        for language in ("en",):
+            window.context.configuration_changed.emit()
             for page in window._nav_order:  # intentional internal QA hook
                 window.show_page(page)
                 application.processEvents()
                 variants: list[tuple[str, str | None]] = [(page, None)]
                 current_page = window._pages[page]
+                if page == "workbench":
+                    variants = [("roster-viewer", "viewer"), ("workbench", "collection"), ("career-plans", "goals"),
+                        ("team-trials", "trials"), ("calculator-skills", "calculator-0"),
+                        ("calculator-awakening", "calculator-1"), ("calculator-concert", "calculator-2"),
+                        ("resource-milestones", "calculator-3"), ("collection-setup", "setup"),
+                        *(("studio-"+name,"studio-"+str(index)) for index,name in enumerate(("career","race","projects","reference","resources","concert")))]
                 if page == "search" and hasattr(current_page, "set_rail_collapsed"):
                     # The rail is the page's main layout state: both positions
                     # have to survive every audited width.
@@ -207,6 +226,20 @@ def run_audit(output_dir: Path) -> dict[str, object]:
                     ]
                 for variant, mode in variants:
                     print(f"Auditing {language}/{variant}...", flush=True)
+                    if page == "workbench" and mode:
+                        index = {"viewer": 0, "collection": 0, "filters": 0, "trials": 1, "goals": 2, "setup": 5}.get(mode, 4)
+                        current_page.tabs.setCurrentIndex(index)
+                        if mode.startswith("studio-"):
+                            current_page.tabs.setCurrentIndex(6)
+                            current_page.planning_tools.tabs.setCurrentIndex(int(mode.rsplit("-",1)[1]))
+                        if mode in ("viewer", "collection", "filters"):
+                            current_page.collection_views.setCurrentIndex(0 if mode == "viewer" else 1)
+                            current_page.collection_filters.toggle.setChecked(mode == "filters")
+                            if mode == "filters":
+                                current_page.collection_kind.setCurrentIndex(2)
+                        if mode.startswith("calculator-"):
+                            current_page.calculator_tabs.setCurrentIndex(int(mode.rsplit("-", 1)[1]))
+                        application.processEvents()
                     if page == "search" and mode is not None:
                         current_page.set_rail_collapsed(
                             mode == "rail-collapsed", persist=False
@@ -327,6 +360,85 @@ def run_audit(output_dir: Path) -> dict[str, object]:
                         report["screens"].append(entry)
                         for issue in issues:
                             report["issues"].append(f"{language}/{variant}/{width}x{height}: {issue}")
+
+            workbench = window._pages["workbench"]
+            demo_store,demo_master=make_profile(temp / "studio-audit")
+            demo_req={"scenario":"URA","role":"TT","card_id":100101,"surface":"Turf","distance_type":"Mile","style":"Pace Chaser",
+                "skill_ids":[],"stats":{},"max_attempts":10,"stop_condition":"Meet targets","career":{"runs":4,"race_success":1.}}
+            demo_id=demo_store.save_goal("Mile runner with reusable parents",demo_req)
+            studio=PlanningTools(demo_store,demo_master,workbench.images)
+            studio.goal.setCurrentIndex(1)
+            studio._forecast_ready(forecast_plan(demo_store,demo_master,demo_store.goals()[0]))
+            generate_project(demo_store,demo_master,demo_req,root_goal_id=demo_id)
+            studio.refresh_projects()
+            studio._resources_ready(spending_advice(demo_store,demo_master,{"skill_ids":[102]}))
+            for control in studio.performance:control.setValue(20)
+            for i in range(studio.lessons.count()):studio.lessons.item(i).setCheckState(Qt.CheckState.Checked)
+            studio.run_concert()
+            for index,label in enumerate(("career","race","projects","reference","resources","concert")):
+                studio.tabs.setCurrentIndex(index)
+                for width,height in SIZES:
+                    studio.hide();studio.resize(width-130,height-40);studio.show();application.processEvents()
+                    name=f"{language}-populated-studio-{label}-{width}x{height}.png"
+                    studio.grab().save(str(output_dir/name),"PNG")
+                    issues=audit_window(studio)
+                    report["screens"].append({"language":language,"page":"populated-studio-"+label,"size":[studio.width(),studio.height()],"screenshot":name,"issues":issues})
+                    report["issues"].extend(f"{language}/populated-studio-{label}/{width}x{height}: {issue}" for issue in issues)
+            studio.shutdown();_dispose_widget(studio,application)
+            practice_dialog = TrainingGoalDialog(workbench.store, workbench.master, workbench.images, parent=window)
+            practice_dialog.advanced_toggle.setChecked(True)
+            practice_dialog.tabs.setCurrentIndex(3)
+            preview_dialog = QDialog(window)
+            preview_layout = QVBoxLayout(preview_dialog)
+            preview_layout.addWidget(TrainingEstimate({"options": DEFAULT_OPTIONS,
+                "subtotal": dict(zip(STATS, (972, 360, 750, 280, 620))), "skill_points": 420,
+                "notes": ["Outing rewards and group friendship are not included"]},
+                dict(zip(STATS, (1200, 500, 1000, 300, 900))),
+                {"rows": [{"matching_supports": 4, "stats": dict.fromkeys(STATS, 850)}]},
+                {"checked": 8, "exact": 8}))
+            workbench.collection_kind.setCurrentIndex(2)
+            filter_dialog = workbench.collection_filters.popup
+            workbench.collection_filters.toggle.setChecked(True)
+            # Synthetic local data exercises populated native views without
+            # replacing the real collection or loading a website/artwork.
+            native_store = Store(temp / "native-roster")
+            native_store.import_bytes("card_data.json", b'[{"card_id":100101,"rarity":3}]')
+            native_store.import_bytes("trained_chara_data.json", json.dumps([
+                {"trained_chara_id": identity, "card_id": card, "rank_score": 12000 + identity,
+                    "speed": 1000, "stamina": 700, "power": 900, "guts": 400, "wiz": 850,
+                    "proper_distance_mile": 7, "create_time": 1700000000,
+                    "factor_info_array": [{"factor_id": 3203}],
+                    "succession_chara_array": [{"position_id": position, "card_id": 100401,
+                        "factor_info_array": [{"factor_id": 3203}]} for position in (10, 20)]}
+                for identity, card in ((10, 100201), (11, 100301))]).encode())
+            native_master = MasterData()
+            native_master.names = {(4, 100101): "[Special Dreamer] Special Week", (4, 100201): "[Silent Innocence] Silence Suzuka",
+                (4, 100301): "[Top of Joyful] Tokai Teio", (4, 100401): "[Original Outfit] Maruzensky", (147, 3203): "Mile"}
+            native_master.factors = {3203: {"factor_type": 2, "factor_group_id": 32, "rarity": 3}}
+            native_master._planning_catalog = PlanningCatalog(rarities={100101: {3: {"proper_distance_mile": 6}}})
+            native_browser = RosterViewer(native_store, native_master, workbench.images)
+            native_planner = RosterViewer(native_store, native_master, workbench.images)
+            native_planner.target.set_choice(native_planner.target.records[0])
+            for i, picker in enumerate(native_planner.parents):
+                picker.set_choice(picker.records[i])
+            native_planner.tabs.setCurrentWidget(native_planner.planner)
+            native_details = VeteranDetails(native_master, workbench.images, native_browser.records[0])
+            for dialog, variant, narrow in ((practice_dialog, "practice-plan", False),
+                    (filter_dialog, "collection-filters", False), (preview_dialog, "practice-estimate", True),
+                    (native_browser, "native-roster", False), (native_planner, "native-lineage", False),
+                    (native_details, "native-veteran", False)):
+                for width, height in SIZES:
+                    dialog.hide()
+                    dialog.resize(min(740, width - 400) if narrow else min(1220, width - 130), height - 40)
+                    dialog.show()
+                    application.processEvents()
+                    name = f"{language}-{variant}-{width}x{height}.png"
+                    dialog.grab().save(str(output_dir / name), "PNG")
+                    issues = audit_window(dialog)
+                    report["screens"].append({"language": language, "page": variant,
+                        "size": [dialog.width(), dialog.height()], "screenshot": name, "issues": issues})
+                    report["issues"].extend(f"{language}/{variant}/{width}x{height}: {issue}" for issue in issues)
+                _dispose_widget(dialog, application)
 
             def member(card_id: int, name: str, blue: int, pink: int) -> dict[str, object]:
                 shared_whites = (

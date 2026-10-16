@@ -31,12 +31,27 @@ third-party material.
 | Lucide icons | Vendored SVG UI chrome | Nine SVG files | The same nine SVG files | ISC, with four Feather-derived icons under MIT |
 | Domain badges | Project-maintained SVGs | Twelve SVG files | The same twelve SVG files | Project-authored; GPL-3.0-only |
 | GameTora images | Remote, on-demand artwork | No images vendored | No images pre-bundled; requested files may enter the user's cache | Game and image rights remain with their respective holders |
+| Hakuraku images | Fallback character and support artwork | No images vendored | No images pre-bundled; requested files may enter the user's cache | Game and image rights remain with their respective holders |
+| Support-event hint associations | Derived factual card-to-skill mappings | `resources/support_event_hints.json` | Same numeric mapping | Source and scope documented below; no source code or event prose copied |
+| Uma.guide roster workflow | Functional reference for native roster/legacy browsing | No site source copied | No website, scripts or browser runtime bundled | Independent native implementation using local data |
 | uma.moe | Remote API and optional imported data | No service code or dataset vendored | No service code or dataset pre-bundled | Service-controlled terms and availability |
 | UmaExtractor / umadump | Separately installed extraction tools | Not vendored | Not bundled | Each project's own licence and warnings |
+| UmaParser replay layout | Reference for the Python Team Trials replay decoder | MIT notice in `licenses/UmaParser-MIT.txt` | Same notice included | MIT |
 | `master.mdb` and game files | User-selected local inputs | Not vendored | Not bundled | Game rights and terms apply |
 
 `pytest` and the GitHub Actions used by the release workflow are development or CI tooling, not
 runtime dependencies distributed as part of the application bundle.
+
+The original collection backend and watcher in `uma_workbench/` were provided
+under MIT; their [original notice](../licenses/UmaWorkbench-MIT.txt) is retained.
+The combined application is distributed under this project's GPL-3.0-only licence.
+The replay decoder uses the binary layout and
+skill-event interpretation documented in [UmaParser](https://github.com/stratowagon/UmaParser),
+especially `UmaParser.Core/DataModel/RaceScenario/Parsers.cs` and
+`RaceScenarioData.cs`; its [MIT notice](../licenses/UmaParser-MIT.txt) is retained.
+No extractor executable, game database, collection dump or saved website bundle
+is distributed. `uma_workbench/sync.py` reads exports and can launch the
+separate upstream umadump executable without modifying its extraction process.
 
 ## Bundled runtime software
 
@@ -79,6 +94,19 @@ Before publishing a community-wheel build, verify the actual archive contains th
 LGPL/GPL texts, Qt and Qt for Python third-party notices, a way to obtain the corresponding source
 for the shipped versions, and no module whose licence is incompatible with the intended release.
 
+### Native roster and Uma.guide
+
+The roster/legacy workflow of <https://uma.guide/roster-viewer/> is a functional
+reference. Version 1.13.0 recreates roster cards, filters, veteran ancestry and
+lineage planning with native Qt widgets and the app's existing local inheritance
+code. No site source, scripts, prose or assets are copied. No browser is loaded
+and no roster is sent to that site. Optional portrait downloads follow the
+GameTora/Hakuraku cache policy above. Qt WebEngine modules are explicitly excluded
+from the Windows bundle and the build rejects browser runtime files.
+
+The Qt source corresponding to the shipped wheels is available from
+<https://download.qt.io/official_releases/QtForPython/pyside6/>.
+
 ### PyYAML
 
 [`uma_legacy_linker/uma_moe.py`](../uma_legacy_linker/uma_moe.py) uses PyYAML only when the discovered uma.moe OpenAPI document is
@@ -107,6 +135,15 @@ The release must preserve the `COPYING.txt` and any other notices belonging to t
 PyInstaller version used for the build.
 
 ## Application branding
+
+### Planning formula references
+
+The career and race comparisons are independently written Python models using
+local MDB records and the original linker's probability/affinity functions.
+Primary community mathematical references, coverage and assumptions are listed
+in [Planning models](PLANNING_MODELS.md). No external simulator code or game
+dataset is redistributed with these tools. Synthetic smoke records are generated
+by this project and do not contain player exports or downloaded artwork.
 
 `resources/branding/app.png` and `app.ico` contain the application artwork
 supplied by the maintainer. The ICO preserves the supplied small PNG variants
@@ -163,9 +200,8 @@ tested as a project UI contract; they are not copies supplied by Lucide, GameTor
 ### GameTora artwork
 
 The Qt interface can derive HTTPS URLs for trainee standing art, support-card art, skill icons and
-race banners from `master.mdb` identifiers. The current interface displays trainee art, skill
-icons and race banners. A support-card URL builder exists for future use but support-card artwork
-is not currently displayed.
+race banners from `master.mdb` identifiers. The current interface displays trainee art,
+support-card art, skill icons and race banners.
 
 [`ui_qt/asset_catalog.py`](../ui_qt/asset_catalog.py) restricts image requests to these hosts:
 
@@ -192,6 +228,32 @@ GameTora states that it is not affiliated with the developers of Umamusume and t
 is copyrighted by Cygames, Inc. Neither access through GameTora nor local caching grants a licence
 to redistribute those images.
 
+### Hakuraku artwork and interface reference
+
+If GameTora cannot supply a character or support image, the app requests the
+matching WebP from [Hakuraku's public assets](https://github.com/ayaliz/hakuraku/tree/main/public/assets)
+on `raw.githubusercontent.com`. Only the specific character/support asset paths
+accepted by `asset_catalog.py` are allowed. The same cache, download limit and
+offline controls apply. No artwork is pre-bundled.
+
+Hakuraku's named portrait selectors and expandable race cards informed the Qt
+collection interface. Its application code and race simulator are not integrated.
+Availability of its assets does not assign rights to the underlying game artwork.
+
+### Support-event hint associations
+
+[`resources/support_event_hints.json`](../resources/support_event_hints.json)
+records potential support-card-to-skill associations derived from
+[Uma-Musume-Auto-Train's support-event data](https://github.com/Kisegami/Uma-Musume-Auto-Train/blob/main/assets/events/support_card.json),
+blob `1819f757badde950424dd67d4aae63ebf5592112`. Only numerical card and skill IDs
+are retained; no event prose or source code is copied or executed.
+
+These are possible hint routes, including conditional event rewards. They do
+not simulate event appearance, mutually exclusive choices, event-chain endings
+or acquisition chances. The planner filters the mapping against the user's MDB
+and presents event sources separately from regular support hint pools. Names,
+aptitudes, prices, awakening costs and Concert costs come from that local MDB.
+
 ### uma.moe
 
 Uma Legacy Linker can query the public API at `https://uma.moe/api`, discover its OpenAPI
@@ -212,6 +274,17 @@ The project has used
 as a community reference for inheritance behaviour. Its text, images and underlying research data are
 not bundled. [`SCORING.md`](SCORING.md) documents the project's own implemented model and must be
 used for the exact formulas and configured values.
+
+### Training formula references
+
+The independently implemented practice comparison model was checked against
+the mathematical relationships and facility schedules in
+[mee1080/umasim](https://github.com/mee1080/umasim), commit
+`cf9366f6a487bd8f197b53d8a11981207beb9f6c`. The reference project is AGPL-3.0
+licensed. No source code or external dataset from it is incorporated or bundled.
+The app obtains support curves, unique effects and scenario endpoints from the
+user's MDB. [Practice model](TRAINING_MODEL.md) records the exact scope,
+assumptions, primary source links and validation behavior.
 
 ## External local tools and inputs
 

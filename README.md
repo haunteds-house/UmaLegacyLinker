@@ -6,11 +6,31 @@
 
 **Compare inheritance lineages for Umamusume: Pretty Derby using your veterans and uma.moe.**
 
-[![Release](https://img.shields.io/github/v/release/Rom1foucher/UmaLegacyLinker?include_prereleases&label=release)](https://github.com/Rom1foucher/UmaLegacyLinker/releases)
-[![Windows build](https://github.com/Rom1foucher/UmaLegacyLinker/actions/workflows/release-windows.yml/badge.svg)](https://github.com/Rom1foucher/UmaLegacyLinker/actions/workflows/release-windows.yml)
+[![Release](https://img.shields.io/github/v/release/haunteds-house/UmaLegacyLinker?include_prereleases&label=release)](https://github.com/haunteds-house/UmaLegacyLinker/releases)
+[![Windows build](https://github.com/haunteds-house/UmaLegacyLinker/actions/workflows/release-windows.yml/badge.svg)](https://github.com/haunteds-house/UmaLegacyLinker/actions/workflows/release-windows.yml)
 [![License: GPL-3.0-only](https://img.shields.io/badge/license-GPL--3.0--only-blue)](LICENSE)
 
-Windows desktop application · English and French interface
+Windows desktop application · English interface
+
+This fork is the base for the collection and career planner. **My collection**
+imports umadump ZIP/JSON exports and shows trainees, support cards and veterans
+with pictures and names. **Career plans** uses illustrated choices for trainees,
+parents and support decks, or starts from skills and aptitudes and searches the
+collection for suitable setups. **Team Trials** compares recorded race results
+and starts replacement plans with the runner choice open. **Calculators** budgets
+skill points, awakening materials and Grand Concert songs inside the app.
+**Lineage linker** keeps the original inheritance tools in the sidebar.
+The native **Veterans** and **Lineage planner** views show ancestry, combined
+sparks, compatibility and starting aptitudes, then carry exact owned parent
+copies into a career plan. No website or browser engine is embedded.
+See the [collection guide](docs/WORKBENCH.md) and [remaining goals](docs/ROADMAP.md).
+
+Suggested setups include a **Practice estimate** tab. Compare your owned support
+effects under an editable practice plan, see stat contributions and skill points,
+and review similar completed careers. **Planning studio** adds career forecasts,
+race fields and TT/CM team building, automatic lineage projects, readable
+references, resource advice and Grand Concert shopping. Forecasts show their
+assumptions and model coverage; see [planning models](docs/PLANNING_MODELS.md).
 
 [Download](#quick-start) · [Features](#features) · [Documentation](#documentation)
 
@@ -24,13 +44,13 @@ Choose the Ace you want to train, the course and your running style. Uma Legacy 
 
 ## Quick start
 
-1. Open the [latest release](https://github.com/Rom1foucher/UmaLegacyLinker/releases/latest) and download `UmaLegacyLinkerQt-win64.zip`. Check the release notes and prerelease label for that version.
+1. Open the [latest release](https://github.com/haunteds-house/UmaLegacyLinker/releases/latest) and download `UmaLegacyLinkerQt-win64.zip`. Check the release notes and prerelease label for that version.
 2. Extract the **whole ZIP** and run `UmaLegacyLinkerQt.exe`. Keep its runtime files together; Python is included.
 3. Obtain your current game database, `master.mdb`, and export your veterans with [umadump](https://github.com/Werseter/umadump) or [UmaExtractor](https://github.com/xancia/UmaExtractor), following that tool's instructions.
-4. On **Data**, select the MDB, the export (`trained_chara_data.json` or `data.json`) and an output directory. Select **Link an existing export**.
-5. Open **Search**, set your target and race profile, choose a result tab and run the search.
+4. From **Home**, choose **1 · Set up and import**. Choose `master.mdb` in **Setup**, click **Save setup**, then **Import my collection** to select your ZIP or JSON exports.
+5. Browse and sort your characters in **My collection**, start a **Career plan**, or choose **Link collection for lineage** to prepare your veterans for the **Lineage linker**.
 
-These steps support local ranking without an API key. **Extract my collection** can also launch a separately configured extractor from the Data page. Relink after replacing the MDB or collection export.
+These steps support local inheritance ranking without an API key. **Open umadump** launches your existing unmodified executable. **Lineage linker** and **Link exported veterans** are always visible; the transfer and scoring editors are available through **Show advanced tools**. Prepare the inheritance search again after replacing the MDB or collection export.
 
 This README describes the current source tree; published builds and prereleases are described by their own release notes.
 
@@ -109,6 +129,9 @@ Remote searches contact uma.moe. The UI can also download optional GameTora artw
 | Document | Contents |
 | --- | --- |
 | [User guide](docs/USER_GUIDE.md) | Setup, workflows, result states and troubleshooting |
+| [Collection and career plans](docs/WORKBENCH.md) | Requirement search, sorting, replacement plans and internal calculators |
+| [Remaining goals](docs/ROADMAP.md) | Implemented scope, limits and next development steps |
+| [Practice model](docs/TRAINING_MODEL.md) | Support effects, formula checks, comparison assumptions and limits |
 | [Scoring](docs/SCORING.md) | Formulas, probabilities and model limits |
 | [Scoring configuration](docs/SCORING_CONFIGURATION.md) | Weights, overrides and merge rules |
 | [Architecture](docs/ARCHITECTURE.md) | Modules, processes, execution settings and persistence |
@@ -122,7 +145,7 @@ Remote searches contact uma.moe. The UI can also download optional GameTora artw
 Python 3.12 is used for the Windows build. From a checkout with that interpreter:
 
 ```powershell
-git clone https://github.com/Rom1foucher/UmaLegacyLinker.git
+git clone https://github.com/haunteds-house/UmaLegacyLinker.git
 cd UmaLegacyLinker
 py -m pip install -r requirements-qt.txt
 py qt_app.py
@@ -138,7 +161,7 @@ The backend lives in `uma_legacy_linker/`, the desktop UI in `ui_qt/`, and bundl
 
 </details>
 
-For an unexpected ranking or crash, [open an issue](https://github.com/Rom1foucher/UmaLegacyLinker/issues/new) with the application version, selected workflow, race context and relevant diagnostics. Remove API keys and personal identifiers before sharing files.
+For an unexpected ranking or crash, [open an issue](https://github.com/haunteds-house/UmaLegacyLinker/issues/new) with the application version, selected workflow, race context and relevant diagnostics. Remove API keys and personal identifiers before sharing files.
 
 ## Credits
 

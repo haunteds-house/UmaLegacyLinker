@@ -49,13 +49,7 @@ def circular_avatar(source: QPixmap, size: int) -> QPixmap:
 
 
 class AsyncAvatarProvider(QObject):
-    """Return cached circular avatars backed by an :class:`ImageRepository`.
-
-    Table models ask for decoration data repeatedly while painting and sorting.
-    Cropping the same standing art on every data() call would be wasteful, so
-    this small adapter caches the rendered avatar per source URL and emits one
-    coarse ``changed`` signal when an async image becomes available.
-    """
+    'Return cached circular avatars backed by an:class:`ImageRepository`.\n\n    Table models ask for decoration data repeatedly while painting and sorting.\n    Cropping the same standing art on every data() call would be wasteful, so\n    this small adapter caches the rendered avatar per source URL and emits one\n    coarse ``changed`` signal when an async image becomes available.\n    '
 
     changed = Signal()
 

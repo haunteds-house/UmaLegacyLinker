@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -10,6 +11,21 @@ GAMETORA_SUPPORT_BASE = "https://media.gametora.com/umamusume/supports/full/smal
 GAMETORA_SKILL_BASE = "https://media.gametora.com/umamusume/skills/icon"
 GAMETORA_RACE_BANNER_BASE = "https://media.gametora.com/umamusume/races/banners"
 ALLOWED_IMAGE_HOSTS = frozenset({"gametora.com", "www.gametora.com", "media.gametora.com"})
+HAKURAKU_ASSET_BASE = "https://raw.githubusercontent.com/ayaliz/hakuraku/main/public/assets"
+
+
+def hakuraku_fallback_url(url: str) -> str | None:
+    """Resolve an equivalent portrait or support image from the user's reference."""
+    parsed = urlparse(url)
+    if parsed.hostname not in ALLOWED_IMAGE_HOSTS:
+        return None
+    character = re.fullmatch(r"/images/umamusume/characters/(chara_stand_\d+_\d+)\.png", parsed.path)
+    if character:
+        return f"{HAKURAKU_ASSET_BASE}/character_thumbs/{character[1]}.webp"
+    support = re.fullmatch(r"/umamusume/supports/full/small/(\d+)\.png", parsed.path)
+    if support:
+        return f"{HAKURAKU_ASSET_BASE}/umamusume_cards/tex_support_card_{support[1]}.webp"
+    return None
 
 
 def _positive_integer(value: object) -> int | None:
@@ -66,7 +82,13 @@ def race_banner_url(race_id: object, language: str = "en") -> str | None:
 
 def is_allowed_image_url(url: str) -> bool:
     parsed = urlparse(str(url))
-    return parsed.scheme == "https" and (parsed.hostname or "").lower() in ALLOWED_IMAGE_HOSTS
+    if parsed.scheme != "https":
+        return False
+    if (parsed.hostname or "").lower() in ALLOWED_IMAGE_HOSTS:
+        return True
+    return bool(re.fullmatch(
+        re.escape(HAKURAKU_ASSET_BASE) + r"/(?:character_thumbs/chara_stand_\d+_\d+|umamusume_cards/tex_support_card_\d+)\.webp",
+        str(url)))
 
 
 def image_cache_filename(url: str) -> str:

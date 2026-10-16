@@ -1,0 +1,76 @@
+"""Collection constraints shared by the training-goal editor and importers."""
+from __future__ import annotations
+
+
+def support_slots(payload, owned):
+    """Read explicit rental identity; retain old plans with one unowned card."""
+    deck = tuple(int(value) for value in payload.get("deck_ids", []))
+    borrowed = payload.get("borrowed_support_id")
+    borrowed = int(borrowed) if borrowed is not None else None
+    external = [identity for identity in deck if identity not in owned]
+    if borrowed is None and len(external) == 1:
+        borrowed = external[0]
+    if len(external) > 1 or any(identity != borrowed for identity in external):
+        raise ValueError("A deck may use at most one borrowed support")
+    own = tuple(identity for identity in deck if identity != borrowed)
+    if len(own) > 5:
+        raise ValueError("Use five owned supports and one borrowed support. Choose which card to borrow.")
+    return own, borrowed
+
+
+def validate_training_goal(payload, store, master):
+    from uma_workbench.planning import APTITUDES
+    from uma_workbench.training import options_for
+    options_for(payload)
+    from uma_workbench.career import career_options
+    career_options(payload)
+    card_id = int(payload["card_id"]) if payload.get("card_id") is not None else None
+    if card_id is not None and card_id not in {int(row["card_id"]) for row in store.entities("trainees")}:
+        raise ValueError("The target trainee is not in your imported collection")
+    if payload.get("role") not in {"TT", "CM", "Parent", "Grandparent"}:
+        raise ValueError("Choose a supported training role")
+    stats = payload.get("stats", {})
+    if stats and (set(stats) != {"speed", "stamina", "power", "guts", "wiz"} or min(stats.values()) < 0):
+        raise ValueError("Use five nonnegative stat targets, or leave them blank")
+    columns = {row[0] for row in APTITUDES}
+    if any(key not in columns or not isinstance(value, int) or value not in range(9)
+            for key, value in payload.get("aptitudes", {}).items()):
+        raise ValueError("Choose aptitude targets between G and S")
+    deck = payload.get("deck_ids", [])
+    if len(deck) > 6 or len(set(deck)) != len(deck):
+        raise ValueError("Choose up to six different support cards")
+    owned = {int(row["support_card_id"]) for row in store.entities("supports")}
+    own, borrowed = support_slots(payload, owned)
+    if borrowed is not None and borrowed not in master.supports:
+        raise ValueError("The borrowed support is missing from the game data")
+    deck = [*own, *([borrowed] if borrowed is not None else [])]
+    if any(identity not in master.supports for identity in deck):
+        raise ValueError("A selected support is missing from the game data")
+    target = master.character_id(card_id) if card_id is not None else None
+    characters = [master.supports[identity]["chara_id"] for identity in deck if identity in master.supports]
+    if (target is not None and target in characters) or len(characters) != len(set(characters)):
+        raise ValueError("Support characters must be distinct and different from the target trainee")
+    parents = payload.get("parent_ids", [])
+    veterans = {int(row["trained_chara_id"]): row for row in store.entities("veterans")}
+    if len(parents) > 2 or any(identity not in veterans for identity in parents):
+        raise ValueError("Choose up to two parent veterans from your collection")
+    from uma_legacy_linker.legacy_linker import is_borrowed_veteran
+    if any(is_borrowed_veteran(veterans[identity]) for identity in parents):
+        raise ValueError("A borrowed veteran cannot be used as one of your owned parents")
+    characters = [master.character_id(veterans[identity]["card_id"]) for identity in parents]
+    if (target is not None and target in characters) or len(characters) != len(set(characters)):
+        raise ValueError("Direct parents must be distinct characters and different from the target trainee")
+    if int(payload.get("max_attempts", 0)) < 1:
+        raise ValueError("Maximum attempts must be positive")
+    if payload.get("distance") is not None and payload["distance"] <= 0:
+        raise ValueError("Distance must be positive")
+    if payload.get("distance"):
+        from uma_workbench.planning import distance_group
+        group = distance_group(payload)
+        if payload.get("distance_type") not in (None, "Any distance", group):
+            raise ValueError(f"The exact distance belongs to {group}. Change the distance group or clear the exact distance.")
+    if not payload.get("stop_condition", "").strip():
+        raise ValueError("Describe the result that lets you stop or move to the next stage")
+    if any(not isinstance(key,str) or not isinstance(stars,int) or not 1<=stars<=3
+            for key,stars in payload.get("required_sparks",{}).items()):
+        raise ValueError("Choose result sparks with one to three stars")

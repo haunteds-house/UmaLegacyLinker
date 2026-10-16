@@ -86,7 +86,7 @@ class UmaMoeUqlOptionTests(unittest.TestCase):
         self.assertTrue(operation["empty_result"])
 
         with patch.object(client, "_request_json", return_value={"status": "ok"}):
-            with self.assertRaisesRegex(UmaMoeError, "sans records"):
+            with self.assertRaisesRegex(UmaMoeError, "no detectable inheritance records"):
                 client.search()
 
     def test_transient_http_failure_retries_with_bounded_retry_after(self) -> None:

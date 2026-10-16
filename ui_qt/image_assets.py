@@ -8,7 +8,7 @@ from PySide6.QtCore import QByteArray, QObject, QStandardPaths, QUrl, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 
-from ui_qt.asset_catalog import image_cache_path, is_allowed_image_url
+from ui_qt.asset_catalog import hakuraku_fallback_url, image_cache_path, is_allowed_image_url
 
 
 if TYPE_CHECKING:
@@ -38,7 +38,7 @@ def online_images_enabled(context: AppContext) -> bool:
 class ImageRepository(QObject):
     """Small asynchronous image loader with an application-owned disk cache.
 
-    Only HTTPS assets from the explicit GameTora allowlist can be requested.
+    Only HTTPS GameTora assets and curated Hakuraku fallback paths are requested.
     Cached files remain available when online illustrations are disabled.
     """
 
@@ -118,7 +118,10 @@ class ImageRepository(QObject):
                 self.image_ready.emit(url, pixmap)
             return
 
-        request = QNetworkRequest(QUrl(url))
+        self._request_image(url, url)
+
+    def _request_image(self, cache_key: str, source_url: str) -> None:
+        request = QNetworkRequest(QUrl(source_url))
         request.setRawHeader(
             QByteArray(b"User-Agent"), QByteArray(b"UmaLegacyLinker/Qt image cache")
         )
@@ -128,30 +131,36 @@ class ImageRepository(QObject):
         )
         request.setTransferTimeout(15_000)
         reply = self._manager.get(request)
-        self._pending[url] = reply
-        reply.finished.connect(lambda source=url, current=reply: self._finished(source, current))
+        self._pending[cache_key] = reply
+        reply.finished.connect(lambda key=cache_key, current=reply, fallback=source_url != cache_key:
+            self._finished(key, current, fallback=fallback))
 
-    def _finished(self, url: str, reply: QNetworkReply) -> None:
+    def _failed_image(self, url: str, *, fallback: bool) -> None:
+        alternative = hakuraku_fallback_url(url) if not fallback and self.enabled else None
+        if alternative:
+            self._request_image(url, alternative)
+        else:
+            self._failed.add(url)
+            self.image_failed.emit(url)
+
+    def _finished(self, url: str, reply: QNetworkReply, *, fallback: bool = False) -> None:
         current = self._pending.get(url) is reply
         if current:
             self._pending.pop(url, None)
         try:
             if reply.error() != QNetworkReply.NetworkError.NoError:
                 if current and self.enabled:
-                    self._failed.add(url)
-                    self.image_failed.emit(url)
+                    self._failed_image(url, fallback=fallback)
                 return
             if not current:
                 return
             payload = bytes(reply.readAll())
             if not payload or len(payload) > MAX_IMAGE_BYTES:
-                self._failed.add(url)
-                self.image_failed.emit(url)
+                self._failed_image(url, fallback=fallback)
                 return
             pixmap = QPixmap()
             if not pixmap.loadFromData(payload):
-                self._failed.add(url)
-                self.image_failed.emit(url)
+                self._failed_image(url, fallback=fallback)
                 return
 
             try:

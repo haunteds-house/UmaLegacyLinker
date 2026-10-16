@@ -11,7 +11,14 @@ data_files = [
     (str(resources_dir / "default_manual_adjustments.json"), "resources"),
     (str(resources_dir / "default_parent_scoring.json"), "resources"),
     (str(resources_dir / "default_skill_priorities.json"), "resources"),
+    (str(resources_dir / "support_event_hints.json"), "resources"),
     (str(project_root / "docs" / "THIRD_PARTY.md"), "docs"),
+    (str(project_root / "docs" / "WORKBENCH.md"), "docs"),
+    (str(project_root / "docs" / "TRAINING_MODEL.md"), "docs"),
+    (str(project_root / "docs" / "ROADMAP.md"), "docs"),
+    (str(project_root / "docs" / "PLANNING_MODELS.md"), "docs"),
+    (str(project_root / "licenses" / "UmaParser-MIT.txt"), "licenses"),
+    (str(project_root / "licenses" / "UmaWorkbench-MIT.txt"), "licenses"),
 ]
 for icon_file in sorted((resources_dir / "icons").glob("*.svg")):
     data_files.append((str(icon_file), "resources/icons"))
@@ -36,7 +43,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=["PySide6.QtWebEngineCore", "PySide6.QtWebEngineWidgets", "PySide6.QtWebEngineQuick", "PySide6.QtWebChannel"],
     noarchive=False,
     optimize=0,
 )

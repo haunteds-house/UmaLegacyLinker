@@ -1,4 +1,4 @@
-﻿param(
+param(
     [switch]$SkipInstall,
     [switch]$RunLayoutAudit
 )
@@ -20,7 +20,7 @@ if (-not $SkipInstall) {
 }
 
 Invoke-Python -m pytest -q tests --ignore=tests/test_qt_runtime.py
-Invoke-Python tests/check_i18n.py
+Invoke-Python tests/check_english.py
 
 Invoke-Python -c "from PySide6.QtWidgets import QApplication; from ui_qt.main_window import MainWindow; print('Qt import OK')"
 $PreviousQtPlatform = $env:QT_QPA_PLATFORM
@@ -74,6 +74,23 @@ $Executable = Join-Path $Bundle "UmaLegacyLinkerQt.exe"
 $Archive = Join-Path $PSScriptRoot "dist\UmaLegacyLinkerQt-win64.zip"
 $ChecksumFile = "$Archive.sha256"
 
+$RosterSmoke = Start-Process -FilePath $Executable -ArgumentList "--smoke-roster-viewer" -Wait -PassThru
+if ($RosterSmoke.ExitCode -ne 0) {
+    throw "Packaged roster viewer smoke check failed (exit code $($RosterSmoke.ExitCode))."
+}
+Write-Host "Packaged native roster smoke check passed (filters, lineage preview and planning handoff)."
+
+$PlanningSmoke = Start-Process -FilePath $Executable -ArgumentList "--smoke-planning" -Wait -PassThru
+if ($PlanningSmoke.ExitCode -ne 0) {
+    throw "Packaged planning studio smoke check failed (exit code $($PlanningSmoke.ExitCode))."
+}
+Write-Host "Packaged planning studio smoke check passed (career, race, projects, references, resources and Concert)."
+
+$BrowserFiles = @(Get-ChildItem $Bundle -Recurse -File | Where-Object { $_.Name -match 'Qt.*WebEngine|QtWebEngineProcess|icudtl\.dat|qtwebengine.*\.pak' })
+if ($BrowserFiles.Count -gt 0) {
+    throw "Unexpected browser runtime in native Windows package: $($BrowserFiles[0].Name)"
+}
+
 if (Test-Path $Archive) {
     Remove-Item $Archive -Force
 }
@@ -81,6 +98,6 @@ Compress-Archive -Path "$Bundle\*" -DestinationPath $Archive -CompressionLevel O
 $Checksum = (Get-FileHash $Archive -Algorithm SHA256).Hash.ToLowerInvariant()
 "$Checksum  UmaLegacyLinkerQt-win64.zip" | Set-Content $ChecksumFile -Encoding ascii
 
-Write-Host "Build termine : $Executable"
-Write-Host "Archive : $Archive"
-Write-Host "SHA-256 : $Checksum"
+Write-Host "Build complete: $Executable"
+Write-Host "Archive: $Archive"
+Write-Host "SHA-256: $Checksum"

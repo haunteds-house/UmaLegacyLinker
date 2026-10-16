@@ -54,6 +54,12 @@ def main() -> int:
     application.setStyle("Fusion")
     application.setStyleSheet(application_stylesheet())
     install_no_wheel_filter(application)
+    if "--smoke-planning" in sys.argv:
+        from ui_qt.studio_smoke import run_studio_smoke
+        return run_studio_smoke(application)
+    if "--smoke-roster-viewer" in sys.argv:
+        from ui_qt.roster_smoke import run_roster_smoke
+        return run_roster_smoke(application)
     window = MainWindow()
     window.show()
     return application.exec()

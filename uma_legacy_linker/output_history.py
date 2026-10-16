@@ -123,7 +123,7 @@ def read_json_output_revision(
     revision_path = output_revision_path(path, revision_key)
     payload = json.loads(revision_path.read_text(encoding="utf-8-sig"))
     if not isinstance(payload, dict):
-        raise ValueError("La sortie doit contenir un objet JSON.")
+        raise ValueError('The output must contain one JSON object.')
     revision = OutputRevision(
         revision_key,
         revision_path,

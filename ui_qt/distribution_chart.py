@@ -50,7 +50,7 @@ class DistributionDonut(QWidget):
         self._center_caption = center_caption
         self.setFixedHeight(max(156, 22 + len(self._items) * 23))
         self.setToolTip(
-            "\n".join(f"{label} : {value * 100:.1f} %" for label, value in self._items)
+            "\n".join(f'{label}: {value * 100:.1f} %' for label, value in self._items)
         )
         self.setAccessibleDescription(self.toolTip())
         self.updateGeometry()

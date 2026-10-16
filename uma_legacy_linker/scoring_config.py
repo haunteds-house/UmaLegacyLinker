@@ -20,13 +20,13 @@ def read_json_object(path: str | Path) -> dict[str, Any]:
         with resolved.open("r", encoding="utf-8-sig") as stream:
             payload = json.load(stream)
     except OSError as exc:
-        raise ScoringConfigError(f"Impossible de lire le profil de pondération : {resolved}") from exc
+        raise ScoringConfigError(f'Unable to read the scoring profile: {resolved}') from exc
     except json.JSONDecodeError as exc:
         raise ScoringConfigError(
-            f"JSON de pondération invalide dans {resolved.name}, ligne {exc.lineno}, colonne {exc.colno}."
+            f'Invalid weighting JSON in {resolved.name}, line {exc.lineno}, column {exc.colno}.'
         ) from exc
     if not isinstance(payload, dict):
-        raise ScoringConfigError("Le profil de pondération doit être un objet JSON.")
+        raise ScoringConfigError('The scoring profile must be a JSON object.')
     return payload
 
 
@@ -247,7 +247,7 @@ def get_path_value(payload: Any, path: tuple[str, ...]) -> Any:
 
 def set_path_value(payload: dict[str, Any], path: tuple[str, ...], value: Any) -> None:
     if not path:
-        raise ScoringConfigError("La racine du profil ne peut pas être remplacée depuis cet éditeur.")
+        raise ScoringConfigError('The profile root cannot be replaced from this editor.')
     current: dict[str, Any] = payload
     for key in path[:-1]:
         child = current.get(key)
@@ -261,55 +261,55 @@ def set_path_value(payload: dict[str, Any], path: tuple[str, ...], value: Any) -
 def _require_dict(config: dict[str, Any], path: tuple[str, ...]) -> dict[str, Any]:
     value = get_path_value(config, path)
     if not isinstance(value, dict):
-        raise ScoringConfigError(f"{'.'.join(path)} doit être un objet JSON.")
+        raise ScoringConfigError(f"{'.'.join(path)} must be a JSON object.")
     return value
 
 
 def _require_numeric_mapping(config: dict[str, Any], path: tuple[str, ...], *, non_empty: bool = True) -> None:
     mapping = _require_dict(config, path)
     if non_empty and not mapping:
-        raise ScoringConfigError(f"{'.'.join(path)} ne peut pas être vide.")
+        raise ScoringConfigError(f"{'.'.join(path)} cannot be empty.")
     for key, value in mapping.items():
         if isinstance(value, bool) or not isinstance(value, (int, float)):
-            raise ScoringConfigError(f"{'.'.join(path + (str(key),))} doit être numérique.")
+            raise ScoringConfigError(f"{'.'.join(path + (str(key),))} must be numeric.")
         if not math.isfinite(float(value)) or float(value) < 0:
-            raise ScoringConfigError(f"{'.'.join(path + (str(key),))} doit être un nombre fini positif ou nul.")
+            raise ScoringConfigError(f"{'.'.join(path + (str(key),))} must be a finite non-negative number.")
 
 
 def _validate_thresholds(config: dict[str, Any], path: tuple[str, ...]) -> None:
     points = get_path_value(config, path)
     if not isinstance(points, list) or not points:
-        raise ScoringConfigError(f"{'.'.join(path)} doit contenir une liste non vide de paliers [entrée, score].")
+        raise ScoringConfigError(f"{'.'.join(path)} must contain a non-empty list of [input, score] tiers.")
     previous_x: float | None = None
     for index, pair in enumerate(points):
         if not isinstance(pair, list) or len(pair) != 2:
-            raise ScoringConfigError(f"{'.'.join(path)}[{index}] doit être une paire [entrée, score].")
+            raise ScoringConfigError(f"{'.'.join(path)}[{index}] must be an [input, score] pair.")
         x, y = pair
         if any(isinstance(value, bool) or not isinstance(value, (int, float)) for value in (x, y)):
-            raise ScoringConfigError(f"{'.'.join(path)}[{index}] doit contenir deux nombres.")
+            raise ScoringConfigError(f"{'.'.join(path)}[{index}] must contain two numbers.")
         x_value = float(x)
         y_value = float(y)
         if not math.isfinite(x_value) or not math.isfinite(y_value):
-            raise ScoringConfigError(f"{'.'.join(path)}[{index}] contient une valeur non finie.")
+            raise ScoringConfigError(f"{'.'.join(path)}[{index}] contains a non-finite value.")
         if x_value < 0 or y_value < 0:
-            raise ScoringConfigError(f"{'.'.join(path)}[{index}] ne peut pas contenir de valeur négative.")
+            raise ScoringConfigError(f"{'.'.join(path)}[{index}] cannot contain a negative value.")
         if previous_x is not None and x_value < previous_x:
-            raise ScoringConfigError(f"{'.'.join(path)} doit être trié par entrée croissante.")
+            raise ScoringConfigError(f"{'.'.join(path)} must be sorted by increasing input value.")
         previous_x = x_value
 
 
 def validate_scoring_config(config: dict[str, Any]) -> None:
     if not isinstance(config, dict):
-        raise ScoringConfigError("Le profil de pondération doit être un objet JSON.")
+        raise ScoringConfigError('The scoring profile must be a JSON object.')
 
     for path, value in iter_leaf_paths(config):
         if isinstance(value, bool) or value is None or isinstance(value, str):
             continue
         if isinstance(value, (int, float)):
             if not math.isfinite(float(value)):
-                raise ScoringConfigError(f"{'.'.join(path)} contient une valeur non finie.")
+                raise ScoringConfigError(f"{'.'.join(path)} contains a non-finite value.")
             if float(value) < 0:
-                raise ScoringConfigError(f"{'.'.join(path)} ne peut pas être négatif.")
+                raise ScoringConfigError(f"{'.'.join(path)} cannot be negative.")
 
     required_numeric_mappings = (
         ("mode_weights", "parent_branch"),
@@ -361,25 +361,25 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
         unknown = sorted(set(weights) - expected_keys)
         if missing:
             raise ScoringConfigError(
-                f"mode_weights.{mode} doit définir : {', '.join(missing)}."
+                f"mode_weights.{mode} must define: {', '.join(missing)}."
             )
         if unknown:
             raise ScoringConfigError(
-                f"mode_weights.{mode} contient des composantes inconnues : {', '.join(unknown)}."
+                f"mode_weights.{mode} contains unknown components: {', '.join(unknown)}."
             )
         if sum(float(value) for value in weights.values()) <= 0:
             raise ScoringConfigError(
-                f"mode_weights.{mode} doit contenir au moins un poids strictement positif."
+                f'mode_weights.{mode} must contain at least one strictly positive weight.'
             )
 
     blue_by_distance = _require_dict(config, ("blue_stat_weights_by_distance",))
     blue_influence = _require_dict(config, ("blue_score_influence_by_distance",))
     for distance in ("sprint", "mile", "medium", "long"):
         if distance not in blue_by_distance:
-            raise ScoringConfigError(f"blue_stat_weights_by_distance.{distance} est requis.")
+            raise ScoringConfigError(f'blue_stat_weights_by_distance.{distance} is required.')
         _require_numeric_mapping(config, ("blue_stat_weights_by_distance", distance))
         if distance not in blue_influence:
-            raise ScoringConfigError(f"blue_score_influence_by_distance.{distance} est requis.")
+            raise ScoringConfigError(f'blue_score_influence_by_distance.{distance} is required.')
 
     for path in (
         ("blue_star_quality",),
@@ -392,7 +392,7 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
         mapping = _require_dict(config, path)
         missing = [stars for stars in ("1", "2", "3") if stars not in mapping]
         if missing:
-            raise ScoringConfigError(f"{'.'.join(path)} doit définir les étoiles {', '.join(missing)}.")
+            raise ScoringConfigError(f"{'.'.join(path)} must define star levels {', '.join(missing)}.")
 
     threshold_paths = (
         ("affinity", "parent_pair_thresholds"),
@@ -414,15 +414,15 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
     aptitude = _require_dict(config, ("aptitude_inheritance",))
     event_count = aptitude.get("inspiration_event_count")
     if isinstance(event_count, bool) or not isinstance(event_count, int) or event_count < 1:
-        raise ScoringConfigError("aptitude_inheritance.inspiration_event_count doit être un entier strictement positif.")
+        raise ScoringConfigError('aptitude_inheritance.inspiration_event_count must be a strictly positive integer.')
 
     white_inheritance = _require_dict(config, ("white_inheritance",))
     white_event_count = white_inheritance.get("inspiration_event_count")
     if isinstance(white_event_count, bool) or not isinstance(white_event_count, int) or white_event_count < 1:
-        raise ScoringConfigError("white_inheritance.inspiration_event_count doit être un entier strictement positif.")
+        raise ScoringConfigError('white_inheritance.inspiration_event_count must be a strictly positive integer.')
     white_cap = white_inheritance.get("per_event_probability_cap", 1.0)
     if isinstance(white_cap, bool) or not isinstance(white_cap, (int, float)) or not 0 < float(white_cap) <= 1:
-        raise ScoringConfigError("white_inheritance.per_event_probability_cap doit être compris entre 0 (exclu) et 1.")
+        raise ScoringConfigError('white_inheritance.per_event_probability_cap must be between 0 (exclusive) and 1.')
     scenario_inheritance = _require_dict(config, ("scenario_inheritance",))
     scenario_event_count = scenario_inheritance.get("inspiration_event_count")
     if (
@@ -431,7 +431,7 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
         or scenario_event_count < 1
     ):
         raise ScoringConfigError(
-            "scenario_inheritance.inspiration_event_count doit être un entier strictement positif."
+            'scenario_inheritance.inspiration_event_count must be a strictly positive integer.'
         )
     scenario_cap = scenario_inheritance.get("per_event_probability_cap", 1.0)
     if (
@@ -440,7 +440,7 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
         or not 0 < float(scenario_cap) <= 1
     ):
         raise ScoringConfigError(
-            "scenario_inheritance.per_event_probability_cap doit être compris entre 0 (exclu) et 1."
+            'scenario_inheritance.per_event_probability_cap must be between 0 (exclusive) and 1.'
         )
     future_gp = _require_dict(config, ("future_grandparent_heuristics",))
     g1_cutoff = future_gp.get("g1_win_probability_cutoff")
@@ -450,23 +450,23 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
         or not 0.0 <= float(g1_cutoff) <= 1.0
     ):
         raise ScoringConfigError(
-            "future_grandparent_heuristics.g1_win_probability_cutoff doit être compris entre 0 et 1."
+            'future_grandparent_heuristics.g1_win_probability_cutoff must be between 0 and 1.'
         )
     for index, (probability, utility) in enumerate(white_inheritance["distinct_skill_probability_curve"]):
         if float(probability) > 1:
             raise ScoringConfigError(
-                f"white_inheritance.distinct_skill_probability_curve[{index}][0] ne peut pas dépasser 1."
+                f'white_inheritance.distinct_skill_probability_curve[{index}][0] cannot exceed 1.'
             )
         if float(utility) > 1:
             raise ScoringConfigError(
-                f"white_inheritance.distinct_skill_probability_curve[{index}][1] ne peut pas dépasser 1."
+                f'white_inheritance.distinct_skill_probability_curve[{index}][1] cannot exceed 1.'
             )
     for mode in ("parent_branch", "parent_pair"):
         weights = _require_dict(config, ("aptitude_inheritance", "dimension_weights_by_mode", mode))
         missing = [key for key in ("distance", "surface", "style") if key not in weights]
         if missing:
             raise ScoringConfigError(
-                f"aptitude_inheritance.dimension_weights_by_mode.{mode} doit définir : {', '.join(missing)}."
+                f"aptitude_inheritance.dimension_weights_by_mode.{mode} must define: {', '.join(missing)}."
             )
     gp_dimensions = _require_dict(
         config, ("future_grandparent_heuristics", "pink_dimension_weights")
@@ -476,7 +476,7 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
     ]
     if missing_gp_dimensions:
         raise ScoringConfigError(
-            "future_grandparent_heuristics.pink_dimension_weights doit définir : "
+            'future_grandparent_heuristics.pink_dimension_weights must define: '
             + ", ".join(missing_gp_dimensions)
         )
     for dimension in ("distance", "surface", "style"):
@@ -486,15 +486,15 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
             "start_b_base_score", "start_b_a_probability_weight", "start_b_s_probability_weight",
         ):
             if key not in section:
-                raise ScoringConfigError(f"aptitude_inheritance.{dimension}.{key} est requis.")
+                raise ScoringConfigError(f'aptitude_inheritance.{dimension}.{key} is required.')
         for index, (probability, quality) in enumerate(section["s_probability_curve"]):
             if float(probability) > 1:
                 raise ScoringConfigError(
-                    f"aptitude_inheritance.{dimension}.s_probability_curve[{index}][0] ne peut pas dépasser 1."
+                    f'aptitude_inheritance.{dimension}.s_probability_curve[{index}][0] cannot exceed 1.'
                 )
             if float(quality) > 100:
                 raise ScoringConfigError(
-                    f"aptitude_inheritance.{dimension}.s_probability_curve[{index}][1] ne peut pas dépasser 100."
+                    f'aptitude_inheritance.{dimension}.s_probability_curve[{index}][1] cannot exceed 100.'
                 )
     surface_section = _require_dict(config, ("aptitude_inheritance", "surface"))
     surface_rank_policy: dict[str, int] = {}
@@ -502,18 +502,18 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
         value = surface_section.get(key)
         if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 7:
             raise ScoringConfigError(
-                f"aptitude_inheritance.surface.{key} doit être un rang entier compris entre 1 (G) et 7 (A)."
+                f'aptitude_inheritance.surface.{key} must be an integer rank between 1 (G) and 7 (A).'
             )
         surface_rank_policy[key] = value
     if surface_rank_policy["minimum_initial_rank"] > surface_rank_policy["preferred_initial_rank"]:
         raise ScoringConfigError(
-            "aptitude_inheritance.surface.minimum_initial_rank ne peut pas dépasser preferred_initial_rank."
+            'aptitude_inheritance.surface.minimum_initial_rank cannot exceed preferred_initial_rank.'
         )
     for key in ("minimum_probability_a", "minimum_probability_s"):
         value = get_path_value(config, ("aptitude_inheritance", "distance", "b_compensation", key))
         if float(value) > 1:
             raise ScoringConfigError(
-                f"aptitude_inheritance.distance.b_compensation.{key} ne peut pas dépasser 1."
+                f'aptitude_inheritance.distance.b_compensation.{key} cannot exceed 1.'
             )
 
     _require_dict(config, ("uma_moe_parent_search",))
@@ -521,14 +521,14 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
     for key in ("enabled", "surface_cohort_enabled"):
         if not isinstance(retrieval.get(key), bool):
             raise ScoringConfigError(
-                f"uma_moe_parent_search.retrieval.{key} doit valoir true ou false."
+                f'uma_moe_parent_search.retrieval.{key} must be true or false.'
             )
     for key, value in retrieval.items():
         if key in {"enabled", "surface_cohort_enabled"}:
             continue
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise ScoringConfigError(
-                f"uma_moe_parent_search.retrieval.{key} doit être numérique."
+                f'uma_moe_parent_search.retrieval.{key} must be numeric.'
             )
     for section_name in ("retrieval", "preselection"):
         section = _require_dict(config, ("uma_moe_parent_search", section_name))
@@ -542,7 +542,7 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
                 continue
             if float(value) > 1:
                 raise ScoringConfigError(
-                    f"uma_moe_parent_search.{section_name}.{key} ne peut pas dépasser 1."
+                    f'uma_moe_parent_search.{section_name}.{key} cannot exceed 1.'
                 )
     divisor = retrieval.get("balanced_branch_divisor")
     if (
@@ -551,7 +551,7 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
         or float(divisor) <= 0
     ):
         raise ScoringConfigError(
-            "uma_moe_parent_search.retrieval.balanced_branch_divisor doit être strictement positif."
+            'uma_moe_parent_search.retrieval.balanced_branch_divisor must be strictly positive.'
         )
     contextual_distance_target = retrieval.get("contextual_distance_star_target", 6)
     if (
@@ -560,8 +560,7 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
         or not 1 <= contextual_distance_target <= 18
     ):
         raise ScoringConfigError(
-            "uma_moe_parent_search.retrieval.contextual_distance_star_target "
-            "doit être un entier compris entre 1 et 18."
+            'uma_moe_parent_search.retrieval.contextual_distance_star_target must be an integer between 1 and 18.'
         )
     contextual_opponent = _require_dict(
         config, ("uma_moe_pair", "contextual_opponent")
@@ -569,18 +568,18 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
     for key, value in contextual_opponent.items():
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise ScoringConfigError(
-                f"uma_moe_pair.contextual_opponent.{key} doit être numérique."
+                f'uma_moe_pair.contextual_opponent.{key} must be numeric.'
             )
         if float(value) > 1:
             raise ScoringConfigError(
-                f"uma_moe_pair.contextual_opponent.{key} ne peut pas dépasser 1."
+                f'uma_moe_pair.contextual_opponent.{key} cannot exceed 1.'
             )
 
     modes = _require_dict(config, ("course_conditions", "modes"))
     for key, value in modes.items():
         if value not in {"floor", "override"}:
             raise ScoringConfigError(
-                f"course_conditions.modes.{key} doit valoir 'floor' ou 'override'."
+                f"course_conditions.modes.{key} must be 'floor' or 'override'."
             )
 
     positive_paths = (
@@ -594,7 +593,7 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
     for path in positive_paths:
         value = get_path_value(config, path)
         if isinstance(value, bool) or not isinstance(value, (int, float)) or float(value) <= 0:
-            raise ScoringConfigError(f"{'.'.join(path)} doit être strictement positif.")
+            raise ScoringConfigError(f"{'.'.join(path)} must be strictly positive.")
 
     transfer = _require_dict(config, ("transfer_helper",))
     for key in (
@@ -611,18 +610,18 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
     ):
         value = transfer.get(key)
         if isinstance(value, bool) or not isinstance(value, (int, float)):
-            raise ScoringConfigError(f"transfer_helper.{key} doit être numérique.")
+            raise ScoringConfigError(f'transfer_helper.{key} must be numeric.')
         if not math.isfinite(float(value)) or float(value) < 0:
             raise ScoringConfigError(
-                f"transfer_helper.{key} doit être un nombre fini positif ou nul."
+                f'transfer_helper.{key} must be a finite non-negative number.'
             )
     for key in ("competitive_utility_floor", "elite_utility_floor", "minimum_absolute_floor_ratio", "utility_absolute_weight", "utility_leader_weight", "utility_percentile_weight"):
         if float(transfer[key]) > 1:
-            raise ScoringConfigError(f"transfer_helper.{key} ne peut pas dépasser 1.")
+            raise ScoringConfigError(f'transfer_helper.{key} cannot exceed 1.')
     if float(transfer["elite_utility_floor"]) < float(transfer["competitive_utility_floor"]):
-        raise ScoringConfigError("transfer_helper.elite_utility_floor doit être supérieur ou égal au seuil compétitif.")
+        raise ScoringConfigError('transfer_helper.elite_utility_floor must be greater than or equal to the competitive threshold.')
     if sum(float(transfer[key]) for key in ("utility_absolute_weight", "utility_leader_weight", "utility_percentile_weight")) <= 0:
-        raise ScoringConfigError("Les poids d'utilité du Transfer Helper ne peuvent pas tous être nuls.")
+        raise ScoringConfigError('The Transfer Helper utility weights cannot all be zero.')
     for key in (
         "minimum_competitive_contexts",
         "minimum_distinct_profiles",
@@ -631,11 +630,11 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
         value = transfer.get(key)
         if isinstance(value, bool) or not isinstance(value, int) or value < 1:
             raise ScoringConfigError(
-                f"transfer_helper.{key} doit être un entier strictement positif."
+                f'transfer_helper.{key} must be a strictly positive integer.'
             )
     if int(transfer["minimum_ace_aptitude_rank"]) > 8:
         raise ScoringConfigError(
-            "transfer_helper.minimum_ace_aptitude_rank ne peut pas dépasser 8 (S)."
+            'transfer_helper.minimum_ace_aptitude_rank cannot exceed 8 (S).'
         )
     for key in (
         "include_permanent_archetypes",
@@ -646,12 +645,12 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
     ):
         if not isinstance(transfer.get(key), bool):
             raise ScoringConfigError(
-                f"transfer_helper.{key} doit valoir true ou false."
+                f'transfer_helper.{key} must be true or false.'
             )
     analysis_mode = transfer.get("analysis_mode")
     if analysis_mode not in {"fast", "exhaustive"}:
         raise ScoringConfigError(
-            "transfer_helper.analysis_mode doit valoir 'fast' ou 'exhaustive'."
+            "transfer_helper.analysis_mode must be 'fast' or 'exhaustive'."
         )
     upcoming_cm_limit = transfer.get("upcoming_cm_limit")
     if (
@@ -660,7 +659,7 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
         or upcoming_cm_limit < 0
     ):
         raise ScoringConfigError(
-            "transfer_helper.upcoming_cm_limit doit être un entier positif ou nul."
+            'transfer_helper.upcoming_cm_limit must be a non-negative integer.'
         )
 
     spark_protection = _require_dict(
@@ -668,7 +667,7 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
     )
     if not isinstance(spark_protection.get("enabled"), bool):
         raise ScoringConfigError(
-            "transfer_helper.spark_protection.enabled doit valoir true ou false."
+            'transfer_helper.spark_protection.enabled must be true or false.'
         )
     for key in (
         "minimum_context_weight",
@@ -683,11 +682,11 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
         value = spark_protection.get(key)
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise ScoringConfigError(
-                f"transfer_helper.spark_protection.{key} doit être numérique."
+                f'transfer_helper.spark_protection.{key} must be numeric.'
             )
         if not math.isfinite(float(value)) or float(value) < 0:
             raise ScoringConfigError(
-                f"transfer_helper.spark_protection.{key} doit être un nombre fini positif ou nul."
+                f'transfer_helper.spark_protection.{key} must be a finite non-negative number.'
             )
     for key in (
         "repeated_review_min_probability",
@@ -697,14 +696,13 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
     ):
         if float(spark_protection[key]) > 1:
             raise ScoringConfigError(
-                f"transfer_helper.spark_protection.{key} ne peut pas dépasser 1."
+                f'transfer_helper.spark_protection.{key} cannot exceed 1.'
             )
     if float(spark_protection["repeated_strong_min_probability"]) < float(
         spark_protection["repeated_review_min_probability"]
     ):
         raise ScoringConfigError(
-            "Le seuil fort de probabilité des Sparks répétées doit être supérieur "
-            "ou égal au seuil d’examen."
+            'The strong repeated-Spark probability threshold must be greater than or equal to the review threshold.'
         )
     for key, minimum in (
         ("hard_to_obtain_max_support_hint_count", 0),
@@ -718,16 +716,16 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
         if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
             if minimum == 0:
                 raise ScoringConfigError(
-                    f"transfer_helper.spark_protection.{key} doit être un entier positif ou nul."
+                    f'transfer_helper.spark_protection.{key} must be a non-negative integer.'
                 )
             raise ScoringConfigError(
-                f"transfer_helper.spark_protection.{key} doit être un entier strictement positif."
+                f'transfer_helper.spark_protection.{key} must be a strictly positive integer.'
             )
     if int(spark_protection["repeated_strong_min_carriers"]) < int(
         spark_protection["repeated_review_min_carriers"]
     ):
         raise ScoringConfigError(
-            "Le seuil fort de porteurs répétés doit être supérieur ou égal au seuil d’examen."
+            'The strong repeated-carrier threshold must be greater than or equal to the review threshold.'
         )
 
     support_overrides = _require_dict(
@@ -742,31 +740,30 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
             or value < 0
         ):
             raise ScoringConfigError(
-                "transfer_helper.spark_protection.support_hint_count_overrides "
-                "doit associer chaque catalog_key à un entier positif ou nul."
+                'transfer_helper.spark_protection.support_hint_count_overrides must map each catalog_key to a non-negative integer.'
             )
 
     packages = spark_protection.get("important_packages")
     if not isinstance(packages, list):
         raise ScoringConfigError(
-            "transfer_helper.spark_protection.important_packages doit être une liste."
+            'transfer_helper.spark_protection.important_packages must be a list.'
         )
     package_keys: set[str] = set()
     for index, package in enumerate(packages):
         path = f"transfer_helper.spark_protection.important_packages[{index}]"
         if not isinstance(package, dict):
-            raise ScoringConfigError(f"{path} doit être un objet JSON.")
+            raise ScoringConfigError(f'{path} must be a JSON object.')
         package_key = package.get("key")
         if not isinstance(package_key, str) or not package_key.strip():
-            raise ScoringConfigError(f"{path}.key doit être une chaîne non vide.")
+            raise ScoringConfigError(f'{path}.key must be a non-empty string.')
         if package_key in package_keys:
             raise ScoringConfigError(
-                f"Le package de Sparks {package_key!r} est défini plusieurs fois."
+                f'Spark package {package_key!r} is defined more than once.'
             )
         package_keys.add(package_key)
         label = package.get("label")
         if not isinstance(label, str) or not label.strip():
-            raise ScoringConfigError(f"{path}.label doit être une chaîne non vide.")
+            raise ScoringConfigError(f'{path}.label must be a non-empty string.')
         skills = package.get("skills")
         if (
             not isinstance(skills, list)
@@ -775,7 +772,7 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
             or len(set(skills)) != len(skills)
         ):
             raise ScoringConfigError(
-                f"{path}.skills doit être une liste non vide de catalog_key distinctes."
+                f'{path}.skills must be a non-empty list of distinct catalog_key values.'
             )
         thresholds: dict[str, int] = {}
         for key, minimum in (
@@ -787,38 +784,38 @@ def validate_scoring_config(config: dict[str, Any]) -> None:
             value = package.get(key)
             if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
                 raise ScoringConfigError(
-                    f"{path}.{key} doit être un entier supérieur ou égal à {minimum}."
+                    f'{path}.{key} must be an integer greater than or equal to {minimum}.'
                 )
             thresholds[key] = value
         if thresholds["review_min_distinct"] > len(skills) or thresholds[
             "strong_min_distinct"
         ] > len(skills):
             raise ScoringConfigError(
-                f"Les seuils distincts de {path} ne peuvent pas dépasser le nombre de skills."
+                f'Distinct thresholds for {path} cannot exceed the number of skills.'
             )
         if thresholds["strong_min_distinct"] < thresholds["review_min_distinct"]:
             raise ScoringConfigError(
-                f"{path}.strong_min_distinct doit être supérieur ou égal à review_min_distinct."
+                f'{path}.strong_min_distinct must be greater than or equal to review_min_distinct.'
             )
         if thresholds["strong_min_total_stars"] < thresholds[
             "review_min_total_stars"
         ]:
             raise ScoringConfigError(
-                f"{path}.strong_min_total_stars doit être supérieur ou égal à review_min_total_stars."
+                f'{path}.strong_min_total_stars must be greater than or equal to review_min_total_stars.'
             )
 
 
 def validate_skill_priorities_config(config: dict[str, Any]) -> None:
     if not isinstance(config, dict):
-        raise ScoringConfigError("Le profil de priorités white doit être un objet JSON.")
+        raise ScoringConfigError('The white priority profile must be a JSON object.')
     default_weight = config.get("default_weight")
     if isinstance(default_weight, bool) or not isinstance(default_weight, (int, float)):
-        raise ScoringConfigError("default_weight doit être numérique.")
+        raise ScoringConfigError('default_weight must be numeric.')
     if not math.isfinite(float(default_weight)) or float(default_weight) < 0:
-        raise ScoringConfigError("default_weight doit être un nombre fini positif ou nul.")
+        raise ScoringConfigError('default_weight must be a finite non-negative number.')
     skills = config.get("skills")
     if not isinstance(skills, dict):
-        raise ScoringConfigError("skills doit être un objet JSON indexé par catalog_key.")
+        raise ScoringConfigError('skills must be a JSON object indexed by catalog_key.')
     allowed_dimensions = {
         "surface": {"turf", "dirt"},
         "distance": {"sprint", "mile", "medium", "long"},
@@ -826,48 +823,48 @@ def validate_skill_priorities_config(config: dict[str, Any]) -> None:
     }
     for skill_key, skill in skills.items():
         if not isinstance(skill, dict):
-            raise ScoringConfigError(f"skills.{skill_key} doit être un objet JSON.")
+            raise ScoringConfigError(f'skills.{skill_key} must be a JSON object.')
         base = skill.get("base")
         if isinstance(base, bool) or not isinstance(base, (int, float)):
-            raise ScoringConfigError(f"skills.{skill_key}.base doit être numérique.")
+            raise ScoringConfigError(f'skills.{skill_key}.base must be numeric.')
         if not math.isfinite(float(base)) or float(base) < 0:
-            raise ScoringConfigError(f"skills.{skill_key}.base doit être positif ou nul.")
+            raise ScoringConfigError(f'skills.{skill_key}.base must be non-negative.')
         for dimension, allowed_keys in allowed_dimensions.items():
             values = skill.get(dimension)
             if values is None:
                 continue
             if not isinstance(values, dict):
-                raise ScoringConfigError(f"skills.{skill_key}.{dimension} doit être un objet JSON.")
+                raise ScoringConfigError(f'skills.{skill_key}.{dimension} must be a JSON object.')
             unknown = sorted(set(values) - allowed_keys)
             if unknown:
                 raise ScoringConfigError(
-                    f"skills.{skill_key}.{dimension} contient des clés inconnues : {', '.join(unknown)}."
+                    f"skills.{skill_key}.{dimension} contains unknown keys: {', '.join(unknown)}."
                 )
             for key, value in values.items():
                 if isinstance(value, bool) or not isinstance(value, (int, float)):
-                    raise ScoringConfigError(f"skills.{skill_key}.{dimension}.{key} doit être numérique.")
+                    raise ScoringConfigError(f'skills.{skill_key}.{dimension}.{key} must be numeric.')
                 if not math.isfinite(float(value)) or float(value) < 0:
                     raise ScoringConfigError(
-                        f"skills.{skill_key}.{dimension}.{key} doit être positif ou nul."
+                        f'skills.{skill_key}.{dimension}.{key} must be non-negative.'
                     )
         profiles = skill.get("profiles")
         if profiles is None:
             continue
         if not isinstance(profiles, list):
             raise ScoringConfigError(
-                f"skills.{skill_key}.profiles doit être une liste JSON."
+                f'skills.{skill_key}.profiles must be a JSON array.'
             )
         for index, rule in enumerate(profiles):
             path = f"skills.{skill_key}.profiles[{index}]"
             if not isinstance(rule, dict):
-                raise ScoringConfigError(f"{path} doit être un objet JSON.")
+                raise ScoringConfigError(f'{path} must be a JSON object.')
             match = rule.get("match", {})
             if not isinstance(match, dict):
-                raise ScoringConfigError(f"{path}.match doit être un objet JSON.")
+                raise ScoringConfigError(f'{path}.match must be a JSON object.')
             unknown_dimensions = sorted(set(match) - set(allowed_dimensions))
             if unknown_dimensions:
                 raise ScoringConfigError(
-                    f"{path}.match contient des dimensions inconnues : "
+                    f'{path}.match contains unknown dimensions: '
                     + ", ".join(unknown_dimensions)
                     + "."
                 )
@@ -880,23 +877,23 @@ def validate_skill_priorities_config(config: dict[str, Any]) -> None:
                 ):
                     allowed = ", ".join(sorted(allowed_dimensions[dimension]))
                     raise ScoringConfigError(
-                        f"{path}.match.{dimension} doit utiliser : {allowed}."
+                        f'{path}.match.{dimension} must use: {allowed}.'
                     )
             operation = str(rule.get("operation", "override")).lower()
             if operation not in {"override", "floor", "cap", "multiplier", "bonus"}:
                 raise ScoringConfigError(
-                    f"{path}.operation doit être override, floor, cap, multiplier ou bonus."
+                    f'{path}.operation must be override, floor, cap, multiplier, or bonus.'
                 )
             value = rule.get("value", 0.0)
             if isinstance(value, bool) or not isinstance(value, (int, float)):
-                raise ScoringConfigError(f"{path}.value doit être numérique.")
+                raise ScoringConfigError(f'{path}.value must be numeric.')
             if not math.isfinite(float(value)) or float(value) < 0:
                 raise ScoringConfigError(
-                    f"{path}.value doit être positif ou nul."
+                    f'{path}.value must be non-negative.'
                 )
             reason = rule.get("reason")
             if reason is not None and not isinstance(reason, str):
-                raise ScoringConfigError(f"{path}.reason doit être une chaîne.")
+                raise ScoringConfigError(f'{path}.reason must be a string.')
 
 
 def load_effective_scoring_config(

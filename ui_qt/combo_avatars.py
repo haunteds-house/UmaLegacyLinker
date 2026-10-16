@@ -16,12 +16,7 @@ ICON_SIZE = 32
 
 
 class ComboAvatarLoader:
-    """Apply trainee artwork to combo items by position as images become ready.
-
-    Call :meth:`apply` after each repopulation with the same ordered card-id
-    sequence as the combo items.  Cached images are installed immediately;
-    downloads already go through the shared :class:`ImageRepository`.
-    """
+    'Apply trainee artwork to combo items by position as images become ready.\n\n    Call:meth:`apply` after each repopulation with the same ordered card-id\n    sequence as the combo items.  Cached images are installed immediately;\n    downloads already go through the shared:class:`ImageRepository`.\n    '
 
     def __init__(self, combo: QComboBox, repository: ImageRepository) -> None:
         self._combo = combo

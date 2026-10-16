@@ -224,7 +224,7 @@ def require_tables(connection: sqlite3.Connection, tables: Iterable[str]) -> Non
     }
     missing = [table for table in tables if table not in existing]
     if missing:
-        raise RuntimeError("Tables MDB manquantes : " + ", ".join(sorted(missing)))
+        raise RuntimeError('Missing MDB tables: ' + ", ".join(sorted(missing)))
 
 
 def text_map(connection: sqlite3.Connection, category: int) -> dict[int, str]:
@@ -454,7 +454,7 @@ def generate_skill_catalogs(
     master = Path(master_path).expanduser().resolve()
     destination = Path(output_dir).expanduser().resolve()
     if not master.is_file():
-        raise RuntimeError(f"MDB introuvable : {master}")
+        raise RuntimeError(f'MDB not found: {master}')
     destination.mkdir(parents=True, exist_ok=True)
 
     connection = sqlite3.connect(f"file:{master.as_posix()}?mode=ro", uri=True)
@@ -873,9 +873,7 @@ def generate_skill_catalogs(
         json_write(race_factor_skills_path, race_factor_document)
 
         log(
-            "Catalogue skills : "
-            f"{len(skills_payload)} skills, {len(variable_payload)} variables de condition, "
-            f"{len(white_group_payload)} groupes de white Sparks."
+            f'Skill catalogue: {len(skills_payload)} skills, {len(variable_payload)} condition variables, {len(white_group_payload)} White Spark groups.'
         )
         return SkillCatalogResult(
             skills_path=skills_path,
