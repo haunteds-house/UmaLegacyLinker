@@ -53,6 +53,58 @@ class QtRuntimeSmokeTests(unittest.TestCase):
         with patch.dict(sys.modules, {"PySide6.QtWebEngineCore": None, "PySide6.QtWebEngineWidgets": None}):
             self.assertEqual(run_roster_smoke(self.application), 0)
 
+    def test_studio_forecasts_and_retains_a_planned_runner(self) -> None:
+        from ui_qt.planning_tools import PlanningTools
+        from ui_qt.image_assets import ImageRepository
+        from tests.test_planning_studio import fixture
+        from uma_workbench.analysis import forecast_runners
+        with tempfile.TemporaryDirectory() as temp:
+            store,master=fixture(temp)
+            identity=store.save_goal('Mile runner',{'scenario':'URA','role':'TT','surface':'Turf','distance_type':'Mile',
+                'style':'Pace Chaser','stats':{},'skill_ids':[],'max_attempts':10,'stop_condition':'Meet targets'})
+            widget=PlanningTools(store,master,ImageRepository(Path(temp)/'images',enabled=False))
+            widget.goal.setCurrentIndex(1);widget.runs.setValue(4);widget.run_forecast()
+            deadline=time.monotonic()+10
+            while widget._worker and time.monotonic()<deadline:
+                self.application.processEvents();time.sleep(.01)
+            self.assertIsNone(widget._worker,widget.status.text())
+            self.assertIsNotNone(widget._last_forecast,widget.status.text())
+            self.assertEqual(widget.forecast_view.timeline.rowCount(),78)
+            widget.keep_forecast();self.assertEqual(forecast_runners(store,master)[0]['plan_id'],identity)
+            widget.shutdown();widget.close()
+
+    def test_studio_concert_recording_and_reference_profiles(self) -> None:
+        from PySide6.QtCore import Qt
+        from ui_qt.planning_tools import PlanningTools
+        from ui_qt.image_assets import ImageRepository
+        from tests.test_planning_studio import fixture
+        with tempfile.TemporaryDirectory() as temp:
+            store,master=fixture(temp)
+            widget=PlanningTools(store,master,ImageRepository(Path(temp)/'images',enabled=False))
+            widget.references.setCurrentRow(0)
+            self.assertIn('Corner Adept',widget.reference_text.toPlainText())
+            for spin in widget.performance:spin.setValue(20)
+            for i in range(widget.lessons.count()):widget.lessons.item(i).setCheckState(Qt.CheckState.Checked)
+            widget.run_concert();self.assertTrue(widget._concert_report['purchases'])
+            widget.buy_concert();self.assertEqual(len(store.setting('concert_bought')),2)
+            self.assertEqual(widget.performance[0].value(),10)
+            widget.shutdown();widget.close()
+
+    def test_editing_a_generated_plan_preserves_automatic_tracking(self) -> None:
+        from ui_qt.training_goal_dialog import TrainingGoalDialog
+        from ui_qt.image_assets import ImageRepository
+        from tests.test_planning_studio import fixture
+        with tempfile.TemporaryDirectory() as temp:
+            store,master=fixture(temp)
+            identity=store.save_goal('Project runner',{'scenario':'URA','role':'TT','card_id':100101,'stats':{},'skill_ids':[],
+                'max_attempts':10,'stop_condition':'Meet targets','project_id':'project','auto_track':True,'source_stages':['parent-0'],
+                'career':{'runs':4,'race_success':1.}})
+            dialog=TrainingGoalDialog(store,master,ImageRepository(Path(temp)/'images',enabled=False),goal=store.goals()[0])
+            dialog.save()
+            details=store.goals()[0]['details']
+            self.assertEqual(details['project_id'],'project');self.assertTrue(details['auto_track'])
+            self.assertEqual(details['source_stages'],['parent-0']);self.assertEqual(details['career']['runs'],4)
+
     def test_roster_dates_support_exported_text_and_numeric_timestamps(self) -> None:
         from ui_qt.collection_widgets import describe_records, sort_records
         from ui_qt.roster_viewer import _copy_label
@@ -551,7 +603,7 @@ class QtRuntimeSmokeTests(unittest.TestCase):
                 callback(None)
             self.assertEqual(destinations, ["search"])
             self.assertEqual(Path(context.veterans_json_path), request.veterans_json_path)
-            self.assertEqual(page.tabs.count(), 6)
+            self.assertEqual(page.tabs.count(), 7)
             page.shutdown()
             page.close()
 

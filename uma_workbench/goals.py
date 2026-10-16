@@ -22,6 +22,8 @@ def validate_training_goal(payload, store, master):
     from uma_workbench.planning import APTITUDES
     from uma_workbench.training import options_for
     options_for(payload)
+    from uma_workbench.career import career_options
+    career_options(payload)
     card_id = int(payload["card_id"]) if payload.get("card_id") is not None else None
     if card_id is not None and card_id not in {int(row["card_id"]) for row in store.entities("trainees")}:
         raise ValueError("The target trainee is not in your imported collection")
@@ -69,3 +71,6 @@ def validate_training_goal(payload, store, master):
             raise ValueError(f"The exact distance belongs to {group}. Change the distance group or clear the exact distance.")
     if not payload.get("stop_condition", "").strip():
         raise ValueError("Describe the result that lets you stop or move to the next stage")
+    if any(not isinstance(key,str) or not isinstance(stars,int) or not 1<=stars<=3
+            for key,stars in payload.get("required_sparks",{}).items()):
+        raise ValueError("Choose result sparks with one to three stars")

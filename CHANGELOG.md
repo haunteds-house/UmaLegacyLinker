@@ -2,6 +2,29 @@
 
 This project uses feature-level semantic versioning. Small internal iterations are consolidated into the nearest meaningful release instead of receiving their own public version.
 
+## 1.14.0 - Integrated planning studio
+
+- Add seeded turn-based career forecasts with energy/recovery, practice-board
+  selection, bond, objectives, races, events, inheritance and scenario assumptions.
+  Show outcome ranges, turn timelines, skill acquisition/costs and same-career
+  snapshot backtests. Retain forecasts for evaluating planned runners.
+- Rank setup shortlists using career targets and race comparisons when data are
+  available. Keep practice comparisons and the original inheritance engine.
+- Add native race fields, editable opponents and course conditions; compare
+  skills, stamina exhaustion, times and conditional win rates. Build TT/CM teams
+  with unique characters, constrained assignment and bounded joint refinement.
+  Calibrate base-point forecasts only with sufficient recorded runner evidence.
+- Generate reusable grandparent/parent/runner projects, reuse existing results,
+  track new imports and attempts, bind exact parent copies and show the next
+  ready career. Preserve tracking metadata when editing plans.
+- Add readable skill/card profiles, collection sources, course-specific skill
+  values and owned support/trainee comparisons.
+- Add awakening priorities, missing balances, verified MDB reward routes and
+  expected run/time budgets. Never invent a missing acquisition route.
+- Add Grand Concert offer selection, lesson/song/recovery comparisons, reserves,
+  local purchase recording and career forecast integration.
+- Keep all tools native and document model assumptions and unsupported mechanics.
+
 ## 1.13.0 - Native roster and lineage planner
 
 - Replace the embedded website with native illustrated veteran cards, sorting,

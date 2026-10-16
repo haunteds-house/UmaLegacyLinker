@@ -94,6 +94,34 @@ class TrainingGoalDialog(QDialog):
         self.skills.setAccessibleName("Required skills by name")
         self.skill_filter.textChanged.connect(self._filter_skills)
         goal_layout.addWidget(self.skills, 1)
+        self.spark_targets = []
+        spark_names = {"color:Blue": "Any blue stat spark"}
+        colors = {1:"Blue",2:"Pink",3:"Green",4:"Skill",5:"Race",6:"Scenario"}
+        for identity, factor in master.factors.items():
+            color = colors.get(factor.get("factor_type"), "Other")
+            spark_names.setdefault(f"{color}:{factor.get('factor_group_id')}",
+                color + " · " + master.names.get((147, identity), "Spark name unavailable"))
+        spark_controls = QWidget()
+        spark_grid = QGridLayout(spark_controls)
+        spark_grid.setContentsMargins(0, 0, 0, 0)
+        for index in range(2):
+            from ui_qt.components import SearchableComboBox
+            choice = SearchableComboBox()
+            choice.addItem("Any spark", None)
+            for identity, name in sorted(spark_names.items(), key=lambda row:row[1]):
+                choice.addItem(name, identity)
+            stars = QSpinBox(); stars.setRange(1, 3); stars.setValue(3)
+            choice.setAccessibleName(f"Result spark {index + 1}")
+            stars.setAccessibleName(f"Result spark {index + 1} minimum stars")
+            spark_grid.addWidget(choice,index,0); spark_grid.addWidget(stars,index,1)
+            self.spark_targets.append((choice,stars))
+        spark_toggle = QPushButton("Result sparks for parent careers (optional)")
+        spark_toggle.setCheckable(True); spark_controls.hide(); spark_toggle.toggled.connect(spark_controls.setVisible)
+        goal_layout.addWidget(spark_toggle); goal_layout.addWidget(spark_controls)
+        if goal and goal["details"].get("required_sparks"):
+            for (choice,stars),(identity,minimum) in zip(self.spark_targets, goal["details"]["required_sparks"].items()):
+                choice.setCurrentIndex(max(0,choice.findData(identity))); stars.setValue(minimum)
+            spark_toggle.setChecked(True)
         targets_toggle = QPushButton("Aptitude and stat targets (optional)")
         targets_toggle.setCheckable(True)
         goal_layout.addWidget(targets_toggle)
@@ -220,12 +248,15 @@ class TrainingGoalDialog(QDialog):
 
     def payload(self):
         stats = {key: spin.value() for key, spin in self.stats.items()}
-        return {"role": self.role.currentData(), "card_id": self.trainee.identity(), "scenario": self.scenario.currentText(),
+        previous = dict(self.existing_goal["details"]) if self.existing_goal else {}
+        previous.pop("setup_evidence", None)
+        return {**previous, "role": self.role.currentData(), "card_id": self.trainee.identity(), "scenario": self.scenario.currentText(),
             "surface": self.surface.currentText(), "style": self.style.currentText(), "distance": self.distance.value() or None,
             "distance_type": self.distance_type.currentText(), "minimum_aptitude": self.minimum_aptitude.currentData(),
             "aptitudes": {key: combo.currentData() for key, combo in self.aptitudes.items() if combo.currentData()},
             "planning_mode": "chosen" if self.trainee.identity() is not None else "requirements",
             "training": self.training_options.payload(),
+            "required_sparks": {choice.currentData():stars.value() for choice,stars in self.spark_targets if choice.currentData()},
             "stats": stats if any(stats.values()) else {}, "skill_ids": self.checked(self.skills),
             "parent_ids": [picker.identity() for picker in self.parents if picker.identity() is not None],
             "deck_ids": [picker.identity() for picker in self.deck if picker.identity() is not None],
@@ -242,6 +273,8 @@ class TrainingGoalDialog(QDialog):
                 payload["setup_evidence"] = {key: self._selected_setup[key] for key in
                     ("missing_skills", "aptitude_gap", "slot_gap", "requires_s_roll")}
                 payload["setup_evidence"]["training"] = self._selected_setup.get("training")
+                if self._selected_setup.get("career"):
+                    payload["setup_evidence"]["career"] = {key:value for key,value in self._selected_setup["career"].items() if key not in ("samples", "timeline")}
                 payload["setup_evidence"]["master_sha256"] = self.master.sha256
             if self.existing_goal:
                 self.store.update_goal(self.existing_goal["id"], title, payload)
@@ -254,7 +287,7 @@ class TrainingGoalDialog(QDialog):
     @staticmethod
     def _signature(payload):
         return {key: payload.get(key) for key in ("card_id", "surface", "style", "distance", "distance_type", "stats",
-            "minimum_aptitude", "aptitudes", "skill_ids", "parent_ids", "deck_ids", "borrowed_support_id", "scenario", "training")}
+            "minimum_aptitude", "aptitudes", "skill_ids", "parent_ids", "deck_ids", "borrowed_support_id", "scenario", "training", "career", "required_sparks")}
 
     def start_search(self):
         if self._search_worker:

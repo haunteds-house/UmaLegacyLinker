@@ -136,6 +136,15 @@ PyInstaller version used for the build.
 
 ## Application branding
 
+### Planning formula references
+
+The career and race comparisons are independently written Python models using
+local MDB records and the original linker's probability/affinity functions.
+Primary community mathematical references, coverage and assumptions are listed
+in [Planning models](PLANNING_MODELS.md). No external simulator code or game
+dataset is redistributed with these tools. Synthetic smoke records are generated
+by this project and do not contain player exports or downloaded artwork.
+
 `resources/branding/app.png` and `app.ico` contain the application artwork
 supplied by the maintainer. The ICO preserves the supplied small PNG variants
 and includes reductions of the 512 px original. No upstream source or licence

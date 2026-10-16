@@ -16,6 +16,7 @@ data_files = [
     (str(project_root / "docs" / "WORKBENCH.md"), "docs"),
     (str(project_root / "docs" / "TRAINING_MODEL.md"), "docs"),
     (str(project_root / "docs" / "ROADMAP.md"), "docs"),
+    (str(project_root / "docs" / "PLANNING_MODELS.md"), "docs"),
     (str(project_root / "licenses" / "UmaParser-MIT.txt"), "licenses"),
     (str(project_root / "licenses" / "UmaWorkbench-MIT.txt"), "licenses"),
 ]

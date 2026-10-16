@@ -442,10 +442,32 @@ def find_setups(store, master, requirements, *, catalog=None, limit=24, checkpoi
             results.append(row)
         progress(int(100 * (index + 1) / max(1, len(trainees))), "Comparing trainees, inheritance and support training…")
     results.sort(key=lambda row: row["rank_key"])
+    forecast_enabled = False
+    if requirements.get("career_forecast", True) and catalog.training_data.available(training.scenario):
+        from uma_workbench.career import CareerModel
+        selected_results = results[:max(limit, 24)]
+        model = CareerModel(store, master, {**requirements, "career": {**requirements.get("career", {}), "runs": 8}})
+        for row in selected_results:
+            checkpoint()
+            row["career"] = model.forecast(row["trainee"], row["supports"], row["parents"], checkpoint=checkpoint)
+            forecast_enabled |= row["career"].get("available", False)
+            if row["career"].get("available"):
+                spark_value = 0
+                for key in requirements.get("required_sparks", {}):
+                    if key == "color:Blue":
+                        spark_value += max(row["career"]["distribution"][stat]["mean"] for stat in STAT_KEYS)
+                    elif key.startswith("Blue:") and key.split(":",1)[1] in ("1","2","3","4","5"):
+                        stat = STAT_KEYS[int(key.split(":",1)[1])-1]
+                        spark_value += row["career"]["distribution"][stat]["mean"]
+                row["rank_key"] = (row["aptitude_gap"], len(row["missing_skills"]), row["slot_gap"],
+                    -row["career"]["target_rate"], -spark_value, -row["career"]["race"]["index"], *row["rank_key"][3:])
+        selected_results.sort(key=lambda row: row["rank_key"])
+        results = selected_results
     return {"setups": results[:limit], "trainees_examined": len(trainees), "parent_pairs_examined": examined_pairs,
         "shortlisted": used_shortlist or any(row["frontier_pruned"] for row in results),
         "blocked_skills": sorted(blocked), "event_data_available": catalog.event_data_available,
         "training_enabled": training.available,
+        "career_enabled": forecast_enabled,
         "training_validation": validation, "training_restriction": training_restriction,
         "notes": ["Every suggested support deck reserves one borrowed slot and at most five owned slots. Check the suggested rental is available from your friends.", "Ranked by aptitude gaps, missing skill sources and complete lineups, with practice output considered when enabled.",
             "Practice subtotals use the saved comparison conditions; they do not forecast a complete career. Hints, events and inheritance still depend on the career.",
@@ -467,6 +489,11 @@ def matching_veterans(store, master, requirements, *, catalog=None):
         if any(int(row.get(key, 0)) < target for key, target in requirements.get("stats", {}).items()):
             continue
         learned = catalog.lower_skills(int(skill["skill_id"]) for skill in row.get("skill_array", []))
+        if requirements.get("required_sparks"):
+            from uma_workbench.collection import collection_facets
+            sparks = collection_facets(master, "veterans", row)["sparks"]
+            if any(sparks.get(key,0)<stars for key,stars in requirements["required_sparks"].items()):
+                continue
         if wanted.issubset(learned):
             result.append(row)
     return result

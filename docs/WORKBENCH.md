@@ -139,7 +139,39 @@ Download and update umadump only from [its upstream releases](https://github.com
 No extractor code or binary is bundled or modified. The upstream author's
 account-risk notice continues to apply.
 
-## Team Trials and training goals
+## Planning studio
+
+Choose a saved career plan at the top of **Planning studio**, or use **New plan**
+to start from skills and aptitudes with the trainee left open.
+
+- **Career forecast:** fills open lineup choices from your collection, runs model
+  careers and shows final-stat ranges, skill points and a turn timeline. Edit
+  **Career assumptions** for energy policy, events, race rewards and scenario
+  additions. **Use in team planning** retains a forecast runner. Changing the plan,
+  database or collection invalidates it. **Check recorded careers** reports errors
+  only for earlier/later snapshots of the same explicit career identity.
+- **Race comparisons:** select owned runners, choose a named course and conditions,
+  and optionally add opponent builds. Compare fields or build TT/CM rosters,
+  including retained forecast runners. Times and conditional win rates are model
+  outputs; point forecasts require recorded-runner calibration in that division.
+- **Training projects:** convert a saved plan into an ordered lineage project.
+  Existing good parents are reused. Imports complete matching stages, bind exact
+  parent copies and update the next useful career. Parent/grandparent plans show
+  their required result sparks. Repeating generation reuses the existing project.
+- **Skills and cards:** read descriptions, effects, costs, prerequisites and owned
+  sources. Rank skills for the current course/runner or compare owned supports and
+  trainees for the chosen plan. Unknown model values stay unranked.
+- **Resource advice:** compare awakening unlocks for wanted skills. Enter balances
+  and minutes per entry, then inspect verified race drops and expected effort.
+  Missing acquisition routes remain unknown.
+- **Grand Concert:** enter performance balances and mark current offers and wanted
+  songs. Plan affordable lesson/song/recovery purchases and reserves. Record them
+  locally and update offers after the in-game refresh. Save an assumed purchase
+  schedule into a career forecast.
+
+See [Planning models](PLANNING_MODELS.md) for coverage, assumptions and backtests.
+
+## Recorded Team Trials and saved plans
 
 Team Trials reports base points after subtracting exported bonus amounts,
 win rates with Wilson intervals, and skill activation rates from decoded
@@ -157,7 +189,8 @@ Career plans record a race role, skill and aptitude requirements, optional stat
 targets, support decks, parents, scenario, prerequisites, attempt limits and
 stop conditions. A final trainee is optional. **Edit / find setups** refines an
 existing plan without creating a duplicate. Dependencies must be complete
-before starting a goal. Completion remains manual; career observations are
+before starting a goal. Manual plans can be completed by the player; generated
+projects also check structured criteria against imported veterans. Career observations are
 retained for inspection. **Check collection** shows owned veterans meeting the
 plan's stored character, stat, skill and aptitude checks for you to review; it
 does not infer that a new career satisfied every finish condition.

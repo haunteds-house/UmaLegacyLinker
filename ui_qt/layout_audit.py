@@ -38,6 +38,11 @@ from ui_qt.training_preview import TrainingEstimate
 from ui_qt.roster_viewer import RosterViewer, VeteranDetails
 from uma_workbench.core import MasterData, Store
 from uma_workbench.planning import PlanningCatalog
+from uma_workbench.smoke_data import make_profile
+from uma_workbench.analysis import forecast_plan
+from uma_workbench.projects import generate_project
+from uma_workbench.strategy import spending_advice
+from ui_qt.planning_tools import PlanningTools
 from uma_workbench.training import DEFAULT_OPTIONS, STATS
 
 
@@ -197,7 +202,8 @@ def run_audit(output_dir: Path) -> dict[str, object]:
                     variants = [("roster-viewer", "viewer"), ("workbench", "collection"), ("career-plans", "goals"),
                         ("team-trials", "trials"), ("calculator-skills", "calculator-0"),
                         ("calculator-awakening", "calculator-1"), ("calculator-concert", "calculator-2"),
-                        ("resource-milestones", "calculator-3"), ("collection-setup", "setup")]
+                        ("resource-milestones", "calculator-3"), ("collection-setup", "setup"),
+                        *(("studio-"+name,"studio-"+str(index)) for index,name in enumerate(("career","race","projects","reference","resources","concert")))]
                 if page == "search" and hasattr(current_page, "set_rail_collapsed"):
                     # The rail is the page's main layout state: both positions
                     # have to survive every audited width.
@@ -223,6 +229,9 @@ def run_audit(output_dir: Path) -> dict[str, object]:
                     if page == "workbench" and mode:
                         index = {"viewer": 0, "collection": 0, "filters": 0, "trials": 1, "goals": 2, "setup": 5}.get(mode, 4)
                         current_page.tabs.setCurrentIndex(index)
+                        if mode.startswith("studio-"):
+                            current_page.tabs.setCurrentIndex(6)
+                            current_page.planning_tools.tabs.setCurrentIndex(int(mode.rsplit("-",1)[1]))
                         if mode in ("viewer", "collection", "filters"):
                             current_page.collection_views.setCurrentIndex(0 if mode == "viewer" else 1)
                             current_page.collection_filters.toggle.setChecked(mode == "filters")
@@ -353,6 +362,29 @@ def run_audit(output_dir: Path) -> dict[str, object]:
                             report["issues"].append(f"{language}/{variant}/{width}x{height}: {issue}")
 
             workbench = window._pages["workbench"]
+            demo_store,demo_master=make_profile(temp / "studio-audit")
+            demo_req={"scenario":"URA","role":"TT","card_id":100101,"surface":"Turf","distance_type":"Mile","style":"Pace Chaser",
+                "skill_ids":[],"stats":{},"max_attempts":10,"stop_condition":"Meet targets","career":{"runs":4,"race_success":1.}}
+            demo_id=demo_store.save_goal("Mile runner with reusable parents",demo_req)
+            studio=PlanningTools(demo_store,demo_master,workbench.images)
+            studio.goal.setCurrentIndex(1)
+            studio._forecast_ready(forecast_plan(demo_store,demo_master,demo_store.goals()[0]))
+            generate_project(demo_store,demo_master,demo_req,root_goal_id=demo_id)
+            studio.refresh_projects()
+            studio._resources_ready(spending_advice(demo_store,demo_master,{"skill_ids":[102]}))
+            for control in studio.performance:control.setValue(20)
+            for i in range(studio.lessons.count()):studio.lessons.item(i).setCheckState(Qt.CheckState.Checked)
+            studio.run_concert()
+            for index,label in enumerate(("career","race","projects","reference","resources","concert")):
+                studio.tabs.setCurrentIndex(index)
+                for width,height in SIZES:
+                    studio.hide();studio.resize(width-130,height-40);studio.show();application.processEvents()
+                    name=f"{language}-populated-studio-{label}-{width}x{height}.png"
+                    studio.grab().save(str(output_dir/name),"PNG")
+                    issues=audit_window(studio)
+                    report["screens"].append({"language":language,"page":"populated-studio-"+label,"size":[studio.width(),studio.height()],"screenshot":name,"issues":issues})
+                    report["issues"].extend(f"{language}/populated-studio-{label}/{width}x{height}: {issue}" for issue in issues)
+            studio.shutdown();_dispose_widget(studio,application)
             practice_dialog = TrainingGoalDialog(workbench.store, workbench.master, workbench.images, parent=window)
             practice_dialog.advanced_toggle.setChecked(True)
             practice_dialog.tabs.setCurrentIndex(3)

@@ -27,6 +27,7 @@ from ui_qt.roster_viewer import RosterViewer
 from ui_qt.collection_filters import CollectionFilters
 from ui_qt.training_goal_dialog import TrainingGoalDialog
 from ui_qt.training_preview import TrainingEstimate
+from ui_qt.planning_tools import PlanningTools
 from ui_qt.image_assets import ImageRepository, online_images_enabled
 from ui_qt.avatar import AsyncAvatarProvider
 from ui_qt.resource_calculators import SkillBudgetWidget, AwakeningBudgetWidget, ConcertBudgetWidget
@@ -98,6 +99,10 @@ class WorkbenchPage(QWidget):
         self._make_database()
         self._make_resources()
         self._make_sync()
+        _, planning_layout = self._tab("Planning studio")
+        self.planning_tools = PlanningTools(self.store, self.master, self.images)
+        self.planning_tools.edit_requested.connect(lambda goal: self.new_goal(goal=goal))
+        planning_layout.addWidget(self.planning_tools, 1)
         self.watch_result.connect(self._import_done)
         self.context.configuration_changed.connect(self._paths_changed)
         self._paths_changed()
@@ -688,6 +693,8 @@ class WorkbenchPage(QWidget):
         self.navigate_requested.emit("search")
 
     def refresh(self):
+        if hasattr(self, "planning_tools"):
+            self.planning_tools.refresh()
         counts = self.store.counts()
         self.notice.setText(f"{counts.get('trainees', 0)} trainees · {counts.get('supports', 0)} supports · "
             f"{counts.get('veterans', 0)} veterans · {counts.get('races', 0)} Team Trials races"
@@ -816,6 +823,7 @@ class WorkbenchPage(QWidget):
             button.setEnabled(not busy)
 
     def shutdown(self):
+        self.planning_tools.shutdown()
         if self.watcher:
             self.watcher.stop()
             self.watcher = None

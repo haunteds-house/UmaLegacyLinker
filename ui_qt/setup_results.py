@@ -11,6 +11,7 @@ from ui_qt.avatar import circular_avatar
 from ui_qt.components import muted_label
 from uma_workbench.planning import GRADE_LABELS
 from ui_qt.training_preview import TrainingEstimate
+from ui_qt.planning_tools import ForecastView
 
 
 class SetupResults(QWidget):
@@ -40,6 +41,10 @@ class SetupResults(QWidget):
         self.training_scroll.setWidgetResizable(True)
         self.preview_tabs.addTab(self.training_scroll, "Practice estimate")
         self.preview_tabs.setTabEnabled(1, False)
+        self.career_scroll = QScrollArea()
+        self.career_scroll.setWidgetResizable(True)
+        self.preview_tabs.addTab(self.career_scroll, "Career forecast")
+        self.preview_tabs.setTabEnabled(2, False)
         splitter.addWidget(self.preview_tabs)
         splitter.setStretchFactor(0, 2)
         splitter.setStretchFactor(1, 3)
@@ -60,7 +65,9 @@ class SetupResults(QWidget):
             fit = "Aptitudes fit" if not row["aptitude_gap"] else "Aptitudes need work"
             parents = " · ".join(describe_records(self.master, "veterans", [parent])[0]["character"] for parent in row["parents"])
             text = f"{descriptor['character']}\n{descriptor['costume']}\n{fit} · {skills}/{len(row['skills'])} skill sources\n{parents}"
-            if row.get("training"):
+            if row.get("career", {}).get("available"):
+                text += f"\nCareer targets ~{row['career']['target_rate']:.0%} · race index {row['career']['race']['index']:.3f}"
+            elif row.get("training"):
                 text += f"\nPractice gains ~{round(sum(row['training']['gains'][stat] for stat in ('speed','stamina','power','guts','wiz'))):,} stats"
             item = QListWidgetItem(text)
             item.setSizeHint(QSize(250, 138 if row.get("training") else 112))
@@ -74,6 +81,8 @@ class SetupResults(QWidget):
             + ("Showing the strongest shortlist. " if report["shortlisted"] else "")
             + ("Order: aptitude fit, skill sources, complete lineups, then practice output for the selected plan."
                 if report.get("training_enabled") else "Order: aptitude fit, skill sources, complete lineups, trainee skill access, growth, then support levels."))
+        if report.get("career_enabled"):
+            self.summary.setText(f"Compared {report['trainees_examined']} owned trainees. Order: aptitude fit, skill sources, complete lineups, then model career targets and race performance. See Career forecast for ranges and assumptions.")
         if report.get("training_restriction"):
             self.summary.setText(self.summary.text() + " " + report["training_restriction"])
         elif report.get("training_enabled"):
@@ -89,12 +98,13 @@ class SetupResults(QWidget):
         self.report = None
         self.list.clear()
         self.use_button.setEnabled(False)
-        for scroll in (self.scroll, self.training_scroll):
+        for scroll in (self.scroll, self.training_scroll, self.career_scroll):
             previous = scroll.takeWidget()
             if previous:
                 previous.deleteLater()
         self.preview_tabs.setCurrentIndex(0)
         self.preview_tabs.setTabEnabled(1, False)
+        self.preview_tabs.setTabEnabled(2, False)
 
     def _art_ready(self, url, pixmap):
         for index in range(self.list.count()):
@@ -162,6 +172,15 @@ class SetupResults(QWidget):
             self.training_scroll.setWidget(TrainingEstimate(row["training"], row["requirements"].get("stats", {}),
                 row.get("career_comparison"), self.report.get("training_validation"), master=self.master))
         self.use_button.setEnabled(True)
+        previous = self.career_scroll.takeWidget()
+        if previous:
+            previous.deleteLater()
+        available = row.get("career", {}).get("available", False)
+        self.preview_tabs.setTabEnabled(2, available)
+        if available:
+            preview = ForecastView()
+            preview.set_forecast(row["career"])
+            self.career_scroll.setWidget(preview)
 
     def _member(self, grid, index, descriptor):
         card = QFrame()

@@ -27,8 +27,10 @@ See the [collection guide](docs/WORKBENCH.md) and [remaining goals](docs/ROADMAP
 
 Suggested setups include a **Practice estimate** tab. Compare your owned support
 effects under an editable practice plan, see stat contributions and skill points,
-and review similar completed careers. These are practice subtotals under saved
-conditions; whole-career and race forecasts are still in development.
+and review similar completed careers. **Planning studio** adds career forecasts,
+race fields and TT/CM team building, automatic lineage projects, readable
+references, resource advice and Grand Concert shopping. Forecasts show their
+assumptions and model coverage; see [planning models](docs/PLANNING_MODELS.md).
 
 [Download](#quick-start) · [Features](#features) · [Documentation](#documentation)
 

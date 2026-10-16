@@ -80,6 +80,12 @@ if ($RosterSmoke.ExitCode -ne 0) {
 }
 Write-Host "Packaged native roster smoke check passed (filters, lineage preview and planning handoff)."
 
+$PlanningSmoke = Start-Process -FilePath $Executable -ArgumentList "--smoke-planning" -Wait -PassThru
+if ($PlanningSmoke.ExitCode -ne 0) {
+    throw "Packaged planning studio smoke check failed (exit code $($PlanningSmoke.ExitCode))."
+}
+Write-Host "Packaged planning studio smoke check passed (career, race, projects, references, resources and Concert)."
+
 $BrowserFiles = @(Get-ChildItem $Bundle -Recurse -File | Where-Object { $_.Name -match 'Qt.*WebEngine|QtWebEngineProcess|icudtl\.dat|qtwebengine.*\.pak' })
 if ($BrowserFiles.Count -gt 0) {
     throw "Unexpected browser runtime in native Windows package: $($BrowserFiles[0].Name)"
