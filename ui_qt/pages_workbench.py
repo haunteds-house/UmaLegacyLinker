@@ -23,6 +23,8 @@ from uma_workbench.sync import ExportWatcher, check_release, launch_umadump
 from ui_qt.components import PageHeader, PathPicker, muted_label
 from ui_qt.context import AppContext
 from ui_qt.collection_widgets import ArtworkLabel, CollectionGallery, SORT_OPTIONS, STAT_LABELS, character_name, describe_records, display_name, sort_records
+from ui_qt.roster_viewer import RosterViewer
+from ui_qt.collection_filters import CollectionFilters
 from ui_qt.training_goal_dialog import TrainingGoalDialog
 from ui_qt.training_preview import TrainingEstimate
 from ui_qt.image_assets import ImageRepository, online_images_enabled
@@ -152,7 +154,15 @@ class WorkbenchPage(QWidget):
         QMessageBox.warning(self, "Check the selected data", actionable_error(message))
 
     def _make_collection(self):
-        _, layout = self._tab("My collection")
+        _, outer = self._tab("Roster and collection")
+        self.collection_views = QTabWidget()
+        outer.addWidget(self.collection_views, 1)
+        self.roster_viewer = RosterViewer(self.store)
+        self.roster_viewer.plan_requested.connect(self.new_goal)
+        self.collection_views.addTab(self.roster_viewer, "Uma.guide roster")
+        native = QWidget()
+        layout = QVBoxLayout(native)
+        self.collection_views.addTab(native, "My collection · offline")
         layout.addWidget(muted_label("Choose a character or support card to see its stats, skills and inheritance. Search by name; portraits load as you browse."))
         row = QHBoxLayout()
         self.collection_kind = QComboBox()
@@ -168,6 +178,9 @@ class WorkbenchPage(QWidget):
         self.collection_sort.setAccessibleName("Sort my collection")
         row.addWidget(self.collection_sort)
         layout.addLayout(row)
+        self.collection_filters = CollectionFilters()
+        self.collection_filters.changed.connect(self.refresh_collection)
+        layout.addWidget(self.collection_filters)
         self.collection = CollectionGallery(self.images)
         layout.addWidget(self.collection, 1)
         self.collection.activated.connect(self._view_collection)
@@ -198,7 +211,8 @@ class WorkbenchPage(QWidget):
         kind = self.collection_kind.currentData()
         search = self.filter.text().casefold()
         records = describe_records(self.master, kind, self.store.entities(kind))
-        self.collection.set_records(sort_records([row for row in records if search in (row["name"] + " " + row["summary"]).casefold()], self.collection_sort.currentData() or "name_asc"))
+        self.collection_filters.set_records(kind, records)
+        self.collection.set_records(sort_records([row for row in records if search in (row["name"] + " " + row["summary"]).casefold() and self.collection_filters.accepts(row)], self.collection_sort.currentData() or "name_asc"))
 
     def _view_collection(self, descriptor, observation=None):
         record = descriptor["record"]
@@ -358,6 +372,13 @@ class WorkbenchPage(QWidget):
         row = QHBoxLayout()
         for label, status in (("Start selected", "In progress"), ("Mark complete", "Complete"), ("Abandon", "Abandoned")):
             self._button(row, label, lambda _checked=False, target=status: self.change_goal(target))
+        self._button(row, "Remove plan", self.remove_goal)
+        self.restore_plan_button = self._button(row, "Restore", self.restore_goal)
+        self.restore_plan_button.hide()
+        self.show_removed = QCheckBox("Show removed plans")
+        self.show_removed.toggled.connect(self.restore_plan_button.setVisible)
+        self.show_removed.toggled.connect(self.refresh)
+        row.addWidget(self.show_removed)
         row.addStretch()
         layout.addLayout(row)
         self.goals = _table(["Internal key", "Career plan", "Purpose", "Progress", "Finish these plans first", "When to stop"])
@@ -423,6 +444,18 @@ class WorkbenchPage(QWidget):
                 self.refresh()
             except ValueError as exc:
                 self._error(exc)
+
+    def remove_goal(self):
+        goal = _selected(self.goals)
+        if goal:
+            self.store.remove_goal(goal["id"])
+            self.refresh()
+
+    def restore_goal(self):
+        goal = _selected(self.goals)
+        if goal and goal.get("removed"):
+            self.store.remove_goal(goal["id"], removed=False)
+            self.refresh()
 
     def _make_database(self):
         _, layout = self._tab("Advanced game data")
@@ -670,9 +703,9 @@ class WorkbenchPage(QWidget):
             self.cohort.setCurrentIndex(max(0, self.cohort.findData(current)))
         self.cohort.blockSignals(False)
         self.refresh_trials()
-        _fill(self.goals, [([goal["id"], goal["title"], {"TT": "Team Trials", "CM": "Champion Meeting", "Parent": "Parent", "Grandparent": "Grandparent"}.get(goal["details"].get("role"), "Career"), goal["status"],
+        _fill(self.goals, [([goal["id"], goal["title"], {"TT": "Team Trials", "CM": "Champion Meeting", "Parent": "Parent", "Grandparent": "Grandparent"}.get(goal["details"].get("role"), "Career"), goal["status"] + (" (removed)" if goal.get("removed") else ""),
             ", ".join(next((other["title"] for other in self.store.goals() if other["id"] == identity), "Previous plan") for identity in goal["details"].get("prerequisites", [])), goal["details"].get("stop_condition", "")], goal)
-            for goal in self.store.goals()])
+            for goal in self.store.goals(include_removed=self.show_removed.isChecked())])
         _fill(self.resources, [([row["name"], row["balance"], row["target"], row["missing"], row["income"],
             row["runs"] if row["runs"] is not None else "Unknown"], row) for row in self.store.resources()])
         career_count = sum(career["snapshots"] for career in self.store.career_summary())

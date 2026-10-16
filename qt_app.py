@@ -44,6 +44,7 @@ def main() -> int:
     QGuiApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
+    QGuiApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
     _set_windows_app_user_model_id()
     application = QApplication(sys.argv)
     application.setApplicationName("Uma Legacy Linker")
@@ -54,6 +55,9 @@ def main() -> int:
     application.setStyle("Fusion")
     application.setStyleSheet(application_stylesheet())
     install_no_wheel_filter(application)
+    if "--smoke-roster-viewer" in sys.argv:
+        from ui_qt.roster_smoke import run_roster_smoke
+        return run_roster_smoke(application)
     window = MainWindow()
     window.show()
     return application.exec()

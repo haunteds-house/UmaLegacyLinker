@@ -237,6 +237,8 @@ class Store:
                     id INTEGER PRIMARY KEY, name TEXT NOT NULL, balance REAL NOT NULL,
                     target REAL NOT NULL, income REAL NOT NULL);
             """)
+            if "removed" not in {row[1] for row in con.execute("PRAGMA table_info(goals)")}:
+                con.execute("ALTER TABLE goals ADD COLUMN removed INTEGER NOT NULL DEFAULT 0")
 
     @contextmanager
     def connection(self):
@@ -507,12 +509,18 @@ class Store:
                                  (title.strip(), status, canonical(payload), utc_now()))
             return cursor.lastrowid
 
-    def goals(self):
+    def goals(self, *, include_removed=True):
         with self.connection() as con:
-            rows = [dict(r) for r in con.execute("SELECT * FROM goals ORDER BY id")]
+            rows = [dict(r) for r in con.execute("SELECT * FROM goals WHERE removed=0 OR ? ORDER BY id", (int(include_removed),))]
         for row in rows:
             row["details"] = json.loads(row.pop("payload"))
         return rows
+
+    def remove_goal(self, identity, *, removed=True):
+        with self.connection() as con:
+            result = con.execute("UPDATE goals SET removed=? WHERE id=?", (int(removed), identity))
+            if result.rowcount != 1:
+                raise ValueError("The career plan no longer exists")
 
     def update_goal(self, identity, title, payload):
         if not title.strip():

@@ -2,6 +2,25 @@
 
 This project uses feature-level semantic versioning. Small internal iterations are consolidated into the nearest meaningful release instead of receiving their own public version.
 
+## 1.12.0 - Roster-first planning
+
+- Embed the actual online Uma.guide roster viewer in the collection page.
+  Load imported veterans into its public JSON importer, browse its sparks,
+  affinity and Lineage Planner, and start a local plan from an owned target.
+- Keep offline collection browsing alongside the online tool. Add shared
+  filters for aptitude grades, named sparks and stars, immediate-grandparent
+  sparks, skills, stat minimums, rarity, support type, levels and limit breaks.
+- Reduce the career editor to Goal, Lineup and Suggested setups. Keep practice
+  comparison and scheduling controls behind an optional More options tab.
+- Require a single borrowed support slot and at most five owned supports.
+  Search rental copies of owned cards as well as unowned cards; preserve their
+  separate effects and let the player pin a particular rental.
+- Remove and restore plans without losing their status or prerequisite links.
+  Previously saved plans and collection data migrate automatically.
+- Bundle Qt WebEngine and run a deterministic smoke check against the packaged
+  executable, including roster import and owned target/parent handoff. Scope
+  the native wheel guard to avoid Chromium event-filter crashes.
+
 ## 1.11.0 - Support training comparisons
 
 - Compare practice output using owned support levels, limit breaks, unlocked

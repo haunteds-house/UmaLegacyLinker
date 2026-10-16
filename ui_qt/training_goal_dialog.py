@@ -27,178 +27,192 @@ class TrainingGoalDialog(QDialog):
         self._search_requirements = None
         self._selected_setup = None
         self.setWindowTitle("Plan a career")
-        self.resize(990, 680)
+        self.resize(990, 720)
         root = QVBoxLayout(self)
-        heading = QLabel("What does your next runner need?")
+        heading = QLabel("What would you like to train?")
         heading.setObjectName("sectionTitle")
         root.addWidget(heading)
-        root.addWidget(muted_label("Set skills and aptitudes, then search your collection. Leave the trainee empty to compare different characters; chosen parents and supports stay fixed during search."))
-        tabs = self.tabs = QTabWidget()
-        root.addWidget(tabs, 1)
+        root.addWidget(muted_label("Pick a race role and the skills you want. Find setups compares your collection; you can leave the trainee and lineup open."))
+        self.tabs = QTabWidget()
+        root.addWidget(self.tabs, 1)
+        def page(title):
+            scroll = QScrollArea()
+            scroll.setWidgetResizable(True)
+            body = QWidget()
+            scroll.setWidget(body)
+            layout = QVBoxLayout(body)
+            self.tabs.addTab(scroll, title)
+            return layout
+        goal_layout = page("Goal")
         self.title = QLineEdit()
-        self.title.setPlaceholderText("Optional name for this plan")
+        self.title.setPlaceholderText("Optional plan name")
+        goal_layout.addWidget(self.title)
         self.role = QComboBox()
         for label, code in (("Team Trials runner", "TT"), ("Champion Meeting runner", "CM"),
-            ("Inheritance parent", "Parent"), ("Inheritance grandparent", "Grandparent")):
+                ("Inheritance parent", "Parent"), ("Inheritance grandparent", "Grandparent")):
             self.role.addItem(label, code)
-        self.trainee = NamedChoice("Fix a trainee (optional)", describe_records(master, "trainees", store.entities("trainees")), repository)
-        if runner and runner.get("lock_trainee", True):
-            match = next((row for row in self.trainee.records if row["record"]["card_id"] == runner["card_id"]), None)
-            self.trainee.set_choice(match)
         self.scenario = QComboBox()
         self.scenario.addItems(("URA", "Unity Cup", "Trackblazer", "Our Grand Concert"))
-        self.surface = QComboBox()
+        self.surface, self.distance_type, self.style = QComboBox(), QComboBox(), QComboBox()
         self.surface.addItems(("Any surface", "Turf", "Dirt"))
         self.surface.setCurrentText("Turf")
-        self.distance_type = QComboBox()
         self.distance_type.addItems(("Any distance", "Sprint", "Mile", "Medium", "Long"))
-        self.style = QComboBox()
         self.style.addItems(("Any style", "Front Runner", "Pace Chaser", "Late Surger", "End Closer"))
+        race = QGridLayout()
+        for index, (label, widget) in enumerate((("Purpose", self.role), ("Scenario", self.scenario),
+                ("Surface", self.surface), ("Distance", self.distance_type), ("Running style", self.style))):
+            widget.setAccessibleName(label)
+            race.addWidget(QLabel(label), (index // 3) * 2, index % 3)
+            race.addWidget(widget, (index // 3) * 2 + 1, index % 3)
+        goal_layout.addLayout(race)
+        self.trainee = NamedChoice("Choose trainee (optional)", describe_records(master, "trainees", store.entities("trainees")), repository)
+        self.trainee.label.setText("Compare all my trainees")
+        goal_layout.addWidget(self.trainee)
+        if runner and runner.get("lock_trainee", True):
+            self._set_identity(self.trainee, runner.get("card_id"), "card_id")
         if runner:
-            self.style.setCurrentIndex(max(0, min(4, int(runner.get("style", 0)))))
+            if isinstance(runner.get("style"), int):
+                self.style.setCurrentIndex(max(0, min(4, runner["style"])))
             division = int(runner.get("division", 0))
             if 1 <= division <= 4:
                 self.distance_type.setCurrentIndex(division)
             elif division == 5:
                 self.surface.setCurrentText("Dirt")
+        goal_layout.addWidget(QLabel("Skills to learn"))
+        self.skill_filter = QLineEdit()
+        self.skill_filter.setPlaceholderText("Find a skill by name")
+        goal_layout.addWidget(self.skill_filter)
+        self.skills = QListWidget()
+        self.skills.setMinimumHeight(120)
+        for (category, identity), name in sorted(master.names.items(), key=lambda item: item[1].casefold()):
+            if category == 47:
+                item = QListWidgetItem(name)
+                item.setData(Qt.ItemDataRole.UserRole, identity)
+                item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+                item.setCheckState(Qt.CheckState.Unchecked)
+                self.skills.addItem(item)
+        self.skills.setAccessibleName("Required skills by name")
+        self.skill_filter.textChanged.connect(self._filter_skills)
+        goal_layout.addWidget(self.skills, 1)
+        targets_toggle = QPushButton("Aptitude and stat targets (optional)")
+        targets_toggle.setCheckable(True)
+        goal_layout.addWidget(targets_toggle)
+        targets = QWidget()
+        targets.hide()
+        targets_toggle.toggled.connect(targets.setVisible)
+        target_layout = QVBoxLayout(targets)
         self.minimum_aptitude = QComboBox()
         for rank in range(1, 9):
             self.minimum_aptitude.addItem(GRADE_LABELS[rank], rank)
         self.minimum_aptitude.setCurrentIndex(6)
+        form = QFormLayout()
+        form.addRow("Minimum aptitude for the race role", self.minimum_aptitude)
         self.distance = QSpinBox()
         self.distance.setRange(0, 5000)
         self.distance.setSingleStep(100)
-        self.distance.setSpecialValueText("Any distance")
+        self.distance.setSpecialValueText("Use distance group")
         self.distance.setSuffix(" m")
-        target = QWidget()
-        form = QFormLayout(target)
-        form.setSpacing(14)
-        for label, widget in (("Plan name", self.title), ("Use this runner for", self.role), ("Fixed trainee (optional)", self.trainee),
-            ("Career scenario", self.scenario), ("Surface", self.surface), ("Distance group", self.distance_type),
-            ("Exact distance (optional)", self.distance), ("Running style", self.style),
-            ("Minimum aptitude for these choices", self.minimum_aptitude)):
-            widget.setAccessibleName(label)
-            form.addRow(label, widget)
-        target_scroll = QScrollArea()
-        target_scroll.setWidgetResizable(True)
-        target_scroll.setWidget(target)
-        tabs.addTab(target_scroll, "1 · Requirements")
-
-        lineup = QWidget()
-        lineup_layout = QVBoxLayout(lineup)
-        lineup_layout.addWidget(muted_label("Choose up to two parents and six supports. One support may be borrowed. Cards from the trainee's character cannot be used in the deck."))
-        veteran_rows = describe_records(master, "veterans", store.entities("veterans"))
-        self.parents = [NamedChoice(f"Choose parent {index + 1}", veteran_rows, repository) for index in range(2)]
-        form = QFormLayout()
-        for index, picker in enumerate(self.parents):
-            form.addRow(f"Parent {index + 1}", picker)
-        lineup_layout.addLayout(form)
-        owned = store.entities("supports")
-        supports = describe_records(master, "supports", owned)
-        owned_ids = {row["support_card_id"] for row in owned}
-        borrowed = describe_records(master, "supports", [{"support_card_id": identity} for identity in master.supports if identity not in owned_ids], borrowed=True)
-        self.borrowed_toggle = QCheckBox("Include cards I could borrow in the support picker")
-        lineup_layout.addWidget(self.borrowed_toggle)
-        self.deck = [NamedChoice(f"Choose support {index + 1}", supports, repository) for index in range(6)]
-        deck_layout = QFormLayout()
-        for index, picker in enumerate(self.deck):
-            deck_layout.addRow(f"Support {index + 1}", picker)
-        lineup_layout.addLayout(deck_layout)
-        lineup_layout.addStretch()
-        self.borrowed_toggle.toggled.connect(lambda on: [setattr(picker, "records", supports + borrowed if on else supports) for picker in self.deck])
-        lineup_scroll = QScrollArea()
-        lineup_scroll.setWidgetResizable(True)
-        lineup_scroll.setWidget(lineup)
-        tabs.addTab(lineup_scroll, "2 · Parents and supports")
-
-        targets = QWidget()
-        targets_layout = QVBoxLayout(targets)
-        targets_layout.addWidget(muted_label("Optional individual aptitude targets override the minimum on the first tab. S needs an in-career inheritance roll."))
-        aptitudes = QGridLayout()
+        form.addRow("Exact distance", self.distance)
+        target_layout.addLayout(form)
+        apt = QGridLayout()
         self.aptitudes = {}
         for index, (key, label, _group) in enumerate(APTITUDES):
             combo = QComboBox()
             for rank in range(9):
                 combo.addItem(GRADE_LABELS[rank], rank)
             combo.setAccessibleName(label + " aptitude target")
-            aptitudes.addWidget(QLabel(label), (index // 5) * 2, index % 5)
-            aptitudes.addWidget(combo, (index // 5) * 2 + 1, index % 5)
+            apt.addWidget(QLabel(label), (index // 5) * 2, index % 5)
+            apt.addWidget(combo, (index // 5) * 2 + 1, index % 5)
             self.aptitudes[key] = combo
-        targets_layout.addLayout(aptitudes)
-        targets_layout.addWidget(muted_label("Optional stat targets. “Any” means you have not set a target for that stat."))
-        stats_layout = QHBoxLayout()
+        target_layout.addLayout(apt)
+        stat_row = QGridLayout()
         self.stats = {}
-        for key, label in STAT_LABELS:
-            box = QWidget()
-            column = QVBoxLayout(box)
-            column.addWidget(QLabel(label))
+        for index, (key, label) in enumerate(STAT_LABELS):
             spin = QSpinBox()
             spin.setRange(0, 20000)
             spin.setSingleStep(50)
             spin.setSpecialValueText("Any")
             spin.setAccessibleName(label + " target")
-            column.addWidget(spin)
+            stat_row.addWidget(QLabel(label), 0, index)
+            stat_row.addWidget(spin, 1, index)
             self.stats[key] = spin
-            stats_layout.addWidget(box)
-        targets_layout.addLayout(stats_layout)
-        targets_layout.addWidget(QLabel("Skills you want this runner to learn"))
-        self.skill_filter = QLineEdit()
-        self.skill_filter.setPlaceholderText("Find a skill by name")
-        targets_layout.addWidget(self.skill_filter)
-        self.skills = QListWidget()
-        for (category, identity), name in sorted(master.names.items(), key=lambda item: item[1].casefold()):
-            if category != 47:
-                continue
-            item = QListWidgetItem(name)
-            item.setData(Qt.ItemDataRole.UserRole, identity)
-            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-            item.setCheckState(Qt.CheckState.Unchecked)
-            self.skills.addItem(item)
-        self.skills.setAccessibleName("Required skills by name")
-        self.skill_filter.textChanged.connect(self._filter_skills)
-        targets_layout.addWidget(self.skills, 1)
-        tabs.addTab(targets, "3 · Aptitudes and skills")
+        target_layout.addLayout(stat_row)
+        target_layout.addWidget(muted_label("S aptitude needs an in-career inheritance roll."))
+        goal_layout.addWidget(targets)
 
+        lineup = page("Lineup")
+        lineup.addWidget(muted_label("Leave slots open for suggestions, or pin your choices. Every support deck uses five of your cards and one borrowed card."))
+        veteran_rows = describe_records(master, "veterans", store.entities("veterans"))
+        self.parents = [NamedChoice(f"Choose parent {index + 1}", veteran_rows, repository) for index in range(2)]
+        form = QFormLayout()
+        for index, picker in enumerate(self.parents):
+            form.addRow(f"Parent {index + 1}", picker)
+        owned = describe_records(master, "supports", store.entities("supports"))
+        rentals = describe_records(master, "supports", [{"support_card_id": identity} for identity in master.supports], borrowed=True)
+        self.deck = [NamedChoice(f"Choose owned support {index + 1}", owned, repository) for index in range(5)]
+        self.borrowed_support = NamedChoice("Choose support to borrow", rentals, repository)
+        self.deck.append(self.borrowed_support)
+        form.addRow("Borrowed support · required", self.borrowed_support)
+        for index, picker in enumerate(self.deck):
+            picker.label.setText("Find a rental for me" if index == 5 else "Find for me")
+            if index < 5:
+                form.addRow(f"My support {index + 1}", picker)
+        lineup.addLayout(form)
+        lineup.addWidget(muted_label("The rental search includes cards you already own. Check the suggested card is available from your friends."))
+        lineup.addStretch()
+
+        self.results = SetupResults(master, repository)
+        self.results.use_requested.connect(self._apply_setup)
+        self.tabs.addTab(self.results, "Suggested setups")
+        advanced_layout = page("More options")
         self.training_options = TrainingOptions()
-        training_scroll = QScrollArea()
-        training_scroll.setWidgetResizable(True)
-        training_scroll.setWidget(self.training_options)
-        tabs.addTab(training_scroll, "4 · Practice plan")
-
-        finish = QWidget()
-        finish_form = QFormLayout(finish)
+        self.training_options.enabled.setChecked(False)
+        advanced_layout.addWidget(self.training_options)
         self.stop = QLineEdit("Meet the targets I selected, then review the finished runner")
         self.attempts = QSpinBox()
         self.attempts.setRange(1, 1000)
         self.attempts.setValue(10)
         self.dependencies = QListWidget()
         for other_goal in store.goals():
-            if other_goal["status"] == "Abandoned":
-                continue
-            item = QListWidgetItem(f"{other_goal['title']} · {other_goal['status']}")
-            item.setData(Qt.ItemDataRole.UserRole, other_goal["id"])
-            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-            item.setCheckState(Qt.CheckState.Unchecked)
-            self.dependencies.addItem(item)
-        finish_form.addRow("When can I stop?", self.stop)
-        finish_form.addRow("Maximum career attempts", self.attempts)
-        finish_form.addRow("Plans to finish first (optional)", self.dependencies)
-        tabs.addTab(finish, "5 · Finish conditions")
-        self.results = SetupResults(master, repository)
-        self.results.use_requested.connect(self._apply_setup)
-        tabs.addTab(self.results, "6 · Suggested setups")
+            retained_dependency = other_goal["id"] in (goal or {}).get("details", {}).get("prerequisites", [])
+            if retained_dependency or (not other_goal.get("removed") and other_goal["status"] != "Abandoned"):
+                item = QListWidgetItem(f"{other_goal['title']} · {other_goal['status']}")
+                item.setData(Qt.ItemDataRole.UserRole, other_goal["id"])
+                item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+                item.setCheckState(Qt.CheckState.Unchecked)
+                self.dependencies.addItem(item)
+        finish = QFormLayout()
+        finish.addRow("When can I stop?", self.stop)
+        finish.addRow("Maximum career attempts", self.attempts)
+        finish.addRow("Plans to finish first", self.dependencies)
+        advanced_layout.addLayout(finish)
+        self.advanced_toggle = QCheckBox("Show practice comparison and more options")
+        self.advanced_toggle.toggled.connect(lambda on: self.tabs.setTabVisible(3, on))
+        root.addWidget(self.advanced_toggle)
+        self.tabs.setTabVisible(3, False)
         self.search_progress = QProgressBar()
         self.search_progress.setVisible(False)
         root.addWidget(self.search_progress)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
-        self.search_button = buttons.addButton("Find setups in my collection", QDialogButtonBox.ButtonRole.ActionRole)
+        self.search_button = buttons.addButton("Find setups", QDialogButtonBox.ButtonRole.ActionRole)
+        self.search_button.setObjectName("primary")
         self.search_button.clicked.connect(self.start_search)
-        buttons.button(QDialogButtonBox.StandardButton.Save).setText("Save career plan")
+        buttons.button(QDialogButtonBox.StandardButton.Save).setText("Save plan")
         buttons.accepted.connect(self.save)
         buttons.rejected.connect(self.reject)
         root.addWidget(buttons)
         if goal:
             self._load_goal(goal)
+        if runner:
+            for index, identity in enumerate(runner.get("parent_ids", [])[:2]):
+                self._set_identity(self.parents[index], identity, "trained_chara_id")
+            for index, candidates in enumerate(runner.get("viewer_parent_candidates", [])[:2]):
+                if len(candidates) == 1:
+                    self._set_identity(self.parents[index], candidates[0], "trained_chara_id")
+                elif candidates:
+                    self.parents[index].records = [row for row in self.parents[index].records if row["record"]["trained_chara_id"] in candidates]
+                    self.parents[index].label.setText("Choose which copy from the viewer")
+                    self.tabs.setCurrentIndex(1)
 
     def _filter_skills(self, text):
         for index in range(self.skills.count()):
@@ -221,6 +235,7 @@ class TrainingGoalDialog(QDialog):
             "stats": stats if any(stats.values()) else {}, "skill_ids": self.checked(self.skills),
             "parent_ids": [picker.identity() for picker in self.parents if picker.identity() is not None],
             "deck_ids": [picker.identity() for picker in self.deck if picker.identity() is not None],
+            "borrowed_support_id": self.borrowed_support.identity(),
             "prerequisites": self.checked(self.dependencies), "max_attempts": self.attempts.value(), "stop_condition": self.stop.text()}
 
     def save(self):
@@ -245,7 +260,7 @@ class TrainingGoalDialog(QDialog):
     @staticmethod
     def _signature(payload):
         return {key: payload.get(key) for key in ("card_id", "surface", "style", "distance", "distance_type", "stats",
-            "minimum_aptitude", "aptitudes", "skill_ids", "parent_ids", "deck_ids", "scenario", "training")}
+            "minimum_aptitude", "aptitudes", "skill_ids", "parent_ids", "deck_ids", "borrowed_support_id", "scenario", "training")}
 
     def start_search(self):
         if self._search_worker:
@@ -276,7 +291,7 @@ class TrainingGoalDialog(QDialog):
     def _search_finished(self):
         self._search_worker = None
         self.search_progress.setVisible(False)
-        self.search_button.setText("Find setups in my collection")
+        self.search_button.setText("Find setups")
 
     def _apply_setup(self, setup):
         if self._signature(self.payload()) != self._search_requirements:
@@ -287,11 +302,11 @@ class TrainingGoalDialog(QDialog):
         for index, picker in enumerate(self.parents):
             identity = setup["parents"][index]["trained_chara_id"] if index < len(setup["parents"]) else None
             self._set_identity(picker, identity, "trained_chara_id")
-        if any(row.get("borrowed") for row in setup["supports"]):
-            self.borrowed_toggle.setChecked(True)
-        for index, picker in enumerate(self.deck):
-            identity = setup["supports"][index]["support_card_id"] if index < len(setup["supports"]) else None
-            self._set_identity(picker, identity, "support_card_id")
+        own = [row for row in setup["supports"] if not row.get("borrowed")]
+        borrowed = next((row for row in setup["supports"] if row.get("borrowed")), None)
+        for index, picker in enumerate(self.deck[:5]):
+            self._set_identity(picker, own[index]["support_card_id"] if index < len(own) else None, "support_card_id")
+        self._set_identity(self.borrowed_support, borrowed["support_card_id"] if borrowed else None, "support_card_id")
         self._selected_setup_signature = self._signature(self.payload())
         self.tabs.setCurrentIndex(1)
 
@@ -318,11 +333,18 @@ class TrainingGoalDialog(QDialog):
         for index in range(self.skills.count()):
             item = self.skills.item(index)
             item.setCheckState(Qt.CheckState.Checked if item.data(Qt.ItemDataRole.UserRole) in payload.get("skill_ids", []) else Qt.CheckState.Unchecked)
-        for pickers, field_name, identity_key in ((self.parents, "parent_ids", "trained_chara_id"), (self.deck, "deck_ids", "support_card_id")):
-            for index, identity in enumerate(payload.get(field_name, [])):
-                if field_name == "deck_ids" and not any(row["record"][identity_key] == identity for row in pickers[index].records):
-                    self.borrowed_toggle.setChecked(True)
-                self._set_identity(pickers[index], identity, identity_key)
+        for index, identity in enumerate(payload.get("parent_ids", [])[:2]):
+            self._set_identity(self.parents[index], identity, "trained_chara_id")
+        from uma_workbench.goals import support_slots
+        owned_ids = {int(row["support_card_id"]) for row in self.store.entities("supports")}
+        try:
+            own, borrowed = support_slots(payload, owned_ids)
+        except ValueError:
+            own, borrowed = tuple(payload.get("deck_ids", [])[:5]), None
+            self.results.summary.setText("This older plan used six owned supports. Choose the borrowed slot before saving a complete lineup.")
+        for index, identity in enumerate(own[:5]):
+            self._set_identity(self.deck[index], identity, "support_card_id")
+        self._set_identity(self.borrowed_support, borrowed, "support_card_id")
         self.stop.setText(payload.get("stop_condition", self.stop.text()))
         self.attempts.setValue(payload.get("max_attempts", 10))
         for index in range(self.dependencies.count()):

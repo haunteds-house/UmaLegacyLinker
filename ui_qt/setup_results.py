@@ -132,7 +132,7 @@ class SetupResults(QWidget):
         for index, parent in enumerate(row["parents"]):
             self._member(parent_grid, index, describe_records(self.master, "veterans", [parent])[0])
         layout.addLayout(parent_grid)
-        layout.addWidget(QLabel("Support deck"))
+        layout.addWidget(QLabel("Support deck · five owned + one borrowed"))
         support_grid = QGridLayout()
         for index, support in enumerate(row["supports"]):
             self._member(support_grid, index, describe_records(self.master, "supports", [support], borrowed=bool(support.get("borrowed")))[0])

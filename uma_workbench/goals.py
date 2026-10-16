@@ -2,6 +2,22 @@
 from __future__ import annotations
 
 
+def support_slots(payload, owned):
+    """Read explicit rental identity; retain old plans with one unowned card."""
+    deck = tuple(int(value) for value in payload.get("deck_ids", []))
+    borrowed = payload.get("borrowed_support_id")
+    borrowed = int(borrowed) if borrowed is not None else None
+    external = [identity for identity in deck if identity not in owned]
+    if borrowed is None and len(external) == 1:
+        borrowed = external[0]
+    if len(external) > 1 or any(identity != borrowed for identity in external):
+        raise ValueError("A deck may use at most one borrowed support")
+    own = tuple(identity for identity in deck if identity != borrowed)
+    if len(own) > 5:
+        raise ValueError("Use five owned supports and one borrowed support. Choose which card to borrow.")
+    return own, borrowed
+
+
 def validate_training_goal(payload, store, master):
     from uma_workbench.planning import APTITUDES
     from uma_workbench.training import options_for
@@ -22,8 +38,12 @@ def validate_training_goal(payload, store, master):
     if len(deck) > 6 or len(set(deck)) != len(deck):
         raise ValueError("Choose up to six different support cards")
     owned = {int(row["support_card_id"]) for row in store.entities("supports")}
-    if sum(identity not in owned for identity in deck) > 1:
-        raise ValueError("A deck may use at most one borrowed support")
+    own, borrowed = support_slots(payload, owned)
+    if borrowed is not None and borrowed not in master.supports:
+        raise ValueError("The borrowed support is missing from the game data")
+    deck = [*own, *([borrowed] if borrowed is not None else [])]
+    if any(identity not in master.supports for identity in deck):
+        raise ValueError("A selected support is missing from the game data")
     target = master.character_id(card_id) if card_id is not None else None
     characters = [master.supports[identity]["chara_id"] for identity in deck if identity in master.supports]
     if (target is not None and target in characters) or len(characters) != len(set(characters)):

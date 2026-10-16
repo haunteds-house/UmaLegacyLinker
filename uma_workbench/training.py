@@ -345,7 +345,7 @@ class TrainingModel:
         self._proxy_deltas = {}
         for row in supports:
             result = self.estimate(trainee, [row])
-            self._proxy_deltas[int(row["support_card_id"])] = tuple(
+            self._proxy_deltas[int(row["support_card_id"]) * (-1 if row.get("borrowed") else 1)] = tuple(
                 result["subtotal"][stat] - baseline["subtotal"][stat] for stat in STATS)
         return {identity: self.proxy_quality((identity,)) for identity in self._proxy_deltas}
 

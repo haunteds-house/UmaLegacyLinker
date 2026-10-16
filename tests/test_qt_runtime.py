@@ -25,6 +25,76 @@ class QtRuntimeSmokeTests(unittest.TestCase):
         assert QApplication is not None
         cls.application = QApplication.instance() or QApplication([])
 
+    def test_collection_and_picker_share_spark_and_aptitude_filters(self) -> None:
+        from ui_qt.collection_widgets import CollectionPicker, describe_records
+        from ui_qt.image_assets import ImageRepository
+        from uma_workbench.core import MasterData
+        with tempfile.TemporaryDirectory() as temp:
+            master = MasterData()
+            master.names = {(4, 100101): "Special Week", (147, 103): "Speed"}
+            master.factors = {103: {"factor_type": 1, "factor_group_id": 1, "rarity": 3}}
+            images = ImageRepository(Path(temp) / "images", enabled=False)
+            records = describe_records(master, "veterans", [
+                {"trained_chara_id": 1, "card_id": 100101, "proper_distance_mile": 7, "factor_info_array": [{"factor_id": 103, "level": 0}]},
+                {"trained_chara_id": 2, "card_id": 100101, "proper_distance_mile": 6, "factor_info_array": [{"factor_id": 103}]}])
+            picker = CollectionPicker("Pick a parent", records, images)
+            picker.facets.aptitudes["proper_distance_mile"].setCurrentIndex(7)
+            spark, stars = picker.facets.sparks[0]
+            spark.setCurrentIndex(spark.findData("Blue:1"))
+            stars.setValue(3)
+            self.assertEqual([row["record"]["trained_chara_id"] for row in picker.gallery.records], [1])
+            picker.facets.clear()
+            self.assertEqual(picker.gallery.rowCount(), 2)
+            picker.reject()
+
+    def test_simplified_plan_has_five_owned_pickers_and_a_separate_rental(self) -> None:
+        from ui_qt.training_goal_dialog import TrainingGoalDialog
+        from ui_qt.image_assets import ImageRepository
+        from uma_workbench.core import MasterData, Store
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            store = Store(root / "profile")
+            store.import_bytes("support_card_data.json", b'[{"support_card_id":1}]')
+            master = MasterData()
+            master.supports = {1: {"chara_id": 1002, "rarity": 3}}
+            dialog = TrainingGoalDialog(store, master, ImageRepository(root / "images", enabled=False))
+            self.assertEqual(sum(dialog.tabs.isTabVisible(index) for index in range(dialog.tabs.count())), 3)
+            self.assertEqual(len(dialog.deck[:5]), 5)
+            self.assertFalse(dialog.training_options.enabled.isChecked())
+            self.assertEqual(dialog.borrowed_support.records[0]["record"]["support_card_id"], 1)
+            dialog.borrowed_support.set_choice(dialog.borrowed_support.records[0])
+            dialog.save()
+            saved = store.goals()[0]
+            self.assertEqual(saved["details"]["borrowed_support_id"], 1)
+            reopened = TrainingGoalDialog(store, master, dialog.repository, goal=saved)
+            self.assertEqual(reopened.borrowed_support.identity(), 1)
+            self.assertTrue(all(picker.identity() is None for picker in reopened.deck[:5]))
+            reopened.reject()
+
+    def test_plan_removal_and_restore_preserve_completed_status_in_ui(self) -> None:
+        from ui_qt.context import AppContext
+        from ui_qt.pages_workbench import WorkbenchPage
+        from uma_legacy_linker.application import SettingsStore
+        from uma_workbench.core import Store
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            settings = SettingsStore(root / "config.json")
+            settings.update({"online_images": "0"})
+            store = Store(root / "profile")
+            identity = store.save_goal("Finished runner", {"role": "TT"}, status="Complete")
+            page = WorkbenchPage(AppContext(settings), store=store)
+            page.goals.selectRow(0)
+            page.remove_goal()
+            self.assertEqual(page.goals.rowCount(), 0)
+            page.show_removed.setChecked(True)
+            self.assertEqual(page.goals.rowCount(), 1)
+            page.goals.selectRow(0)
+            page.restore_goal()
+            self.assertEqual(store.goals()[0]["id"], identity)
+            self.assertEqual(store.goals()[0]["status"], "Complete")
+            self.assertFalse(store.goals()[0]["removed"])
+            page.close()
+
     def test_practice_plan_conditions_survive_goal_save_and_reopen(self) -> None:
         from ui_qt.training_goal_dialog import TrainingGoalDialog
         from ui_qt.image_assets import ImageRepository

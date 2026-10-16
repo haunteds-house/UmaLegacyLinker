@@ -27,7 +27,7 @@ for filename in ("app.ico", "app.png"):
     branding_file = branding_dir / filename
     if branding_file.is_file():
         data_files.append((str(branding_file), "resources/branding"))
-for distribution in ("PySide6", "PySide6_Essentials", "shiboken6"):
+for distribution in ("PySide6", "PySide6_Essentials", "PySide6_Addons", "shiboken6"):
     try:
         data_files += copy_metadata(distribution)
     except Exception:
@@ -38,7 +38,7 @@ a = Analysis(
     pathex=[str(project_root)],
     binaries=[],
     datas=data_files,
-    hiddenimports=["PySide6.QtNetwork"],
+    hiddenimports=["PySide6.QtNetwork", "PySide6.QtWebEngineCore", "PySide6.QtWebEngineWidgets"],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

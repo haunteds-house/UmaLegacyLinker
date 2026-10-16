@@ -191,7 +191,7 @@ def run_audit(output_dir: Path) -> dict[str, object]:
                 variants: list[tuple[str, str | None]] = [(page, None)]
                 current_page = window._pages[page]
                 if page == "workbench":
-                    variants = [("workbench", "collection"), ("career-plans", "goals"),
+                    variants = [("roster-viewer", "viewer"), ("workbench", "collection"), ("career-plans", "goals"),
                         ("team-trials", "trials"), ("calculator-skills", "calculator-0"),
                         ("calculator-awakening", "calculator-1"), ("calculator-concert", "calculator-2"),
                         ("resource-milestones", "calculator-3"), ("collection-setup", "setup")]
@@ -218,8 +218,13 @@ def run_audit(output_dir: Path) -> dict[str, object]:
                 for variant, mode in variants:
                     print(f"Auditing {language}/{variant}...", flush=True)
                     if page == "workbench" and mode:
-                        index = {"collection": 0, "trials": 1, "goals": 2, "setup": 5}.get(mode, 4)
+                        index = {"viewer": 0, "collection": 0, "filters": 0, "trials": 1, "goals": 2, "setup": 5}.get(mode, 4)
                         current_page.tabs.setCurrentIndex(index)
+                        if mode in ("viewer", "collection", "filters"):
+                            current_page.collection_views.setCurrentIndex(0 if mode == "viewer" else 1)
+                            current_page.collection_filters.toggle.setChecked(mode == "filters")
+                            if mode == "filters":
+                                current_page.collection_kind.setCurrentIndex(2)
                         if mode.startswith("calculator-"):
                             current_page.calculator_tabs.setCurrentIndex(int(mode.rsplit("-", 1)[1]))
                         application.processEvents()
@@ -346,6 +351,7 @@ def run_audit(output_dir: Path) -> dict[str, object]:
 
             workbench = window._pages["workbench"]
             practice_dialog = TrainingGoalDialog(workbench.store, workbench.master, workbench.images, parent=window)
+            practice_dialog.advanced_toggle.setChecked(True)
             practice_dialog.tabs.setCurrentIndex(3)
             preview_dialog = QDialog(window)
             preview_layout = QVBoxLayout(preview_dialog)
@@ -355,7 +361,11 @@ def run_audit(output_dir: Path) -> dict[str, object]:
                 dict(zip(STATS, (1200, 500, 1000, 300, 900))),
                 {"rows": [{"matching_supports": 4, "stats": dict.fromkeys(STATS, 850)}]},
                 {"checked": 8, "exact": 8}))
-            for dialog, variant, narrow in ((practice_dialog, "practice-plan", False), (preview_dialog, "practice-estimate", True)):
+            workbench.collection_kind.setCurrentIndex(2)
+            filter_dialog = workbench.collection_filters.popup
+            workbench.collection_filters.toggle.setChecked(True)
+            for dialog, variant, narrow in ((practice_dialog, "practice-plan", False),
+                    (filter_dialog, "collection-filters", False), (preview_dialog, "practice-estimate", True)):
                 for width, height in SIZES:
                     dialog.hide()
                     dialog.resize(min(740, width - 400) if narrow else min(1220, width - 130), height - 40)

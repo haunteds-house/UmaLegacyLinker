@@ -74,6 +74,12 @@ $Executable = Join-Path $Bundle "UmaLegacyLinkerQt.exe"
 $Archive = Join-Path $PSScriptRoot "dist\UmaLegacyLinkerQt-win64.zip"
 $ChecksumFile = "$Archive.sha256"
 
+$RosterSmoke = Start-Process -FilePath $Executable -ArgumentList "--smoke-roster-viewer" -Wait -PassThru
+if ($RosterSmoke.ExitCode -ne 0) {
+    throw "Packaged roster viewer smoke check failed (exit code $($RosterSmoke.ExitCode))."
+}
+Write-Host "Packaged roster viewer smoke check passed (WebEngine, roster import and planning handoff)."
+
 if (Test-Path $Archive) {
     Remove-Item $Archive -Force
 }

@@ -206,58 +206,73 @@ def _branch_evidence(master, catalog, veteran):
     return dict(stars), catalog.lower_skills(skills)
 
 
-def _deck_frontier(master, catalog, supports, target_character, wanted, pinned, checkpoint, *, training_scores=None, training_quality=None):
-    by_id = {int(row["support_card_id"]): dict(row) for row in supports}
-    for identity in pinned:
-        if identity not in by_id and identity in master.supports:
-            by_id[identity] = {"support_card_id": identity, "borrowed": True}
+def _deck_frontier(master, catalog, supports, target_character, wanted, pinned, checkpoint, *, training_scores=None, training_quality=None, require_borrowed=False, borrowed_id=None):
+    # Signed keys distinguish a rental copy from the player's version of a card.
+    by_id = {int(row["support_card_id"]): {**row, "borrowed": False} for row in supports}
+    if require_borrowed:
+        for identity in ([borrowed_id] if borrowed_id is not None else master.supports):
+            if identity in master.supports:
+                by_id[-identity] = {"support_card_id": identity, "borrowed": True}
+        pinned = tuple(pinned) + ((-borrowed_id,) if borrowed_id is not None else ())
+    else:
+        for identity in pinned:
+            if identity not in by_id and identity in master.supports:
+                by_id[identity] = {"support_card_id": identity, "borrowed": True}
     if any(identity not in by_id for identity in pinned):
         raise ValueError("A chosen support is missing from your collection and game data")
-    chars = [master.supports.get(identity, {}).get("chara_id", -identity) for identity in pinned]
-    if len(pinned) > 6 or len(set(pinned)) != len(pinned) or len(set(chars)) != len(chars) or target_character in chars:
+    def character(key):
+        identity = int(by_id[key]["support_card_id"])
+        return master.supports.get(identity, {}).get("chara_id", -identity)
+    chars = [character(key) for key in pinned]
+    if len(pinned) > 6 or len(set(chars)) != len(chars) or target_character in chars or (require_borrowed and sum(key > 0 for key in pinned) > 5):
         return []
     groups = defaultdict(list)
     masks, levels = {}, {}
-    for identity, row in by_id.items():
-        character = master.supports.get(identity, {}).get("chara_id", -identity)
-        if character == target_character:
+    for key, row in by_id.items():
+        identity = int(row["support_card_id"])
+        chara = character(key)
+        if chara == target_character:
             continue
         hints = catalog.hint_skills(master, identity) | catalog.event_skills(identity)
-        masks[identity] = sum(1 << index for index, skill in enumerate(wanted) if skill in hints)
-        levels[identity] = training_scores.get(identity, 0) if training_scores is not None else (master.support_level(row) or 0)
-        if identity not in pinned and character not in chars:
-            groups[character].append(identity)
+        masks[key] = sum(1 << index for index, skill in enumerate(wanted) if skill in hints)
+        levels[key] = training_scores.get(key, 0) if training_scores is not None else (50 if row.get("borrowed") else (master.support_level(row) or 0))
+        if key not in pinned and chara not in chars:
+            groups[chara].append(key)
     initial_mask = 0
-    for identity in pinned:
-        initial_mask |= masks[identity]
+    for key in pinned:
+        initial_mask |= masks[key]
     def signature(ids):
-        return tuple(sorted(Counter(master.supports.get(identity, {}).get("command_id", 0) for identity in ids).items())) if training_scores is not None else ()
-    states = {(len(pinned), initial_mask, signature(pinned)): (
-        training_quality(pinned) if training_quality else sum(levels[identity] for identity in pinned), tuple(pinned))}
+        return tuple(sorted(Counter(master.supports.get(abs(key), {}).get("command_id", 0) for key in ids).items())) if training_scores is not None else ()
+    states = {(len(pinned), sum(key < 0 for key in pinned), initial_mask, signature(pinned)): (
+        training_quality(pinned) if training_quality else sum(levels[key] for key in pinned), tuple(pinned))}
     truncated = False
-    for character in sorted(groups):
+    for chara in sorted(groups):
         checkpoint()
-        options = sorted(groups[character])
         updated = dict(states)
-        for (count, mask, _composition), (quality, ids) in states.items():
+        for (count, rentals, mask, _composition), (quality, ids) in states.items():
             if count >= 6:
                 continue
-            for identity in options:
-                chosen = tuple(sorted((*ids, identity)))
-                key = count + 1, mask | masks[identity], signature(chosen)
-                value = (training_quality(chosen) if training_quality else quality + levels[identity]), chosen
-                previous = updated.get(key)
+            for key in sorted(groups[chara]):
+                next_rentals = rentals + int(key < 0)
+                if require_borrowed and (next_rentals > 1 or count + 1 - next_rentals > 5):
+                    continue
+                chosen = tuple(sorted((*ids, key), key=lambda value: (value < 0, abs(value))))
+                state_key = count + 1, next_rentals, mask | masks[key], signature(chosen)
+                value = (training_quality(chosen) if training_quality else quality + levels[key]), chosen
+                previous = updated.get(state_key)
                 if previous is None or value[0] > previous[0] or (value[0] == previous[0] and value[1] < previous[1]):
-                    updated[key] = value
+                    updated[state_key] = value
         states = {}
         for count in range(7):
-            entries = [(key, value) for key, value in updated.items() if key[0] == count]
-            entries.sort(key=lambda item: (-item[0][1].bit_count(), -item[1][0], item[1][1]))
-            truncated |= len(entries) > 256
-            states.update(entries[:256])
-    largest = max((key[0] for key in states), default=0)
-    return [(mask, level, [by_id[identity] for identity in ids], truncated)
-        for (count, mask, _composition), (level, ids) in states.items() if count == largest]
+            for rentals in range(2):
+                entries = [(key, value) for key, value in updated.items() if key[:2] == (count, rentals)]
+                entries.sort(key=lambda item: (-item[0][2].bit_count(), -item[1][0], item[1][1]))
+                truncated |= len(entries) > 256
+                states.update(entries[:256])
+    legal = {key: value for key, value in states.items() if not require_borrowed or key[1] == 1}
+    largest = max((key[0] for key in legal), default=0)
+    return [(mask, quality, [by_id[key] for key in ids], truncated)
+        for (count, _rentals, mask, _composition), (quality, ids) in legal.items() if count == largest]
 
 
 def find_setups(store, master, requirements, *, catalog=None, limit=24, checkpoint=None, progress=None, logger=None):
@@ -322,14 +337,16 @@ def find_setups(store, master, requirements, *, catalog=None, limit=24, checkpoi
         checkpoint()
         identity = int(trainee["card_id"])
         character = master.character_id(identity)
-        pinned_deck = tuple(int(sid) for sid in requirements.get("deck_ids", []))
+        from uma_workbench.goals import support_slots
+        pinned_deck, borrowed_id = support_slots(requirements, {int(row["support_card_id"]) for row in supports})
         training_scores = None
         if training.available:
-            available = [*supports, *({"support_card_id": sid, "borrowed": True} for sid in pinned_deck
-                if not any(int(row["support_card_id"]) == sid for row in supports))]
+            available = [*supports, *({"support_card_id": sid, "borrowed": True} for sid in
+                ([borrowed_id] if borrowed_id is not None else master.supports))]
             training_scores = training.card_scores(trainee, available)
         decks = _deck_frontier(master, catalog, supports, character, wanted,
-            pinned_deck, checkpoint, training_scores=training_scores, training_quality=training.proxy_quality if training.available else None)
+            pinned_deck, checkpoint, training_scores=training_scores, training_quality=training.proxy_quality if training.available else None,
+            require_borrowed=True, borrowed_id=borrowed_id)
         if not decks:
             continue
         estimates = {}
@@ -341,7 +358,7 @@ def find_setups(store, master, requirements, *, catalog=None, limit=24, checkpoi
             decks = [deck for group in grouped.values() for deck in sorted(group, key=lambda row: (-row[1], tuple(s["support_card_id"] for s in row[2])))[:3]]
             for deck in decks:
                 checkpoint()
-                estimates[tuple(row["support_card_id"] for row in deck[2])] = training.estimate(trainee, deck[2])
+                estimates[tuple((row["support_card_id"], bool(row.get("borrowed"))) for row in deck[2])] = training.estimate(trainee, deck[2])
         base_skills = catalog.base_skills(master, trainee)
         base_mask = mask(base_skills)
         support_union = 0
@@ -377,12 +394,12 @@ def find_setups(store, master, requirements, *, catalog=None, limit=24, checkpoi
             checkpoint()
             best = min(decks, key=lambda row: (
                 len(wanted) - ((base_mask | parent_mask | row[0]) & allowed_mask).bit_count(),
-                -(estimates[tuple(s["support_card_id"] for s in row[2])]["value"]) if training.available else 0,
-                -(estimates[tuple(s["support_card_id"] for s in row[2])]["skill_points"]) if training.available else 0,
+                -(estimates[tuple((s["support_card_id"], bool(s.get("borrowed"))) for s in row[2])]["value"]) if training.available else 0,
+                -(estimates[tuple((s["support_card_id"], bool(s.get("borrowed"))) for s in row[2])]["skill_points"]) if training.available else 0,
                 -(row[0] & ~base_mask & ~parent_mask).bit_count(), -row[1],
                 tuple(int(s["support_card_id"]) for s in row[2])))
             deck_mask, deck_level, deck, truncated = best
-            estimate = estimates.get(tuple(s["support_card_id"] for s in deck))
+            estimate = estimates.get(tuple((s["support_card_id"], bool(s.get("borrowed"))) for s in deck))
             deck_level = sum(master.support_level(s) or 0 for s in deck)
             covered = (base_mask | parent_mask | deck_mask) & allowed_mask
             missing = [skill for bit, skill in enumerate(wanted) if not (covered & (1 << bit))]
@@ -430,7 +447,7 @@ def find_setups(store, master, requirements, *, catalog=None, limit=24, checkpoi
         "blocked_skills": sorted(blocked), "event_data_available": catalog.event_data_available,
         "training_enabled": training.available,
         "training_validation": validation, "training_restriction": training_restriction,
-        "notes": ["Ranked by aptitude gaps, missing skill sources and complete lineups, with practice output considered when enabled.",
+        "notes": ["Every suggested support deck reserves one borrowed slot and at most five owned slots. Check the suggested rental is available from your friends.", "Ranked by aptitude gaps, missing skill sources and complete lineups, with practice output considered when enabled.",
             "Practice subtotals use the saved comparison conditions; they do not forecast a complete career. Hints, events and inheritance still depend on the career.",
             "Support-event sources are individual possibilities. Event choices and chain endings can conflict; check the listed routes."]}
 

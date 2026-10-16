@@ -33,6 +33,7 @@ third-party material.
 | GameTora images | Remote, on-demand artwork | No images vendored | No images pre-bundled; requested files may enter the user's cache | Game and image rights remain with their respective holders |
 | Hakuraku images | Fallback character and support artwork | No images vendored | No images pre-bundled; requested files may enter the user's cache | Game and image rights remain with their respective holders |
 | Support-event hint associations | Derived factual card-to-skill mappings | `resources/support_event_hints.json` | Same numeric mapping | Source and scope documented below; no source code or event prose copied |
+| Uma.guide roster viewer | Live online tool embedded with Qt WebEngine | No site source copied | No site code or dataset pre-bundled; loads at runtime | Site-controlled terms and availability |
 | uma.moe | Remote API and optional imported data | No service code or dataset vendored | No service code or dataset pre-bundled | Service-controlled terms and availability |
 | UmaExtractor / umadump | Separately installed extraction tools | Not vendored | Not bundled | Each project's own licence and warnings |
 | UmaParser replay layout | Reference for the Python Team Trials replay decoder | MIT notice in `licenses/UmaParser-MIT.txt` | Same notice included | MIT |
@@ -70,7 +71,7 @@ the exact Python build used to create it.
 ### PySide6, Qt and shiboken6
 
 The desktop application requires `PySide6>=6.8,<6.9`. It directly uses Qt Core, GUI, Widgets,
-SVG and Network APIs. PySide6 and shiboken6 are the official Qt for Python bindings and support
+SVG, Network and WebEngine APIs. PySide6 and shiboken6 are the official Qt for Python bindings and support
 libraries.
 
 The community distribution is offered under LGPLv3/GPLv3; commercial Qt packages are governed by
@@ -80,7 +81,7 @@ version are authoritative.
 
 The Windows build deliberately uses a PyInstaller `onedir` layout. Qt DLLs and plugins remain
 separate dynamically loaded files. [`UmaLegacyLinkerQt.spec`](../UmaLegacyLinkerQt.spec) also calls
-`copy_metadata()` for `PySide6`, `PySide6_Essentials` and `shiboken6`, so their installed
+`copy_metadata()` for `PySide6`, `PySide6_Essentials`, `PySide6_Addons` and `shiboken6`, so their installed
 distribution metadata is copied into the release when available.
 
 - Qt for Python: <https://doc.qt.io/qtforpython-6.8/>
@@ -92,6 +93,26 @@ distribution metadata is copied into the release when available.
 Before publishing a community-wheel build, verify the actual archive contains the applicable
 LGPL/GPL texts, Qt and Qt for Python third-party notices, a way to obtain the corresponding source
 for the shipped versions, and no module whose licence is incompatible with the intended release.
+
+### Qt WebEngine and Uma.guide
+
+The online roster tool is loaded from <https://uma.guide/roster-viewer/> in
+an off-the-record Qt WebEngine profile. Uma.guide's website source, prose and
+assets are not copied into this repository or packaged as local app assets.
+The native adapter uses the site's public JSON file input and visible target
+and parent cards; it does not access private Vue state or provide a privileged
+native bridge. Site layout changes or service outages may require an adapter
+update. Native collection browsing, planning and the original linker work offline.
+
+Qt WebEngine is part of the resolved Qt/PySide6 6.8.x runtime. Its Chromium
+components carry their own open-source terms listed in the
+[Qt WebEngine third-party attribution inventory](https://doc.qt.io/qt-6.8/qtwebengine-licensing.html).
+The exact
+Qt source corresponding to the shipped wheels is available from
+<https://download.qt.io/official_releases/QtForPython/pyside6/>; Qt WebEngine
+source and its third-party notices are available from
+<https://code.qt.io/cgit/qt/qtwebengine.git/> (tag `v6.8.3` for the current build).
+The combined app remains GPL-3.0-only; see the bundled LICENSE.
 
 ### PyYAML
 
@@ -301,7 +322,7 @@ GameTora, uma.moe, UmaExtractor or umadump.
 
 The current packaging specification includes the root `LICENSE`, this document,
 all registered SVGs and installed
-metadata for `PySide6`, `PySide6_Essentials` and `shiboken6`. It does **not** explicitly copy the
+metadata for `PySide6`, `PySide6_Essentials`, `PySide6_Addons` and `shiboken6`. It does **not** explicitly copy the
 Python licence set, the PyYAML licence or PyInstaller's `COPYING.txt`. In addition,
 `copy_metadata()` failures for the Qt packages are currently ignored by the specification.
 

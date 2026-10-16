@@ -7,8 +7,11 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QDialog, QDialogButtonBox, QFrame, QGridLayout, QHBoxLayout, QLabel,
-    QLineEdit, QPushButton, QScrollArea, QVBoxLayout, QWidget,
+    QLayout, QLineEdit, QPushButton, QScrollArea, QVBoxLayout, QWidget,
 )
+
+from uma_workbench.collection import collection_facets
+from ui_qt.collection_filters import CollectionFilters
 
 from ui_qt.asset_catalog import support_card_image_url, trainee_image_url
 from ui_qt.avatar import circular_avatar
@@ -49,6 +52,7 @@ def describe_records(master, kind, records, *, borrowed=False):
     result = []
     for record in records:
         identity = record.get("support_card_id") if kind == "supports" else record.get("card_id")
+        facets = collection_facets(master, kind, record)
         name = display_name(master, kind, identity)
         character, costume = name_parts(name)
         if kind == "supports" and (77, int(identity)) in master.names:
@@ -60,7 +64,7 @@ def describe_records(master, kind, records, *, borrowed=False):
             rarity = master.supports.get(int(identity), {}).get("rarity")
             badge = {1: "R", 2: "SR", 3: "SSR"}.get(rarity, "Support")
             limit = int(record.get("limit_break_count", 0))
-            summary = "Borrowed support" if borrowed else f"Level {level if level is not None else 'unknown'} · {'MLB' if limit == 4 else str(limit) + '/4 limit breaks'}"
+            summary = f"{facets['support_type']} · Borrowed support" if borrowed else f"Level {level if level is not None else 'unknown'} · {'MLB' if limit == 4 else str(limit) + '/4 limit breaks'}"
         elif kind == "trainees":
             badge = f"{record.get('rarity', '?')}★"
             summary = f"Awakening level {record.get('talent_level', '?')}"
@@ -78,7 +82,7 @@ def describe_records(master, kind, records, *, borrowed=False):
                     for f in record.get("factor_info_array", []) if master.factors.get(int(f.get("factor_id", 0)), {}).get("factor_type") == 1),
                 "pink": sum(int(master.factors.get(int(f.get("factor_id", 0)), {}).get("rarity", 0))
                     for f in record.get("factor_info_array", []) if master.factors.get(int(f.get("factor_id", 0)), {}).get("factor_type") == 2)},
-            "kind": kind, "record": record, "borrowed": borrowed})
+            "kind": kind, "record": record, "borrowed": borrowed, "facets": facets})
     return sorted(result, key=lambda item: (item["character"].casefold(), item["name"].casefold(),
         -int(item["record"].get("rank_score", 0))))
 
@@ -160,6 +164,11 @@ class CollectionTile(QFrame):
         if descriptor["kind"] == "veterans":
             extra = " · ".join(f"{label} {descriptor['record'].get(key, 0)}" for key, label in STAT_LABELS[3:])
             layout.addWidget(muted_label(extra))
+            facets = descriptor.get("facets", {})
+            sparks = [facets["spark_labels"][key] + " " + "★" * min(3, stars) for key, stars in facets.get("sparks", {}).items()
+                if key in facets.get("spark_labels", {}) and (key.startswith("Blue:") or key.startswith("Pink:"))]
+            if sparks:
+                layout.addWidget(muted_label(" · ".join(sparks)))
         layout.addStretch()
         button = QPushButton(action)
         button.setAccessibleName(f"{action} {descriptor['name']}")
@@ -187,6 +196,7 @@ class CollectionGallery(QWidget):
         self.scroll.setWidgetResizable(True)
         self.content = QWidget()
         self.grid = QGridLayout(self.content)
+        self.grid.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
         self.grid.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         self.grid.setSpacing(12)
         self.scroll.setWidget(self.content)
@@ -270,6 +280,10 @@ class CollectionPicker(QDialog):
             self.sort.addItem(label, code)
         filters.addWidget(self.sort)
         layout.addLayout(filters)
+        self.facets = CollectionFilters()
+        self.facets.set_records(kind, records)
+        self.facets.changed.connect(self._refresh)
+        layout.addWidget(self.facets)
         self.gallery = CollectionGallery(repository, "Choose")
         layout.addWidget(self.gallery, 1)
         self.gallery.set_records(records)
@@ -283,7 +297,7 @@ class CollectionPicker(QDialog):
     def _refresh(self, *_):
         text = self.search.text().casefold()
         self.gallery.set_records(sort_records([row for row in self.records
-            if text in (row["name"] + " " + row["summary"]).casefold()], self.sort.currentData()))
+            if text in (row["name"] + " " + row["summary"]).casefold() and self.facets.accepts(row)], self.sort.currentData()))
 
     def _choose(self, record):
         self.choice = record

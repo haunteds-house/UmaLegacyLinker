@@ -4,6 +4,44 @@ This fork is the main Windows application. It uses the existing Qt shell and
 inheritance engines; the previous Tkinter companion is replaced by the native
 **My collection** page.
 
+## Roster viewer and quick plans
+
+**Roster and collection → Uma.guide roster** contains the actual online
+[Uma.guide roster viewer](https://uma.guide/roster-viewer/). Import your
+collection into the app, then click **Load my roster in Uma.guide**. It loads
+just the veteran roster into the site's public JSON importer; account and
+trainer fields are excluded. Uma.guide runs the viewer and receives the roster
+in its page context. The app exposes no native file or database API to that page.
+The viewer needs internet access; no copy of its site code is bundled.
+
+Use its Legacy filters, affinity tool or Lineage Planner. Choose an owned
+target in Lineage Planner and click **Plan this target** above the viewer.
+A uniquely identifiable owned parent carries over. When multiple veterans of
+the same character exist, the local picker asks you to choose the copy; it
+never guesses from the character name. Placeholder and borrowed parents are
+not treated as owned parents. **New plan** leaves the trainee open and compares
+your collection from the skills and aptitudes you want.
+
+The plan editor has three main tabs: **Goal**, **Lineup** and **Suggested setups**.
+Practice estimates and training-order controls are optional under **Show practice
+comparison and more options**. They retain the limitations documented in
+[TRAINING_MODEL.md](TRAINING_MODEL.md).
+
+A complete support deck is **five owned cards plus one borrowed card**.
+The borrowed picker includes cards you already own, because a friend's copy
+may have better levels or limit breaks. Leaving it open lets the search suggest
+a rental from the game database; check that it is available from your friends.
+Incomplete collections produce explicitly incomplete lineups.
+
+**My collection · offline** and every illustrated card picker share the same
+**Filters** control. Combine named sparks and minimum stars, current aptitude
+grades, skill access, stat minimums, rarity, support type, level and limit breaks.
+The optional family spark total includes the veteran and the two immediate
+grandparents in its exported lineage. All selected filters must match.
+
+Use **Remove plan** to clear a finished or unwanted plan. **Show removed plans**
+and **Restore** recover it, preserving its status and prerequisite links.
+
 ## Start from source
 
 Install Python 3.12, open a terminal in the checkout, then run:
@@ -118,8 +156,9 @@ does not infer that a new career satisfied every finish condition.
 
 The search compares owned trainees, legal local parent pairs and support decks
 with distinct characters. Fixed choices stay fixed. It excludes borrowed
-veterans from owned parents and permits at most one explicitly chosen borrowed
-support. The selected division/style supplies aptitude targets; exact distance
+veterans from owned parents and reserves exactly one rental slot plus at most
+five owned supports. A particular rental can be chosen explicitly or suggested
+by the search. The selected division/style supplies aptitude targets; exact distance
 also determines its distance group. Individual aptitude targets override the
 profile's minimum grade.
 
