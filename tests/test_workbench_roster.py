@@ -10,7 +10,7 @@ from uma_workbench.collection import collection_facets, matches_filters
 from uma_workbench.core import MasterData, Store
 from uma_workbench.goals import validate_training_goal
 from uma_workbench.planning import PlanningCatalog, _deck_frontier, find_setups
-from uma_workbench.roster_viewer import roster_document, selection_for_plan
+from uma_workbench.roster_viewer import lineage_preview, selection_for_plan
 
 
 class RosterWorkflowTests(unittest.TestCase):
@@ -106,15 +106,56 @@ class RosterWorkflowTests(unittest.TestCase):
         self.assertFalse(matches_filters(row, {"stats": {"speed": 901}}))
         self.assertEqual(row["facets"]["spark_labels"]["Pink:32"], "Pink · Mile")
 
-    def test_roster_adapter_excludes_account_and_nested_trainer_fields(self):
-        data = roster_document([{"card_id": 100101, "viewer_id": 123, "trainer_name": "Private name",
-            "succession_chara_array": [{"card_id": 100201, "trainer_id": 456, "factor_info_array": [{"factor_id": 103, "level": 0}]}]}])
-        self.assertEqual(data, {"trained_chara_array": [{"card_id": 100101,
-            "succession_chara_array": [{"card_id": 100201, "factor_info_array": [{"factor_id": 103, "level": 0}]}]}]})
+    def test_native_selection_preserves_the_exact_veteran_copy(self):
+        result = selection_for_plan({"target": 100101, "parent_ids": [None, 11]}, self.store, self.master)
+        self.assertEqual(result, {"card_id": 100101, "lock_trainee": True, "parent_ids": [11]})
+        self.assertEqual(selection_for_plan({}, self.store, self.master),
+            {"card_id": None, "lock_trainee": False, "parent_ids": []})
+        with self.assertRaisesRegex(ValueError, "imported collection"):
+            selection_for_plan({"target": 100301}, self.store, self.master)
 
-    def test_viewer_selection_never_guesses_between_owned_veteran_copies(self):
-        result = selection_for_plan({"target": 100101, "parents": [{"card_id": 100201}]}, self.store)
-        self.assertEqual(result["viewer_parent_candidates"], [[10, 11]])
-        self.assertEqual(result["viewer_parent_ids"], [None])
-        with self.assertRaisesRegex(ValueError, "not in your imported trainees"):
-            selection_for_plan({"target": 100301}, self.store)
+    def test_native_selection_rejects_duplicate_characters_and_unowned_parents(self):
+        for identities, message in (([10, 10], "different parent veterans"),
+                ([10, 11], "different characters"), ([99], "own imported collection")):
+            with self.subTest(identities=identities), self.assertRaisesRegex(ValueError, message):
+                selection_for_plan({"parent_ids": identities}, self.store, self.master)
+        self.master.cards[100201] = {"chara_id": 1001}
+        with self.assertRaisesRegex(ValueError, "same character as a parent"):
+            selection_for_plan({"target": 100101, "parent_ids": [10]}, self.store, self.master)
+        self.store.import_bytes("trained_chara_data.json", b'[{"trained_chara_id":12,"card_id":100301,"use_type":1}]')
+        with self.assertRaisesRegex(ValueError, "own imported collection"):
+            selection_for_plan({"parent_ids": [12]}, self.store, self.master)
+
+    def test_native_lineage_uses_six_spark_members_and_caps_initial_aptitude_at_a(self):
+        self.master.factors = {3203: {"factor_type": 2, "factor_group_id": 32, "rarity": 3}}
+        self.master.names[(147, 3203)] = "Mile"
+        self.master._planning_catalog = PlanningCatalog(rarities={100101: {3: {"proper_distance_mile": 6}}})
+        factor = [{"factor_id": 3203}]
+        parent = {"card_id": 100201, "factor_info_array": factor,
+            "succession_chara_array": [{"position_id": pos, "factor_info_array": factor} for pos in (10, 20, 11, 12)]}
+        preview = lineage_preview(self.master, {"card_id": 100101, "rarity": 3}, [parent])
+        mile = next(row for row in preview["aptitudes"] if row["label"] == "Mile")
+        self.assertEqual((mile["stars"], mile["base"], mile["initial"]), (9, 6, 7))
+        self.assertEqual(preview["sparks"], {"Pink:32": 9})
+        self.assertIsNone(preview["affinity"])
+
+    def test_native_affinity_keeps_missing_g1_records_unknown(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from uma_legacy_linker.parent_optimizer import AffinityResolver
+        from uma_workbench.roster_viewer import affinity_preview
+        resolver = object.__new__(AffinityResolver)
+        resolver.memberships = {identity: {1} for identity in range(1001, 1008)}
+        resolver.relation_points = {1: 2}
+        races = SimpleNamespace(resolve_g1_saddles=lambda values: {"names": [str(value) for value in values or []]})
+        parents = [{"card_id": card, "win_saddle_id_array": [1], "succession_chara_array": [
+            {"position_id": pos, "card_id": gp, "win_saddle_id_array": [1]} for pos, gp in zip((10, 20), grandparents)]}
+            for card, grandparents in ((100201, (100401, 100501)), (100301, (100601, 100701)))]
+        with patch("uma_workbench.roster_viewer._resolvers", return_value=(races, resolver)):
+            preview = affinity_preview(self.master, {"card_id": 100101}, parents)
+            self.assertEqual(preview, {"base": 14, "g1_bonus": 15, "total": 29, "complete": True})
+            del parents[0]["win_saddle_id_array"]
+            preview = affinity_preview(self.master, {"card_id": 100101}, parents)
+            self.assertEqual(preview["base"], 14)
+            self.assertIsNone(preview["total"])
+            self.assertIsNone(preview["g1_bonus"])

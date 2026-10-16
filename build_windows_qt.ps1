@@ -78,7 +78,12 @@ $RosterSmoke = Start-Process -FilePath $Executable -ArgumentList "--smoke-roster
 if ($RosterSmoke.ExitCode -ne 0) {
     throw "Packaged roster viewer smoke check failed (exit code $($RosterSmoke.ExitCode))."
 }
-Write-Host "Packaged roster viewer smoke check passed (WebEngine, roster import and planning handoff)."
+Write-Host "Packaged native roster smoke check passed (filters, lineage preview and planning handoff)."
+
+$BrowserFiles = @(Get-ChildItem $Bundle -Recurse -File | Where-Object { $_.Name -match 'Qt.*WebEngine|QtWebEngineProcess|icudtl\.dat|qtwebengine.*\.pak' })
+if ($BrowserFiles.Count -gt 0) {
+    throw "Unexpected browser runtime in native Windows package: $($BrowserFiles[0].Name)"
+}
 
 if (Test-Path $Archive) {
     Remove-Item $Archive -Force

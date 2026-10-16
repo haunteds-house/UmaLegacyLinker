@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
@@ -87,14 +88,32 @@ def describe_records(master, kind, records, *, borrowed=False):
         -int(item["record"].get("rank_score", 0))))
 
 
+def recorded_datetime(value):
+    if value is None or value == "":
+        return None
+    try:
+        if isinstance(value, str) and not value.replace(".", "", 1).isdigit():
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        numeric = float(value)
+        return datetime.fromtimestamp(numeric / 1000 if numeric > 1e12 else numeric)
+    except (TypeError, ValueError, OSError, OverflowError):
+        return None
+
+
 def sort_records(records, order="name_asc"):
     records = sorted(records, key=lambda row: (row["character"].casefold(), row["name"].casefold()))
     if order.startswith("name_"):
         return list(reversed(records)) if order == "name_desc" else records
     key = "time" if order in ("newest", "oldest") else order.rsplit("_", 1)[0]
-    known = [row for row in records if row.get("sort_values", {}).get(key) is not None]
-    unknown = [row for row in records if row.get("sort_values", {}).get(key) is None]
-    return sorted(known, key=lambda row: float(row["sort_values"][key]),
+    def value(row):
+        raw = row.get("sort_values", {}).get(key)
+        if key == "time":
+            parsed = recorded_datetime(raw)
+            return parsed.timestamp() if parsed else None
+        return float(raw) if raw is not None else None
+    known = [row for row in records if value(row) is not None]
+    unknown = [row for row in records if value(row) is None]
+    return sorted(known, key=value,
         reverse=order.endswith("_desc") or order == "newest") + unknown
 
 
@@ -105,7 +124,8 @@ class ArtworkLabel(QLabel):
         self.setFixedSize(size, size + 28 if support else size)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setObjectName("portraitPlaceholder")
-        self.setText(" ".join(word[0] for word in name.replace("[", "").split()[:2]).upper() or "UMA")
+        initials = " ".join(word[0] for word in name_parts(name)[0].split()[:2]).upper() or "UMA"
+        self.setText(initials[:1] if size < 64 else initials)
         self.setAccessibleName(f"Portrait of {name}")
         self.setToolTip(name)
         repository.image_ready.connect(self._ready)

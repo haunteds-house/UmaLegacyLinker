@@ -96,8 +96,8 @@ workflow runs only on manual dispatch or `v*` tag pushes, not every main-branch 
 After validation, commit the intended changes and push the matching tag:
 
 ```powershell
-git tag v1.12.0
-git push origin v1.12.0
+git tag v1.13.0
+git push origin v1.13.0
 ```
 
 The tag-triggered workflow builds the same package and uploads ZIP/checksum to an

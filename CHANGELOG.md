@@ -2,6 +2,21 @@
 
 This project uses feature-level semantic versioning. Small internal iterations are consolidated into the nearest meaningful release instead of receiving their own public version.
 
+## 1.13.0 - Native roster and lineage planner
+
+- Replace the embedded website with native illustrated veteran cards, sorting,
+  filters, stat bars, aptitude grades, learned skills and ancestry inspectors.
+- Add a local lineage planner with exact veteran copies, six-member spark
+  totals, canonical character compatibility, recorded G1 bonuses, starting
+  aptitudes and possible inherited hints. Carry selections into career plans.
+- Keep trainee selection optional, validate parent character restrictions and
+  retain lineup selections between sessions. Borrowed veterans remain visible
+  while owned parent pickers exclude them.
+- Remove Qt WebEngine, website scripts and browser-specific startup workarounds.
+  Check the packaged native workflow and reject bundled browser runtimes.
+- Expand the roadmap to cover the original account, TT/CM, career, project,
+  reference, currency and Grand Concert goals with their remaining work.
+
 ## 1.12.0 - Roster-first planning
 
 - Embed the actual online Uma.guide roster viewer in the collection page.

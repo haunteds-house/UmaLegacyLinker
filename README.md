@@ -20,6 +20,9 @@ collection for suitable setups. **Team Trials** compares recorded race results
 and starts replacement plans with the runner choice open. **Calculators** budgets
 skill points, awakening materials and Grand Concert songs inside the app.
 **Lineage linker** keeps the original inheritance tools in the sidebar.
+The native **Veterans** and **Lineage planner** views show ancestry, combined
+sparks, compatibility and starting aptitudes, then carry exact owned parent
+copies into a career plan. No website or browser engine is embedded.
 See the [collection guide](docs/WORKBENCH.md) and [remaining goals](docs/ROADMAP.md).
 
 Suggested setups include a **Practice estimate** tab. Compare your owned support

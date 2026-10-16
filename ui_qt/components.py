@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
 
-from PySide6.QtCore import QTimer, QEvent, QObject, Qt, Signal
+from PySide6.QtCore import QEvent, QObject, Qt, Signal
 from PySide6.QtGui import QColor, QPalette, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -65,30 +65,6 @@ def install_no_wheel_filter(application: QApplication) -> NoWheelFilter:
     application.installEventFilter(guard)
     application._no_wheel_filter = guard  # keep a strong Python reference
     return guard
-
-
-def scope_native_wheel_filter(application: QApplication) -> None:
-    """Keep the scroll guard off WebEngine's private Chromium events.
-
-    PySide6 6.8 can crash while marshalling those events to an application-wide
-    Python event filter. Attach the guard only to native dropdowns/spin boxes;
-    discover newly opened dialogs without filtering Chromium's event stream.
-    """
-    guard = getattr(application, "_no_wheel_filter", None)
-    if guard is None or getattr(application, "_native_wheel_scan", None) is not None:
-        return
-    application.removeEventFilter(guard)
-    def attach():
-        for widget in application.allWidgets():
-            if isinstance(widget, (QComboBox, QAbstractSpinBox)) and not widget.property("nativeWheelGuard"):
-                widget.installEventFilter(guard)
-                widget.setProperty("nativeWheelGuard", True)
-    attach()
-    timer = QTimer(application)
-    timer.setInterval(250)
-    timer.timeout.connect(attach)
-    timer.start()
-    application._native_wheel_scan = timer
 
 
 def _apply_combo_popup_palette(view: QAbstractItemView) -> None:

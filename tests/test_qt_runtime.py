@@ -47,6 +47,24 @@ class QtRuntimeSmokeTests(unittest.TestCase):
             self.assertEqual(picker.gallery.rowCount(), 2)
             picker.reject()
 
+    def test_native_roster_filters_details_lineage_and_exact_plan_handoff(self) -> None:
+        from unittest.mock import patch
+        from ui_qt.roster_smoke import run_roster_smoke
+        with patch.dict(sys.modules, {"PySide6.QtWebEngineCore": None, "PySide6.QtWebEngineWidgets": None}):
+            self.assertEqual(run_roster_smoke(self.application), 0)
+
+    def test_roster_dates_support_exported_text_and_numeric_timestamps(self) -> None:
+        from ui_qt.collection_widgets import describe_records, sort_records
+        from ui_qt.roster_viewer import _copy_label
+        from uma_workbench.core import MasterData
+        records = describe_records(MasterData(), "veterans", [
+            {"trained_chara_id": 1, "card_id": 100101, "create_time": "2025-12-24 10:34:10"},
+            {"trained_chara_id": 2, "card_id": 100101, "create_time": 1700000000},
+            {"trained_chara_id": 3, "card_id": 100101}])
+        self.assertEqual([row["record"]["trained_chara_id"] for row in sort_records(records, "newest")], [1, 2, 3])
+        self.assertEqual([row["record"]["trained_chara_id"] for row in sort_records(records, "oldest")], [2, 1, 3])
+        self.assertIn("24 Dec 2025", _copy_label(records[0]["record"]))
+
     def test_simplified_plan_has_five_owned_pickers_and_a_separate_rental(self) -> None:
         from ui_qt.training_goal_dialog import TrainingGoalDialog
         from ui_qt.image_assets import ImageRepository

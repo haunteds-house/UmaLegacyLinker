@@ -44,7 +44,6 @@ def main() -> int:
     QGuiApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
-    QGuiApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
     _set_windows_app_user_model_id()
     application = QApplication(sys.argv)
     application.setApplicationName("Uma Legacy Linker")

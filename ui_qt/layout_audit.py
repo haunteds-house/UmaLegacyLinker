@@ -35,6 +35,9 @@ from ui_qt.presentation import online_detail_html, result_detail_html
 from ui_qt.theme import application_stylesheet
 from ui_qt.training_goal_dialog import TrainingGoalDialog
 from ui_qt.training_preview import TrainingEstimate
+from ui_qt.roster_viewer import RosterViewer, VeteranDetails
+from uma_workbench.core import MasterData, Store
+from uma_workbench.planning import PlanningCatalog
 from uma_workbench.training import DEFAULT_OPTIONS, STATS
 
 
@@ -364,8 +367,34 @@ def run_audit(output_dir: Path) -> dict[str, object]:
             workbench.collection_kind.setCurrentIndex(2)
             filter_dialog = workbench.collection_filters.popup
             workbench.collection_filters.toggle.setChecked(True)
+            # Synthetic local data exercises populated native views without
+            # replacing the real collection or loading a website/artwork.
+            native_store = Store(temp / "native-roster")
+            native_store.import_bytes("card_data.json", b'[{"card_id":100101,"rarity":3}]')
+            native_store.import_bytes("trained_chara_data.json", json.dumps([
+                {"trained_chara_id": identity, "card_id": card, "rank_score": 12000 + identity,
+                    "speed": 1000, "stamina": 700, "power": 900, "guts": 400, "wiz": 850,
+                    "proper_distance_mile": 7, "create_time": 1700000000,
+                    "factor_info_array": [{"factor_id": 3203}],
+                    "succession_chara_array": [{"position_id": position, "card_id": 100401,
+                        "factor_info_array": [{"factor_id": 3203}]} for position in (10, 20)]}
+                for identity, card in ((10, 100201), (11, 100301))]).encode())
+            native_master = MasterData()
+            native_master.names = {(4, 100101): "[Special Dreamer] Special Week", (4, 100201): "[Silent Innocence] Silence Suzuka",
+                (4, 100301): "[Top of Joyful] Tokai Teio", (4, 100401): "[Original Outfit] Maruzensky", (147, 3203): "Mile"}
+            native_master.factors = {3203: {"factor_type": 2, "factor_group_id": 32, "rarity": 3}}
+            native_master._planning_catalog = PlanningCatalog(rarities={100101: {3: {"proper_distance_mile": 6}}})
+            native_browser = RosterViewer(native_store, native_master, workbench.images)
+            native_planner = RosterViewer(native_store, native_master, workbench.images)
+            native_planner.target.set_choice(native_planner.target.records[0])
+            for i, picker in enumerate(native_planner.parents):
+                picker.set_choice(picker.records[i])
+            native_planner.tabs.setCurrentWidget(native_planner.planner)
+            native_details = VeteranDetails(native_master, workbench.images, native_browser.records[0])
             for dialog, variant, narrow in ((practice_dialog, "practice-plan", False),
-                    (filter_dialog, "collection-filters", False), (preview_dialog, "practice-estimate", True)):
+                    (filter_dialog, "collection-filters", False), (preview_dialog, "practice-estimate", True),
+                    (native_browser, "native-roster", False), (native_planner, "native-lineage", False),
+                    (native_details, "native-veteran", False)):
                 for width, height in SIZES:
                     dialog.hide()
                     dialog.resize(min(740, width - 400) if narrow else min(1220, width - 130), height - 40)

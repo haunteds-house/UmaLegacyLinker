@@ -155,14 +155,13 @@ class WorkbenchPage(QWidget):
 
     def _make_collection(self):
         _, outer = self._tab("Roster and collection")
-        self.collection_views = QTabWidget()
-        outer.addWidget(self.collection_views, 1)
-        self.roster_viewer = RosterViewer(self.store)
+        self.roster_viewer = RosterViewer(self.store, self.master, self.images)
         self.roster_viewer.plan_requested.connect(self.new_goal)
-        self.collection_views.addTab(self.roster_viewer, "Uma.guide roster")
+        outer.addWidget(self.roster_viewer, 1)
+        self.collection_views = self.roster_viewer.tabs
         native = QWidget()
         layout = QVBoxLayout(native)
-        self.collection_views.addTab(native, "My collection · offline")
+        self.collection_views.insertTab(1, native, "My collection")
         layout.addWidget(muted_label("Choose a character or support card to see its stats, skills and inheritance. Search by name; portraits load as you browse."))
         row = QHBoxLayout()
         self.collection_kind = QComboBox()
@@ -694,6 +693,7 @@ class WorkbenchPage(QWidget):
             f"{counts.get('veterans', 0)} veterans · {counts.get('races', 0)} Team Trials races"
             + (" · Choose the game data file in Setup to load names." if not self.master.path else ""))
         self.refresh_collection()
+        self.roster_viewer.refresh()
         current = self.cohort.currentData()
         self.cohort.blockSignals(True)
         self.cohort.clear()

@@ -142,7 +142,8 @@ class TrainingGoalDialog(QDialog):
 
         lineup = page("Lineup")
         lineup.addWidget(muted_label("Leave slots open for suggestions, or pin your choices. Every support deck uses five of your cards and one borrowed card."))
-        veteran_rows = describe_records(master, "veterans", store.entities("veterans"))
+        from uma_workbench.roster_viewer import owned_veterans
+        veteran_rows = describe_records(master, "veterans", owned_veterans(store))
         self.parents = [NamedChoice(f"Choose parent {index + 1}", veteran_rows, repository) for index in range(2)]
         form = QFormLayout()
         for index, picker in enumerate(self.parents):
@@ -206,13 +207,6 @@ class TrainingGoalDialog(QDialog):
         if runner:
             for index, identity in enumerate(runner.get("parent_ids", [])[:2]):
                 self._set_identity(self.parents[index], identity, "trained_chara_id")
-            for index, candidates in enumerate(runner.get("viewer_parent_candidates", [])[:2]):
-                if len(candidates) == 1:
-                    self._set_identity(self.parents[index], candidates[0], "trained_chara_id")
-                elif candidates:
-                    self.parents[index].records = [row for row in self.parents[index].records if row["record"]["trained_chara_id"] in candidates]
-                    self.parents[index].label.setText("Choose which copy from the viewer")
-                    self.tabs.setCurrentIndex(1)
 
     def _filter_skills(self, text):
         for index in range(self.skills.count()):

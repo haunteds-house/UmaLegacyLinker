@@ -6,21 +6,31 @@ inheritance engines; the previous Tkinter companion is replaced by the native
 
 ## Roster viewer and quick plans
 
-**Roster and collection → Uma.guide roster** contains the actual online
-[Uma.guide roster viewer](https://uma.guide/roster-viewer/). Import your
-collection into the app, then click **Load my roster in Uma.guide**. It loads
-just the veteran roster into the site's public JSON importer; account and
-trainer fields are excluded. Uma.guide runs the viewer and receives the roster
-in its page context. The app exposes no native file or database API to that page.
-The viewer needs internet access; no copy of its site code is bundled.
+**Roster and collection → Veterans** is a native roster viewer inspired by the
+roster/legacy workflow of [Uma.guide](https://uma.guide/roster-viewer/).
+It uses your imported collection directly. No website or browser is loaded,
+and your roster is not sent to a website. Names come from the selected game
+database. Optional portraits download separately and remain cached offline.
 
-Use its Legacy filters, affinity tool or Lineage Planner. Choose an owned
-target in Lineage Planner and click **Plan this target** above the viewer.
-A uniquely identifiable owned parent carries over. When multiple veterans of
-the same character exist, the local picker asks you to choose the copy; it
-never guesses from the character name. Placeholder and borrowed parents are
-not treated as owned parents. **New plan** leaves the trainee open and compares
-your collection from the skills and aptitudes you want.
+Search and sort the illustrated veteran cards, or use **Filters** for sparks,
+aptitudes, skills and stats. Open a veteran for stat bars, aptitude grades,
+learned skills and illustrated ancestry. Rating and training date help distinguish
+copies. **Use as parent 1/2** sends that exact copy to **Lineage planner**.
+
+In **Lineage planner**, choose an owned trainee and up to two owned parents.
+It shows the six-member spark totals, starting aptitude changes, character
+compatibility and shared G1 bonuses using the existing local inheritance code.
+Missing ancestor/race data is labelled incomplete. Starting aptitude is capped
+at A; S needs an in-career inheritance roll. The preview lists possible skill
+hints from sparks, not all learned parent skills. Parent characters must differ
+from each other and from the trainee, including across outfits.
+
+**Find setups / save plan** carries the selected target and exact parent copies
+to the career editor. Choices are retained between sessions. Leave the trainee
+open, or use **New career plan**, to start from desired skills and aptitudes.
+Borrowed veterans remain visible in the roster and cannot fill owned parent
+slots. The original **Lineage linker** remains available for deeper inheritance
+probabilities, remote searches and race calendars.
 
 The plan editor has three main tabs: **Goal**, **Lineup** and **Suggested setups**.
 Practice estimates and training-order controls are optional under **Show practice
@@ -33,7 +43,7 @@ may have better levels or limit breaks. Leaving it open lets the search suggest
 a rental from the game database; check that it is available from your friends.
 Incomplete collections produce explicitly incomplete lineups.
 
-**My collection · offline** and every illustrated card picker share the same
+**My collection**, **Veterans** and every illustrated card picker share the same
 **Filters** control. Combine named sparks and minimum stars, current aptitude
 grades, skill access, stat minimums, rarity, support type, level and limit breaks.
 The optional family spark total includes the veteran and the two immediate
